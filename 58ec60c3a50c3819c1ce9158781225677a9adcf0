@@ -1,0 +1,7 @@
+kind summary
+title Canonical substrate summary
+status archived
+edge applies-to blob:58ec60c3a50c3819c1ce9158781225677a9adcf0
+edge targets-path path:mycelium.md
+
+Final distilled spec: git notes as substrate, header/body note format, open vocabulary for kinds and edges, invisible until activated, explicit sync setup, and raw git compatibility as a hard requirement. README.md is now the public entrypoint; this note preserves the distilled protocol thinking.
