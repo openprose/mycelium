@@ -1,23 +1,37 @@
 kind value
-title Capture the emotional labor
-supersedes 0241b63c18e1afaa7b8f996c9a5434998b04505d
+title Organic yet deterministic
+supersedes 5645521eb4a5d38d36508e5b0d1c7e4329578f04
 edge applies-to tree:cbd75c8cb99c858aa7d168fb32d5c60be32d830f
 edge targets-treepath treepath:.
 
-Design decisions have an emotional dimension — the oscillation,
-the false starts, the tension between competing goods. Resolved
-decisions look clean. The process of arriving at them is messy.
+Mycelium is not a workflow tool. It is not a spec tracker. It is
+not a linter or a CI check. It is a connective layer.
 
-A future agent reading 'doctor: facts only' sees the conclusion.
-Without the story of v1→v2→v3 and the repeated pushback from the
-human ('are we being too opinionated?', 'can this be general?',
-'is constraints the only namespace?'), the agent doesn't learn HOW
-to make decisions in the same spirit. They'll add a prescriptive
-check because it seems useful, not understanding that we tried
-that and pruned it back three times.
+Git tracks WHAT changed. Mycelium tracks WHY, and what it means,
+and what to watch out for, and what we believe. Git is the skeleton.
+Mycelium is the nervous system.
 
-The emotional labor of taste — knowing when to stop adding, when a
-feature is actually an opinion, when 'helpful' becomes 'imposing' —
-is the hardest thing to transmit. Value notes with stories are the
-closest we can get. They won't always work. But without them, the
-culture dies with the session.
+It is organic: notes grow naturally as agents work. No schema
+migration, no required fields beyond kind, no closed vocabulary.
+A note written today with 'kind celebration' works without any
+change to the tool.
+
+It is deterministic: git notes are content-addressed blobs on a
+ref. They have commit history. They merge. They push and pull.
+There is no magic, no database, no daemon. Just git.
+
+It is minimal: two files (mycelium.sh + SKILL.md). Bash and git.
+No runtime, no build step, no package manager.
+
+It is invisible: GitHub doesn't render notes. PRs don't show them.
+CI doesn't see them. This is the feature. Twenty years of git
+history have a hidden layer that nobody used because the UI never
+surfaced it. Agents don't need UI. They read refs.
+
+The last point is why this matters now: coding agents start from
+zero every session. They have no memory, no culture, no context
+beyond what's in the repo. The code tells them WHAT exists. The
+commits tell them WHEN things changed. Nothing tells them WHY,
+or what the team values, or what's fragile, or what was tried
+and abandoned. Mycelium fills that gap — not by adding a new
+system, but by using what git already had all along.
