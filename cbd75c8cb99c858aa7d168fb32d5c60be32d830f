@@ -1,0 +1,26 @@
+kind decision
+title Ergonomic vs pure: the tool is the graph, opinions go in notes
+edge applies-to tree:cbd75c8cb99c858aa7d168fb32d5c60be32d830f
+edge targets-treepath treepath:.
+
+This was the hardest design tension of the session.
+
+On one side: make the tool useful. doctor that checks doc drift.
+gaps that shows uncovered files. preflight that verifies session
+hygiene. Every feature request from dogfooding pulled toward more
+opinion in the tool.
+
+On the other: keep the tool minimal. Kinds are just strings. Edge
+types are open vocabulary. The tool reads and writes a graph. It
+doesn't know what 'good' looks like — YOU define good through the
+notes you write (constraints, values, warnings).
+
+Where we landed: the tool provides primitives (note, read, follow,
+refs, context, find, kinds, doctor, branch). Doctor reports graph
+state as facts. Everything above that — doc drift checks, tested-by
+coverage, session hygiene — belongs in the repo's own test suite
+or in notes, not in the tool.
+
+This means: adopting mycelium doesn't impose a workflow. You bring
+your own culture. The tool carries it. The skill shows patterns.
+But the tool never tells you you're doing it wrong.
