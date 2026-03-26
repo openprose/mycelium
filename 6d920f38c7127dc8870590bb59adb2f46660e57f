@@ -1,0 +1,14 @@
+kind context
+title Design lineage
+status archived
+edge applies-to tree:6d920f38c7127dc8870590bb59adb2f46660e57f
+edge targets-treepath treepath:.
+edge depends-on note:26d5b4bf0d41ba15b655914a22005cb82dd7678b
+edge depends-on note:f96ed1b4fb15c82ada6e6d0f7a03caacd018e543
+edge depends-on note:211ec4294465ff1daea43c150757fbd2d35a5be1
+
+Lineage only, not the current contract.
+- mycelium.md = distilled substrate
+- mycelium-decisions.md = why it was reduced
+- mycelium-v1.md = superseded full-system design space
+Current contract lives in mycelium.sh, README.md, SKILL.md, test/, and live notes.
