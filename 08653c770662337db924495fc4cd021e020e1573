@@ -1,0 +1,16 @@
+kind decision
+title follow + refs: graph navigation commands
+edge explains commit:08653c770662337db924495fc4cd021e020e1573
+
+Two commands make the three core patterns easy:
+
+- follow: read a note, resolve every edge, show what's at the other end.
+  Makes 'one note → many refs' visible in one command.
+  Makes planning graphs walkable — follow HEAD shows the plan.
+
+- refs: reverse lookup. Given any object, find every note that points at it.
+  Makes 'one ref → many notes' explicit — not just context (which walks
+  the tree) but ALL inbound edges from anywhere in the graph.
+
+Together they give bidirectional graph traversal with zero dependencies
+beyond git and bash. follow = outbound, refs = inbound.
