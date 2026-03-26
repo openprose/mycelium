@@ -1,4 +1,5 @@
 kind constraint
+status composted
 title Mycelium development principles
 supersedes 2c98e28f60c707b47e16dbdc6abf471a199239b0
 edge applies-to tree:092ecf8079c38fd29bb05e5a42c4ee271c755bb2
