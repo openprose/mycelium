@@ -1,47 +1,7 @@
 kind constraint
 title Mycelium development principles
-supersedes 74c74ced66b51b980ff29100f6387690c36288c8
+supersedes 2c98e28f60c707b47e16dbdc6abf471a199239b0
 edge applies-to tree:092ecf8079c38fd29bb05e5a42c4ee271c755bb2
 edge targets-treepath treepath:.
 
-1. GIT-NATIVE. Git notes is the substrate. The tool must be as
-   git-native as possible. If git can do it, we don't wrap it.
-
-2. SKILL STAYS IN SYNC. SKILL.md reflects discovered best practices
-   as we learn them. It cannot force agent behavior, but it shows
-   what a good job looks like. Update the skill when patterns emerge.
-
-3. PAVE THE DESIRE PATH (Steve Yegge). When agents hallucinate CLI
-   paths or get errors, that is signal — our interface is not ergonomic
-   to agents. Fix the interface, don't blame the agent.
-
-4. SELF-DOCUMENTING CLI. help must be complete. Errors must be clear.
-   An agent should never need to read source to use the tool.
-
-5. TEST WITH REAL AGENTS. CLI changes must be tested in interactive
-   agent sessions (tmux + pi/claude-code). Unit tests verify mechanics;
-   agent tests verify ergonomics.
-
-6. BASH AND GIT ONLY. No runtimes, no package managers, no build steps.
-   jj+git colocation is on the roadmap but not now.
-
-7. DOGFOOD. Use mycelium to develop mycelium. Every session should
-   read notes on arrival and leave notes on departure.
-
-8. BRANCH FOR FEATURES. New commands and behavioral changes develop
-   on a jj bookmark + mycelium branch. Main stays stable.
-
-   Workflow:
-     jj new -m 'feature: description'
-     jj bookmark set feature-name
-     ./mycelium.sh branch use feature-name
-
-   Work, test, leave notes on the branch. When tests pass and the
-   feature is dogfooded:
-
-     jj bookmark move master --to @
-     ./mycelium.sh branch use main
-     ./mycelium.sh branch merge feature-name
-
-   Code and notes branch together, merge together. An agent arriving
-   on main during development sees stable code and stable notes.
+test overwrite warning
