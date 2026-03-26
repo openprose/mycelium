@@ -1,4 +1,5 @@
 kind value
+status composted
 title Git-native
 edge applies-to tree:fb6255ad01da67c217b8cefa94426d7a224323c6
 edge targets-treepath treepath:.
