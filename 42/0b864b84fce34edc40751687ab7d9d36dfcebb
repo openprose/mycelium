@@ -1,0 +1,6 @@
+kind constraint
+title Test root principle
+edge applies-to tree:420b864b84fce34edc40751687ab7d9d36dfcebb
+edge targets-treepath treepath:.
+
+Applies to everything.
