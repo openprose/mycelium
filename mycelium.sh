@@ -165,8 +165,40 @@ cmd_read() {
   else
     echo "$type:${oid:0:12}"
   fi
-  git notes --ref="$REF" show "$oid" 2>/dev/null \
-    || echo "(no mycelium note)"
+
+  # Direct note on this object
+  local note
+  note=$(git notes --ref="$REF" show "$oid" 2>/dev/null || true)
+  if [[ -n "$note" ]]; then
+    echo "$note"
+    return
+  fi
+
+  # No direct note — if this is a path target, scan for stale notes
+  # that reference this path but have a different blob OID
+  if [[ -n "$filepath" ]]; then
+    local path_target="path:$filepath"
+    local found=false
+    git notes --ref="$REF" list 2>/dev/null | while read noteblob obj; do
+      local content
+      content=$(git cat-file -p "$noteblob")
+      # Does this note target our path?
+      if echo "$content" | grep -q "targets-path $path_target"; then
+        local kind=$(note_header "$content" "kind")
+        local title=$(note_header "$content" "title")
+        echo "(no note on current blob)"
+        echo ""
+        echo "[stale] ${title:-(untitled)} ($kind) — blob changed, path note still relevant"
+        echo "$content"
+        found=true
+        break
+      fi
+    done
+    # Subshell means $found doesn't propagate — use grep to check
+    return
+  fi
+
+  echo "(no mycelium note)"
 }
 
 cmd_context() {
@@ -185,13 +217,30 @@ cmd_context() {
     if [[ -n "$note" ]]; then
       local kind=$(note_header "$note" "kind")
       local title=$(note_header "$note" "title")
-      echo "[blob] ${title:-$filepath} ($kind)"
+      echo "[exact] ${title:-$filepath} ($kind)"
       echo "$note"
       echo ""
     fi
   fi
 
-  # 2. Walk parent directories for tree notes
+  # 2. Stale/contextual: notes that target this path but are on a different blob
+  local path_target="path:$filepath"
+  local seen_objs="${blob:-},"
+  git notes --ref="$REF" list 2>/dev/null | while read noteblob obj; do
+    [[ "$obj" == "${blob:-}" ]] && continue
+    local content
+    content=$(git cat-file -p "$noteblob")
+    if echo "$content" | grep -q "targets-path $path_target"; then
+      seen_objs+="$obj,"
+      local kind=$(note_header "$content" "kind")
+      local title=$(note_header "$content" "title")
+      echo "[stale] ${title:-$filepath} ($kind) — blob changed since note was written"
+      echo "$content"
+      echo ""
+    fi
+  done
+
+  # 3. Walk parent directories for tree notes
   local dir="$filepath"
   while true; do
     dir=$(dirname "$dir")
@@ -226,20 +275,6 @@ cmd_context() {
     fi
   fi
 
-  # 4. Other notes that reference this path
-  local path_target="path:$filepath"
-  git notes --ref="$REF" list 2>/dev/null | while read noteblob obj; do
-    [[ "$obj" == "${blob:-}" || "$obj" == "${commit:-}" ]] && continue
-    local content
-    content=$(git cat-file -p "$noteblob")
-    if echo "$content" | grep -q "edge.*$path_target"; then
-      local kind=$(note_header "$content" "kind")
-      local title=$(note_header "$content" "title")
-      echo "[edge] ${title:-(untitled)} ($kind) — references $filepath"
-      echo "$content"
-      echo ""
-    fi
-  done
 }
 
 cmd_edges() {

@@ -129,13 +129,12 @@ assert "read defaults to HEAD" "commit:${COMMIT:0:12}" "$out"
 out=$($MYCELIUM read src/auth/retry.ts)
 assert "read path shows filepath" "(src/auth/retry.ts)" "$out"
 
-# read nonexistent note
-out=$($MYCELIUM read "$BLOB_RETRY" 2>&1 || true)
-# The blob has a note, try a fresh blob
+# read nonexistent note (use OID directly to avoid path-based stale scan)
 echo "new file" > newfile.txt
 git add newfile.txt
 git commit -q --no-verify -m "add newfile"
-out=$($MYCELIUM read newfile.txt 2>&1)
+NEW_BLOB=$(git rev-parse HEAD:newfile.txt)
+out=$($MYCELIUM read "$NEW_BLOB" 2>&1)
 assert "read missing note" "(no mycelium note)" "$out"
 
 echo ""
@@ -144,7 +143,7 @@ echo "=== Context ==="
 # Context walks blob → tree → commit
 $MYCELIUM note -k context -m "Commit context for context test" >/dev/null
 out=$($MYCELIUM context src/auth/retry.ts)
-assert "context shows blob note" "[blob]" "$out"
+assert "context shows exact blob note" "[exact]" "$out"
 assert "context shows inherited tree" "[tree]" "$out"
 assert "context shows commit" "[commit]" "$out"
 assert "context header" "=== context: src/auth/retry.ts" "$out"
@@ -231,6 +230,61 @@ echo "=== Body from stdin ==="
 echo "Stdin body content" | $MYCELIUM note HEAD -k observation >/dev/null
 out=$($MYCELIUM read)
 assert "stdin body captured" "Stdin body content" "$out"
+
+echo ""
+echo "=== Stale Detection ==="
+
+# Annotate a file, then change it
+echo "version 1" > stalefile.ts
+git add stalefile.ts
+git commit -q --no-verify -m "add stalefile"
+$MYCELIUM note stalefile.ts -k warning -t "Fragile parsing" -m "Do not touch without tests." >/dev/null
+
+echo "version 2" > stalefile.ts
+git add stalefile.ts
+git commit -q --no-verify -m "modify stalefile"
+
+# read should find the stale note via path edge
+out=$($MYCELIUM read stalefile.ts)
+assert "stale: no note on current blob" "(no note on current blob)" "$out"
+assert "stale: shows [stale] label" "[stale]" "$out"
+assert "stale: shows original note content" "Fragile parsing" "$out"
+
+# context should show it as [stale]
+out=$($MYCELIUM context stalefile.ts)
+assert "stale context: shows [stale]" "[stale]" "$out"
+assert "stale context: blob changed message" "blob changed" "$out"
+
+echo ""
+echo "=== Rename (same content) ==="
+
+# Rename without changing content — blob OID stays the same
+echo "rename target" > renameme.ts
+git add renameme.ts
+git commit -q --no-verify -m "add renameme"
+$MYCELIUM note renameme.ts -k summary -m "Important module." >/dev/null
+
+git mv renameme.ts renamed.ts
+git commit -q --no-verify -m "rename"
+
+# Same blob OID — note should follow automatically
+out=$($MYCELIUM read renamed.ts)
+assert "rename: note follows (same blob)" "Important module." "$out"
+
+echo ""
+echo "=== Deep Inheritance ==="
+
+# Constraint on a parent dir should surface for deeply nested files
+mkdir -p deep/a/b/c
+echo "leaf" > deep/a/b/c/leaf.ts
+git add deep
+git commit -q --no-verify -m "deep nesting"
+DEEP_TREE=$(git rev-parse HEAD:deep)
+$MYCELIUM note deep -k constraint -m "Everything here is experimental." >/dev/null
+
+out=$($MYCELIUM context deep/a/b/c/leaf.ts)
+assert "deep inheritance: surfaces parent tree note" "[tree]" "$out"
+assert "deep inheritance: shows constraint" "experimental" "$out"
 
 echo ""
 echo "================================"
