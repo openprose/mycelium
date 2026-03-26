@@ -1,8 +1,14 @@
-kind todo
-title Revisit gitleaks stdin if upstream fixes it
-supersedes c26c22b68cc787343e690083a0023ff6f36f1365
+kind observation
+title note_header pipefail bug class
+supersedes 34f8e9b7ec0d15a4106d2073219d43a8b1108a1b
 edge applies-to blob:1d2814b527ed1bdf77e89b6b6eb36e2742992633
 edge targets-path path:mycelium.sh
 
-Current workaround: tmpfile + gitleaks dir. If gitleaks fixes stdin
-rule loading, simplify back to pipe. Track gitleaks/gitleaks issues.
+note_header uses echo | grep | head | sed. When grep finds no match,
+it exits 1, which kills the pipeline under set -euo pipefail. This is
+the same bug class as the 'grep -qF breaks on --- prefixes' warning
+on test.sh. Fixed with || true at the end of the pipeline.
+
+This pattern exists in many places throughout the tool — any function
+that uses grep in a pipeline is vulnerable. The || true fix is local;
+a more systematic fix would use awk instead of grep for header extraction.
