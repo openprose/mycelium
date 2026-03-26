@@ -1,4 +1,5 @@
 kind warning
+status composted
 title git notes remove does NOT erase history
 edge applies-to tree:af60d1f32d1ccdb3dff2025eea5a2e49ea8819c8
 edge targets-treepath treepath:.
