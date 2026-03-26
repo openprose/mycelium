@@ -1,13 +1,12 @@
 kind observation
-title Decisions are mycelium's strongest use case
+title Probe result: notes capture decisions, gaps in operational how
+supersedes 19986eec0ccf7ec72dad28a6b4c75ec51ed7f9ab
 edge explains commit:ea10985161f3053d17355bd29e32cc448c7e76f8
 
-Demonstrated the decision workflow. Key advantages over git log:
-1. find decision — one command, every decision (git can't filter by intent)
-2. Decisions attach to the objects they affect (not a separate docs/ dir)
-3. Staleness is automatic (blob changed → [stale] label)
-4. Supersession chain shows how decisions evolved
-5. Decision notes capture alternatives considered (commit messages can't)
-
-The gap: git log tells you WHAT happened. Mycelium tells you WHY,
-WHAT ELSE was considered, and WHETHER it's still current.
+Fresh agent (no conversation context) reconstructed all 10 major decisions
+and their rationale from mycelium notes alone. Gap pattern: notes are strong
+on 'why we chose X' but weak on operational guidance — conflict handling,
+scaling triggers, enforcement, multi-agent workflows. The decision log note
+references 10 hard questions but only ~5 are fully expanded as standalone
+decision notes. Good enough to orient. Not yet good enough to fully replace
+the conversation context.
