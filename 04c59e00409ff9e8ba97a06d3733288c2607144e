@@ -1,0 +1,19 @@
+kind value
+title Docs track code
+edge applies-to blob:04c59e00409ff9e8ba97a06d3733288c2607144e
+edge targets-path path:README.md
+
+README.md and SKILL.md must stay in sync with mycelium.sh.
+
+README is for humans discovering the repo. SKILL.md is for agents
+loading the convention. Both must reflect the current commands,
+patterns, and capabilities. When you add a command, update both.
+When you change behavior, update both.
+
+Story: we added follow, refs, kinds, and branch commands during a
+single session. SKILL.md was updated with the three patterns
+(accumulation, multi-edge, planning graph) and the 'On arrival'
+section. But the README didn't exist yet — it was written after
+the commands, not alongside them. That worked this time because
+it was a first draft. Going forward, command changes and doc
+changes should be in the same commit.
