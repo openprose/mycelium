@@ -1,8 +1,18 @@
-kind todo
-title Test CLI with real agents in tmux
+kind observation
+title Agent onboarding gap: workflow not obvious
+supersedes a14f263c3a860d391004f253eb458429c55572bf
 edge applies-to blob:002f366dace132cce007fb1bac6b164f42d24ee8
 edge targets-path path:SKILL.md
 
-Principle 5: test with real agents. We dogfooded this session but
-haven't run a separate agent session that arrives cold and follows
-the skill instructions. Need tmux + pi/claude-code session.
+An agent arrived (this session), read README + SKILL + all notes,
+and still didn't know the branching workflow. The development
+principles said 'dogfood' and 'test with real agents' but not
+'use branches for features.' The agent worked directly on main,
+overwrote the root tree constraint, wrote notes to the wrong ref.
+
+Fix: principle 8 added to root tree constraint. But the deeper
+issue is that SKILL.md is for any repo — it teaches the convention.
+The development workflow is specific to THIS repo and lives in the
+notes. An agent needs to read both the skill AND the project's own
+notes to know how to work here. That two-step onboarding isn't
+obvious unless someone tells you.
