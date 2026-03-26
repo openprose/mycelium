@@ -1,0 +1,6 @@
+kind warning
+title Fragile parsing
+edge applies-to blob:83baae61804e65cc73a7201a7252750c76066a30
+edge targets-path path:stalefile.ts
+
+Do not touch without tests.
