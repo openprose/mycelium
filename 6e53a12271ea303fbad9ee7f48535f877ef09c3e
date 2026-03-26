@@ -1,4 +1,5 @@
 kind warning
+status composted
 title branch's note
 supersedes b58a6838640d7f10d15047fc5848c2e7960678e5
 edge applies-to blob:6e53a12271ea303fbad9ee7f48535f877ef09c3e
