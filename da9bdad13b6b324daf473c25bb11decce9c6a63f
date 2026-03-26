@@ -1,5 +1,6 @@
 kind summary
+supersedes 37a33f2d5ed5b1faa4b602aad2c85342d5d795e2
 edge applies-to blob:da9bdad13b6b324daf473c25bb11decce9c6a63f
 edge targets-path path:src/auth/retry.ts
 
-Retry module summary
+Updated summary
