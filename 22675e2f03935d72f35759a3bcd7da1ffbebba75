@@ -1,16 +1,18 @@
-kind decision
-title gitleaks: recommended, not required
+kind context
+title Planned modification: harden gitleaks integration
+supersedes a75531d94f06e097f1c935e088cadb4d6f7741c5
 edge explains commit:22675e2f03935d72f35759a3bcd7da1ffbebba75
+edge depends-on blob:20b72394a7be3b033ffb83c2dc9643eca655f0b8
+edge depends-on blob:3ca5b32903e9bf490721ca4f3d315e2258fa6fae
 
-gitleaks is strongly recommended but not a strict dependency.
+Two files need coordinated changes:
 
-Three scan layers, all skip gracefully when gitleaks is absent:
-1. Inline (mycelium.sh note): gitleaks dir on tmpfile before write
-2. Pre-commit hook: gitleaks git --staged
-3. Pre-push hook: gitleaks git (--all default, covers refs/notes/*)
+1. mycelium.sh — the gitleaks dir tmpfile workaround may simplify
+   if upstream fixes stdin mode. Monitor and revisit.
 
-Key findings:
-- gitleaks v8.30 scans notes by default (git log --all includes refs/notes/*)
-- gitleaks stdin mode does NOT load rules — use dir mode with tmpfile instead
-- git notes remove does NOT erase history — the add commit persists in --all
-- test suite: test-gitleaks.sh, 16 tests, runs independently, SKIPs without gitleaks
+2. test-gitleaks.sh — expand secret patterns beyond slack tokens.
+   Need minimum viable RSA key + GitHub PAT fixtures that gitleaks
+   actually detects. The private key test was removed because gitleaks
+   needs a real-length key, not a stub.
+
+Both changes are safe to make independently but should be tested together.
