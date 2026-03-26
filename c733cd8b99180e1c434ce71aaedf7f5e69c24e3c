@@ -1,6 +1,6 @@
 kind value
 title Project values
-status active
+status composted
 edge applies-to tree:c733cd8b99180e1c434ce71aaedf7f5e69c24e3c
 edge targets-treepath treepath:.
 edge depends-on note:f51775a6d6964755f9a093d92e6cd85a5014f9cb
