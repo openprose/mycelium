@@ -1,0 +1,6 @@
+kind context
+title Default note
+edge applies-to blob:12400cedea9d467059e79eb645d6a555c24044ef
+edge targets-path path:shared.ts
+
+Written to default slot.
