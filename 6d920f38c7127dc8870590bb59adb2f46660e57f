@@ -1,6 +1,6 @@
 kind constraint
 title Project principles
-status active
+status composted
 edge applies-to tree:6d920f38c7127dc8870590bb59adb2f46660e57f
 edge targets-treepath treepath:.
 edge depends-on note:626d85330703fde4dcbbb83470074cb835b476c6
