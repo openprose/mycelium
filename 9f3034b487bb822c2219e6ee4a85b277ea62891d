@@ -1,0 +1,6 @@
+kind observation
+title stability test root
+edge applies-to tree:9f3034b487bb822c2219e6ee4a85b277ea62891d
+edge targets-treepath treepath:.
+
+testing
