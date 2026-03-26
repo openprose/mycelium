@@ -1,0 +1,6 @@
+kind summary
+title Public-ready installer
+edge applies-to blob:4ece3d7b4e25cfbab0755c9ddaacc57b83126525
+edge targets-path path:install.sh
+
+Installs mycelium.sh to PREFIX/bin (default ~/.local/bin), works from a local checkout or from stdin/curl-style execution, and keeps the runtime artifact to one file. REPO_BASE is overridable so test/test.sh can exercise the stdin path without needing the repo to be public.
