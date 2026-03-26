@@ -1,16 +1,12 @@
 kind decision
 title follow + refs: graph navigation commands
+supersedes 348281f724638a1f9c7ec525a27fef5f0783b2d8
 edge explains commit:08653c770662337db924495fc4cd021e020e1573
+edge tested-by blob:38596bf1085058af7585b7258d17fcdcff5d3cd8
 
-Two commands make the three core patterns easy:
+follow = outbound edge traversal, refs = inbound. Together they give
+bidirectional graph navigation with zero deps beyond git and bash.
 
-- follow: read a note, resolve every edge, show what's at the other end.
-  Makes 'one note → many refs' visible in one command.
-  Makes planning graphs walkable — follow HEAD shows the plan.
-
-- refs: reverse lookup. Given any object, find every note that points at it.
-  Makes 'one ref → many notes' explicit — not just context (which walks
-  the tree) but ALL inbound edges from anywhere in the graph.
-
-Together they give bidirectional graph traversal with zero dependencies
-beyond git and bash. follow = outbound, refs = inbound.
+Tested by: test.sh 'Follow Command' (5 assertions) + 'Refs Command' (3 assertions).
+Validates: edge resolution, multi-edge notes, inbound depends-on discovery,
+no-note handling.
