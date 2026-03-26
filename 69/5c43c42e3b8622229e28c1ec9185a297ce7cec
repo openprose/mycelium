@@ -1,4 +1,5 @@
 kind observation
+status composted
 edge applies-to tree:695c43c42e3b8622229e28c1ec9185a297ce7cec
 edge targets-treepath treepath:.
 
