@@ -1,9 +1,13 @@
 kind context
-title Local workflow preference: jj workspaces over git worktrees
+title Incident learnings: hooks, worktrees, and split-brain local git state
 status active
-supersedes 54f2701c1890c5139015a5c8b740138285e44efc
+supersedes dc579d4d11bbb018976e50ff2015d2072a82abe9
 edge explains commit:dcf154c3a65ba07fd7b1459e625627d21b5f8cc3
 
-Preference from Raymond: use jj workspaces rather than git worktrees for parallel local work, partly because the git-worktree setup here created confusing split-brain local state (temporary checkout vs canonical path).
+This cleanup session exposed two concrete local footguns.
 
-If future local reconfiguration is needed, optimize for a single obvious working path and jj-native workspace flow.
+1. Git hooks inherit repo-local environment like GIT_DIR and GIT_WORK_TREE. When pre-commit launched the nested git-based test suite without clearing those vars, temporary test repos accidentally targeted the outer checkout. Fix: clear `git rev-parse --local-env-vars` before running nested git tests from hooks.
+
+2. A temporary git worktree plus a canonical-looking local path created split-brain state: the place that looked like the repo was not the active checkout, while the active checkout lived elsewhere. This made it too easy to say 'landed' when changes were only local and only checked out in the side worktree. Preference: use jj workspaces over git worktrees for parallel local work in this repo, and keep one obvious working path when possible.
+
+Meta-learning: when local git state gets weird, stop, inspect `git worktree list`, branch refs, hook env, and remotes before doing more surgery.
