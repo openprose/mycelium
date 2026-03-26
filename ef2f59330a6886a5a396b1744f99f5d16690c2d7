@@ -1,0 +1,8 @@
+kind constraint
+title No dependencies beyond git and bash
+edge applies-to tree:ef2f59330a6886a5a396b1744f99f5d16690c2d7
+
+Hard rule. Mycelium must never require a runtime, a package manager,
+a build step, or a custom binary. Everything must work with git and bash.
+If a feature cannot be implemented with git plumbing commands, it does
+not belong in mycelium — it belongs in a tool built on top of mycelium.
