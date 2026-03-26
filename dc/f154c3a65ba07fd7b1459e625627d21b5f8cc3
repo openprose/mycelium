@@ -1,8 +1,9 @@
 kind context
-title Session: add tracked pre-push gitleaks scan
+title Local workflow preference: jj workspaces over git worktrees
 status active
+supersedes 54f2701c1890c5139015a5c8b740138285e44efc
 edge explains commit:dcf154c3a65ba07fd7b1459e625627d21b5f8cc3
 
-Added a tracked `hooks/pre-push` hook because this repo already uses `core.hooksPath=hooks/`, so adding the file installs the scan for all local worktrees.
+Preference from Raymond: use jj workspaces rather than git worktrees for parallel local work, partly because the git-worktree setup here created confusing split-brain local state (temporary checkout vs canonical path).
 
-Reasoning: pre-commit is useful, but notes can still enter history via other paths. A pre-push `gitleaks git` scan gives a last line of defense that includes refs/notes/*.
+If future local reconfiguration is needed, optimize for a single obvious working path and jj-native workspace flow.
