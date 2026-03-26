@@ -1,6 +1,7 @@
 kind context
-title First note
+title Second note
+supersedes fd99b00f2e7223233515b6ad84ed531e436e4899
 edge applies-to blob:b718f0ccb169f06f51acb177828304857787eb46
 edge targets-path path:owtest.ts
 
-first
+second
