@@ -1,20 +1,13 @@
 kind decision
 title gitleaks: recommended, not required
-supersedes 7c593f3a576affdafa96a58dc2e45b19cdb055cd
+supersedes 32668d23ab64682f52d8ef94ef8ff08bf6fa5fa7
 edge explains commit:ea10985161f3053d17355bd29e32cc448c7e76f8
+edge tested-by blob:3ca5b32903e9bf490721ca4f3d315e2258fa6fae
 
-gitleaks is a strongly recommended tool for secret scanning but not a strict
-dependency. When gitleaks is installed:
+gitleaks is strongly recommended but not required. Three scan layers
+skip gracefully when absent. gitleaks v8.30 scans notes by default via
+git log --all. stdin mode broken — use dir with tmpfile.
 
-1. mycelium.sh note scans content before writing (gitleaks dir on tmpfile)
-2. pre-commit hook scans staged changes (gitleaks git --staged)
-3. pre-push hook scans all refs including notes (gitleaks git, --all is default)
-
-When gitleaks is absent, all three layers silently skip — mycelium works
-normally without it. The test suite (test-gitleaks.sh) also SKIPs gracefully.
-
-Key finding during implementation: gitleaks v8.30 runs git log -p --all by
-default, which includes refs/notes/*. No special config needed to scan notes.
-Also: git notes remove does NOT erase history — the add commit stays in the
-notes ref log. A secret once written to a note is permanent in --all history.
-Use .gitleaksignore or baseline for known false positives.
+Tested by: test-gitleaks.sh (16 assertions). Validates: inline scan blocks
+secrets in note body/title, pre-commit blocks staged secrets, pre-push
+blocks secrets in notes refs, clean content passes all layers.
