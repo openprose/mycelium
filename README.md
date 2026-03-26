@@ -18,12 +18,13 @@ mycelium.sh context src/auth.ts
 mycelium.sh note HEAD -k context -m "Refactored retry logic. See warning on auth.ts."
 ```
 
+## Install
+
+One file, no dependencies beyond bash and git. Copy `mycelium.sh` anywhere on your PATH.
+
 ## Quick start
 
 ```bash
-# copy the tool (one file, no dependencies)
-cp mycelium.sh /usr/local/bin/   # or anywhere on PATH
-
 # in any git repo
 mycelium.sh note HEAD -k context -m "First note."
 mycelium.sh read HEAD
