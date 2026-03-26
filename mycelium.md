@@ -229,6 +229,24 @@ The format is open by design:
 - **New headers**: the parser ignores unknown headers. Add `priority high` or `confidence 0.9` freely.
 - **Schema evolution**: if the format ever needs breaking changes, add a `schema` header. Absence means v1.
 
+## Invariants
+
+1. **No note is ever silently lost.** When a note on an object is replaced, the
+   old note's blob OID must be preserved in the new note's `supersedes` header.
+   The old blob remains in git's object store. The supersession chain is always
+   walkable. Tools that write notes must enforce this automatically.
+
+2. **Notes are fully versioned.** The notes ref (`refs/notes/mycelium`) is a git
+   branch. Every write is a commit. The complete history of every note — including
+   all overwrites — is preserved in the ref's commit history and recoverable via
+   `git log refs/notes/mycelium` and `git diff refs/notes/mycelium~1 refs/notes/mycelium`.
+   Notes are invisible, which makes versioning *more* important, not less.
+
+3. **No silent data destruction.** `git notes add` without `-f` will refuse to
+   overwrite. Tools that use `-f` must first capture the existing note. Raw
+   `git notes remove` should only be used for pruning superseded chains with
+   explicit intent, never casually.
+
 ## Design principles
 
 1. **Git notes are the substrate.** Not tracked files. Not a database. Notes.

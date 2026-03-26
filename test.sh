@@ -232,6 +232,33 @@ out=$($MYCELIUM read)
 assert "stdin body captured" "Stdin body content" "$out"
 
 echo ""
+echo "=== Auto-Supersede Invariant ==="
+
+# Write a note, overwrite it, verify the old one is preserved
+$MYCELIUM note README.md -k observation -m "First version." >/dev/null
+FIRST_BLOB=$(git notes --ref=mycelium list "$BLOB_README" | cut -d' ' -f1)
+
+$MYCELIUM note README.md -k observation -m "Second version." >/dev/null
+out=$($MYCELIUM read README.md)
+assert "auto-supersede: new note has supersedes header" "supersedes $FIRST_BLOB" "$out"
+
+# Old blob is still retrievable
+out=$(git cat-file -p "$FIRST_BLOB")
+assert "auto-supersede: old blob retrievable" "First version." "$out"
+
+# Chain: overwrite again, verify it points to second, which points to first
+SECOND_BLOB=$(git notes --ref=mycelium list "$BLOB_README" | cut -d' ' -f1)
+$MYCELIUM note README.md -k observation -m "Third version." >/dev/null
+out=$($MYCELIUM read README.md)
+assert "auto-supersede: chain depth 2" "supersedes $SECOND_BLOB" "$out"
+out=$(git cat-file -p "$SECOND_BLOB")
+assert "auto-supersede: chain walkable" "supersedes $FIRST_BLOB" "$out"
+
+# Notes ref has commit history
+out=$(git log --oneline refs/notes/mycelium | wc -l)
+assert_not "notes ref has commit history" "0" "$out"
+
+echo ""
 echo "=== Stale Detection ==="
 
 # Annotate a file, then change it
