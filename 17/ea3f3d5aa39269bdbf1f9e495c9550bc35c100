@@ -1,0 +1,9 @@
+kind decision
+title Pre-push scans full git history including notes
+status active
+edge applies-to blob:17ea3f3d5aa39269bdbf1f9e495c9550bc35c100
+edge targets-path path:hooks/pre-push
+
+This hook runs `gitleaks git --no-banner --redact -l warn` before push. It is intentionally broader than the pre-commit hook: pre-commit checks staged content, while pre-push scans full git history, including refs/notes/*.
+
+In this repo, tracked hooks under `hooks/` are active because `core.hooksPath=hooks/`.
