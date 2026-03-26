@@ -1,0 +1,28 @@
+kind constraint
+title Mycelium development principles
+edge applies-to tree:1f7e3ff155a39108f3649b6154896a96bd053026
+edge targets-treepath treepath:.
+
+1. GIT-NATIVE. Git notes is the substrate. The tool must be as
+   git-native as possible. If git can do it, we don't wrap it.
+
+2. SKILL STAYS IN SYNC. SKILL.md reflects discovered best practices
+   as we learn them. It cannot force agent behavior, but it shows
+   what a good job looks like. Update the skill when patterns emerge.
+
+3. PAVE THE DESIRE PATH (Steve Yegge). When agents hallucinate CLI
+   paths or get errors, that is signal — our interface is not ergonomic
+   to agents. Fix the interface, don't blame the agent.
+
+4. SELF-DOCUMENTING CLI. help must be complete. Errors must be clear.
+   An agent should never need to read source to use the tool.
+
+5. TEST WITH REAL AGENTS. CLI changes must be tested in interactive
+   agent sessions (tmux + pi/claude-code). Unit tests verify mechanics;
+   agent tests verify ergonomics.
+
+6. BASH AND GIT ONLY. No runtimes, no package managers, no build steps.
+   jj+git colocation is on the roadmap but not now.
+
+7. DOGFOOD. Use mycelium to develop mycelium. Every session should
+   read notes on arrival and leave notes on departure.
