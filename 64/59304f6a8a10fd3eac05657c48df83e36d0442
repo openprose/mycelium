@@ -1,4 +1,5 @@
 kind constraint
+status composted
 title Doctor root test
 edge applies-to tree:6459304f6a8a10fd3eac05657c48df83e36d0442
 edge targets-treepath treepath:.
