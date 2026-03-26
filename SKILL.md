@@ -215,10 +215,17 @@ mycelium.sh follow [target]                      Read + resolve all edges
 mycelium.sh refs [target]                        All notes pointing at target
 mycelium.sh context <path>                       All notes for a path
 mycelium.sh find <kind>                          Find by kind
+mycelium.sh kinds                                List all kinds in use
 mycelium.sh edges [type]                         List edges
 mycelium.sh list                                 All annotated objects
 mycelium.sh log [n]                              Recent commits with notes
 mycelium.sh dump                                 Everything, greppable
+mycelium.sh doctor                               Graph health (facts only)
+mycelium.sh branch [use|merge] [name]            Branch-scoped notes
 mycelium.sh activate                             Show in git log
 mycelium.sh sync-init [remote]                   Configure fetch/push
 ```
+
+## jj+git colocated repos
+
+If `.jj/` is detected, mycelium adapts automatically — no flags needed. Commit notes get a `targets-change` edge (stable across jj rewrites). `read` falls back to change_id lookup when the commit OID changes. Prefer notes on files over commits — blob OIDs survive rewrites, commit OIDs don't. Run `mycelium.sh help` for jj-specific guidance.

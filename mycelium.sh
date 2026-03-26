@@ -104,6 +104,18 @@ Options for 'note':
   --supersedes <oid>        OID of note this replaces
   -m, --message <body>      Note body (reads stdin if omitted and not a tty)
 EOF
+
+  # jj-specific help when colocated
+  if [[ -d "$_git_dir/../.jj" ]] || [[ -d ".jj" ]]; then
+    cat <<'EOF'
+
+jj+git colocated repo detected:
+  - Commit notes auto-add a targets-change edge (stable across rewrites)
+  - read/follow fall back to change_id lookup when commit OID changes
+  - Prefer notes on blobs/paths (stable) over commits (rewritten by jj)
+  - jj log doesn't show notes — use: mycelium.sh log
+EOF
+  fi
 }
 
 cmd_note() {
@@ -145,6 +157,12 @@ cmd_note() {
   case "$type" in
     commit)
       auto_edges+=("explains commit:$oid")
+      # jj colocated: add stable change_id edge (survives rewrites)
+      if [[ -d "$_git_dir/../.jj" ]] || [[ -d ".jj" ]]; then
+        local _cid
+        _cid=$(jj log -r "$oid" --no-graph -T 'change_id' 2>/dev/null || true)
+        [[ -n "$_cid" ]] && auto_edges+=("targets-change change:$_cid")
+      fi
       ;;
     blob)
       auto_edges+=("applies-to blob:$oid")
@@ -244,6 +262,31 @@ cmd_read() {
     done
     # Subshell means $found doesn't propagate — use grep to check
     return
+  fi
+
+  # jj fallback: look up by change_id edge
+  if [[ "$type" == "commit" ]] && { [[ -d "$_git_dir/../.jj" ]] || [[ -d ".jj" ]]; }; then
+    local _cid
+    _cid=$(jj log -r "$oid" --no-graph -T 'change_id' 2>/dev/null || true)
+    if [[ -n "$_cid" ]]; then
+      local _found=""
+      local notelist
+      notelist=$(git notes --ref="$REF" list 2>/dev/null || true)
+      while read noteblob obj; do
+        [[ -z "$noteblob" ]] && continue
+        local content
+        content=$(git cat-file -p "$noteblob")
+        if echo "$content" | awk -v cid="$_cid" '/^edge targets-change change:/ && index($0, cid) {found=1; exit} END {exit !found}'; then
+          local kind=$(note_header "$content" "kind")
+          local title=$(note_header "$content" "title")
+          echo "[via change_id] ${title:-(untitled)} ($kind)"
+          echo "$content"
+          _found=yes
+          break
+        fi
+      done <<< "$notelist"
+      [[ -n "$_found" ]] && return
+    fi
   fi
 
   echo "(no mycelium note)"
@@ -660,6 +703,13 @@ cmd_doctor() {
   awk '{print $1}' "$tmp" | sort | uniq -c | sort -rn | \
     awk '{printf "%s:%s ", $2, $1}'
   echo ""
+
+  # jj: report colocated status
+  if [[ -d "$_git_dir/../.jj" ]] || [[ -d ".jj" ]]; then
+    local jj_ver
+    jj_ver=$(jj version 2>/dev/null | head -1 || echo "unknown")
+    echo "jj     colocated ($jj_ver)"
+  fi
 
   rm -f "$tmp"
 }
