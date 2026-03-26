@@ -1,0 +1,10 @@
+kind decision
+title Notes are fully versioned — invariant, not convention
+edge explains commit:3628ee983ca6251238bf9b43b33e57fcda076089
+
+Because notes are invisible (GitHub doesn't render them, most
+tools ignore them), versioning is MORE important, not less. You can't
+glance at a diff to notice something disappeared. The auto-supersede
+in the tool and the invariants in the spec ensure that even sloppy
+usage (git notes add -f) can't silently destroy data. The old blob
+is always one git cat-file away via the supersedes chain.
