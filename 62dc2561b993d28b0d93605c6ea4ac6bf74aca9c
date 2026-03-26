@@ -1,12 +1,11 @@
-kind decision
-title Enforcement via hooks, not skill prompting
+kind context
+title Session complete
 edge explains commit:62dc2561b993d28b0d93605c6ea4ac6bf74aca9c
 
-Skills are soft nudges — agents forget (proven by dogfooding this session).
-Hard enforcement needs hooks/extensions:
-- pi: TypeScript extensions with tool_call/tool_result hooks (~/.pi/agent/extensions/*.ts)
-- claude code: custom slash commands or hooks
-- git: post-commit hook that prompts for note
-
-The skill teaches the convention. The extension enforces it.
-These are different layers. Don't try to make the skill a guardrail.
+Built mycelium from conversation to working tool in one session.
+Started with metaphors (bearings, delta, mycelium), synthesized three
+planning sessions into an 882-line spec, then stripped it to ~170 lines
+by asking: can an agent with only git read and write this? Dogfooded
+throughout. 52 tests. Key discovery: stale detection works via edges
+already in the note (no git log walking), and the skill is a nudge,
+not a guardrail — enforcement needs hooks/extensions.
