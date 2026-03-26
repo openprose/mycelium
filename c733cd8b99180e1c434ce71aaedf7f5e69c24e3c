@@ -1,0 +1,12 @@
+kind warning
+title Safety / footguns
+status active
+edge applies-to tree:c733cd8b99180e1c434ce71aaedf7f5e69c24e3c
+edge targets-treepath treepath:.
+edge depends-on note:15f94007a3f0a14390a81394b9a8d9310ece857f
+edge depends-on note:6d5057f19175ed523f024811a4cdad00e97626f5
+
+Notes are public in public repos and most tooling ignores refs/notes/*.
+Never write secrets to notes: git notes remove does not erase history.
+Use gitleaks and hooks.
+Run sync-init when a remote exists so notes actually travel.
