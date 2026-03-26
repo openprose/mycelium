@@ -1,0 +1,26 @@
+kind constraint
+title Development workflow: branch for features
+edge applies-to tree:092ecf8079c38fd29bb05e5a42c4ee271c755bb2
+edge targets-treepath treepath:.
+
+8. BRANCH FOR FEATURES. New commands and behavioral changes develop
+on a jj bookmark + mycelium branch. Main stays stable.
+
+Workflow:
+  jj new -m 'feature: description'
+  jj bookmark set feature-name
+  ./mycelium.sh branch use feature-name
+
+Work, test, leave notes on the branch. When tests pass and the
+feature is dogfooded:
+
+  jj bookmark move master --to @
+  ./mycelium.sh branch use main
+  ./mycelium.sh branch merge feature-name
+
+Code and notes branch together, merge together. An agent arriving
+on main during development sees stable code and stable notes.
+
+This exists because the first six sessions all worked directly on
+main and nobody noticed the gap until a feature (compost) was large
+enough that half-built state would have been disruptive.
