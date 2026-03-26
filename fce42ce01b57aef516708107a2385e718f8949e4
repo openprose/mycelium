@@ -1,10 +1,6 @@
-kind summary
-title 52 tests
+kind observation
+supersedes 8971d6d7327f4d1c2ed69707fcda314216a81cde
 edge applies-to blob:fce42ce01b57aef516708107a2385e718f8949e4
 edge targets-path path:test.sh
 
-Covers: note creation (auto-edges, path/dir resolution, HEAD default),
-reading (path, OID, missing), context (exact/inherited/commit), find, edges,
-list, dump, log, supersession, activate, sync-init, stdin body,
-stale detection (blob changed but path note found), rename (same blob follows),
-deep tree inheritance (parent constraint surfaces for nested file).
+First version of this note.
