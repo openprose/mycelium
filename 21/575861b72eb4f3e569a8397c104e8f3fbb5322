@@ -1,4 +1,5 @@
 kind warning
+status composted
 title Renew test note
 edge applies-to blob:21575861b72eb4f3e569a8397c104e8f3fbb5322
 edge targets-path path:renew-target.ts
