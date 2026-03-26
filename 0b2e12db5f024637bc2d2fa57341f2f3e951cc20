@@ -1,8 +1,13 @@
-kind decision
-title jj: detect via .jj directory
-supersedes 51d786a8b7d51451e1c3cc88447a4456e2147cbd
+kind warning
+title gitleaks stdin does not load rules
+supersedes 0eff5f1176feda32b61fea4059786cd26fa937a5
 edge applies-to blob:0b2e12db5f024637bc2d2fa57341f2f3e951cc20
 edge targets-path path:mycelium.sh
+edge warns-about blob:0b2e12db5f024637bc2d2fa57341f2f3e951cc20
 
-is_jj_repo() checks for .jj/ at the repo root. Simple, no deps.
-jj always creates this directory in colocated mode.
+gitleaks v8.30 stdin mode scans but loads zero detection rules.
+The inline scan works around this with a tmpfile + gitleaks dir.
+If someone 'simplifies' this to a pipe, the scan becomes a no-op.
+
+Do not change the tmpfile approach without verifying stdin actually
+catches secrets. Run: echo 'xoxb-...' | gitleaks stdin -v
