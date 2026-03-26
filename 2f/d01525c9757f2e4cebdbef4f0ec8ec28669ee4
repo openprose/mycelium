@@ -1,4 +1,5 @@
 kind summary
+status composted
 title Compost test note
 edge applies-to blob:2fd01525c9757f2e4cebdbef4f0ec8ec28669ee4
 edge targets-path path:compost-target.ts
