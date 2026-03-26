@@ -1,0 +1,6 @@
+kind context
+title Default current
+edge applies-to blob:cd05ba33ea1a478cccce49d8e61d2e5a68ac3208
+edge targets-path path:renew-col.ts
+
+d
