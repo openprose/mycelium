@@ -98,6 +98,12 @@ mycelium.sh sync-init [remote]                   Configure fetch/push
 
 Kinds and edge types are open vocabulary — use whatever strings make sense. `mycelium.sh kinds` shows what's in use.
 
+## Platform support
+
+Works on **Linux**, **macOS**, and **Windows** (via Git Bash).
+
+Dependencies: `bash` (3.2+), `git`, and POSIX coreutils (`awk`, `grep`, `sed`, `sort`, etc.). On Windows, Git for Windows ships all of these. Optional: `gitleaks` for secret scanning.
+
 ## Roadmap
 
 - **jj + git colocated repos** — mycelium already works in colocated mode (same `.git/` directory), but commit notes orphan when jj rewrites history. Change-id edges and a `migrate` command are planned.
