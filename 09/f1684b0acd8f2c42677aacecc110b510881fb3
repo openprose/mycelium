@@ -1,0 +1,6 @@
+kind warning
+title Renew test note
+edge applies-to blob:09f1684b0acd8f2c42677aacecc110b510881fb3
+edge targets-path path:renew-target.ts
+
+This warning still applies.
