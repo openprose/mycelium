@@ -1,0 +1,6 @@
+kind context
+title First note
+edge applies-to blob:b718f0ccb169f06f51acb177828304857787eb46
+edge targets-path path:owtest.ts
+
+first
