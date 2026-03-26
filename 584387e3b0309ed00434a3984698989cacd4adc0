@@ -1,7 +1,6 @@
 kind observation
-title test stderr
-supersedes d44eacd5b6d30e7f3ad55e446124578fa2c095e8
+supersedes 6053e3cdd6fc6a1fe5501e06b976778bc29d5b3b
 edge applies-to blob:584387e3b0309ed00434a3984698989cacd4adc0
 edge targets-path path:test.sh
 
-x
+about the file
