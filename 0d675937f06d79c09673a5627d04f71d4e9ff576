@@ -1,0 +1,9 @@
+kind summary
+title Test suite
+edge applies-to blob:0d675937f06d79c09673a5627d04f71d4e9ff576
+edge targets-path path:test.sh
+
+44 tests in pure bash. Creates a temp git repo, writes notes,
+reads them back, verifies headers/edges/output format. No test
+framework — just assert/assert_not/assert_count helpers comparing
+grep output. Cleans up via trap on EXIT.
