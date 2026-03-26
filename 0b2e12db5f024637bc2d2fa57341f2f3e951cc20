@@ -1,0 +1,12 @@
+kind warning
+title gitleaks stdin does not load rules
+edge applies-to blob:0b2e12db5f024637bc2d2fa57341f2f3e951cc20
+edge targets-path path:mycelium.sh
+edge warns-about blob:0b2e12db5f024637bc2d2fa57341f2f3e951cc20
+
+gitleaks v8.30 stdin mode scans but loads zero detection rules.
+The inline scan works around this with a tmpfile + gitleaks dir.
+If someone 'simplifies' this to a pipe, the scan becomes a no-op.
+
+Do not change the tmpfile approach without verifying stdin actually
+catches secrets. Run: echo 'xoxb-...' | gitleaks stdin -v
