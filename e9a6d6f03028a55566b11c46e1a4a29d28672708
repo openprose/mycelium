@@ -1,0 +1,18 @@
+kind decision
+title Tool vs project: clear separation
+edge explains commit:e9a6d6f03028a55566b11c46e1a4a29d28672708
+
+The tool is two files: mycelium.sh and SKILL.md. Everything else
+in this repo is how WE develop the tool — our tests, our spec, our
+decision log, our hooks, our gitleaks config, our notes.
+
+A new user copies mycelium.sh (and optionally SKILL.md for their
+agents). They start with an empty notes ref and build their own
+culture. They don't inherit our values, our warnings, our decisions.
+
+The hooks/ directory contains examples of best practices — things
+we recommend but don't require. gitleaks scanning, awareness hooks.
+A user can adopt them, adapt them, or ignore them.
+
+This distinction must stay clear as the repo grows. The tool must
+not accumulate project-specific assumptions.
