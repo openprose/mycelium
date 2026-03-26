@@ -1,12 +1,17 @@
-kind decision
-title Desire path smoothing
+kind observation
+title Stale detection works via edges, not history walking
 edge applies-to blob:4b7d34961946b4e09ebe8e2e752e67b5b76c13db
 edge targets-path path:mycelium.sh
-edge depends-on blob:4b7d34961946b4e09ebe8e2e752e67b5b76c13db
 
-Three desire paths discovered from dogfooding:
-1. No target → defaults to HEAD (most common: annotate what I just committed)
-2. File/dir path → auto-resolves to blob/tree (no manual git rev-parse)
-3. Auto-edges by object type (no manual edge construction for the obvious ones)
-Also: all output now shows object type labels (commit:/blob:/tree:)
-and 'context' command walks blob→parent trees→commit for full picture.
+The three sessions designed applies-to + targets-path edges specifically
+so staleness could be detected by comparing the stored blob OID against
+the current blob at that path. This works: no git log walking needed.
+context and read both surface [stale] notes when the blob changes.
+
+Scenario results:
+- Stale blob: read shows [stale] with the old note. Works.
+- Amend without rewriteRef: note orphans silently. Git-native fix: notes.rewriteRef.
+- Amend WITH rewriteRef: note follows. But edge still has old commit OID (cosmetic).
+- Deep tree inheritance: constraint on src/auth/ surfaces for src/auth/providers/oauth/refresh.ts. Works.
+- File rename without content change: blob OID unchanged, note follows automatically. Surprise win.
+- File rename old path: errors (file gone). Path edge becomes stale but note still findable via dump/find.
