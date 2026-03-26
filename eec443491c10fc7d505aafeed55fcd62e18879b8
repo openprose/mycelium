@@ -1,10 +1,22 @@
-kind decision
-title Supersession chain is the delta substrate
+kind value
+title Types are suggestions, not schema
+supersedes 4fecd7f38d131f8605445eb56d379200a1a8d34b
 edge applies-to blob:eec443491c10fc7d505aafeed55fcd62e18879b8
 edge targets-path path:mycelium.md
 
-Reframed from 'no data destruction' to 'append-only, chain is the delta.'
-The supersession chain isn't a safety mechanism — it's the history that
-makes delta extraction possible. Each update is a fruiting body: a moment
-where understanding surfaced or was revised. Downstream tools will walk
-these chains to answer 'what changed while I was away.'
+Kinds, edge types, and headers are just strings. The vocabulary
+is open by design. There is no validation, no enum, no closed list.
+
+An agent or human can write 'kind celebration' or 'kind debt' and
+it just works. 'mycelium.sh kinds' shows what's in use — that's the
+only registry, and it's descriptive not prescriptive.
+
+This matters because culture evolves. If we hardcode kinds, changing
+our minds requires a migration. If kinds are strings, changing our
+minds requires writing a new note.
+
+Story: we started with 6 kinds (decision, context, summary, warning,
+constraint, observation). During dogfooding we realized we needed
+'value' for cultural principles that aren't constraints. We just
+used it — no spec change, no migration, no version bump. The tool
+already supported it because it never restricted it.
