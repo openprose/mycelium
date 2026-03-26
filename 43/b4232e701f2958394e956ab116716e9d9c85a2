@@ -1,0 +1,6 @@
+kind context
+title Legacy note
+edge applies-to blob:43b4232e701f2958394e956ab116716e9d9c85a2
+edge targets-path path:legacy.ts
+
+No slot specified.
