@@ -1,6 +1,6 @@
-kind summary
+kind observation
+supersedes b9fec8bdb631574b20d8d69038252be4b4c5cbcd
 edge applies-to blob:89931ee4751c9760ea2cbc91fb7de861af209012
 edge targets-path path:README.md
-edge depends-on blob:da9bdad13b6b324daf473c25bb11decce9c6a63f
 
-Readme note
+First version.
