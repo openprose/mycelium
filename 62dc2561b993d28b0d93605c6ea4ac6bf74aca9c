@@ -1,0 +1,8 @@
+kind context
+edge explains commit:62dc2561b993d28b0d93605c6ea4ac6bf74aca9c
+
+Added stale detection using the edge design from the original sessions.
+When read gets a path with no note on the current blob, it scans all notes
+for matching targets-path edges. Context does the same, labeled [stale].
+Removed redundant [edge] scan from context (was duplicating [stale] results).
+Tests: 52 total, added stale detection, rename-follows-blob, deep inheritance.
