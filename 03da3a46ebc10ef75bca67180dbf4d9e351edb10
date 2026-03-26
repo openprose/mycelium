@@ -1,12 +1,11 @@
-kind context
-title TODO: add curl one-liner when remote exists
+kind todo
+title Add curl one-liner when remote exists
+supersedes c6c373d83d292654e2f88d59d02f8552db164351
 edge applies-to blob:03da3a46ebc10ef75bca67180dbf4d9e351edb10
 edge targets-path path:README.md
-
-Once the GitHub remote is set up, add to Install section:
 
 curl -fsSL https://raw.githubusercontent.com/<org>/mycelium/main/mycelium.sh \
   -o ~/.local/bin/mycelium.sh && chmod +x ~/.local/bin/mycelium.sh
 
 ~/.local/bin works on Linux (XDG), macOS, and Git Bash on Windows.
-The org is likely openprose (see ../platform remote).
+Org is likely openprose (see ../platform remote).
