@@ -1,0 +1,13 @@
+kind decision
+title Stale detection via edges, not git log
+edge applies-to blob:a4f8876768c98d00f302d7bddf6b72a01f5027fc
+edge targets-path path:mycelium.sh
+
+The three planning sessions designed applies-to + targets-path as a pair
+specifically so staleness could be detected without walking git history.
+If a note has targets-path path:X but applies-to blob:Y, and the current
+blob at X is Z != Y, the note is stale. Simple comparison, no git log.
+This is what Session 2 called 'drifted' and Session 1 called 'contextual.'
+
+Also: removed the [edge] scan from context — it was a superset of the
+stale scan and produced duplicates. Stale + inherited + commit is sufficient.
