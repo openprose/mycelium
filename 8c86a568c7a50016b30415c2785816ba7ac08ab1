@@ -1,0 +1,16 @@
+kind warning
+title Safety / footguns
+status active
+edge applies-to tree:8c86a568c7a50016b30415c2785816ba7ac08ab1
+edge targets-treepath treepath:.
+edge depends-on note:15f94007a3f0a14390a81394b9a8d9310ece857f
+edge depends-on note:6d5057f19175ed523f024811a4cdad00e97626f5
+
+Notes are public in public repos and most tooling ignores refs/notes/*.
+Never write secrets to notes: git notes remove does not erase history.
+Use gitleaks and hooks.
+Run sync-init when a remote exists so notes actually travel.
+
+Local workflow footguns learned the hard way:
+- Git hooks inherit git-local env vars. Clear `git rev-parse --local-env-vars` before running nested git-based tests from hooks.
+- Avoid split-brain local setups where a canonical-looking path behaves like the git dir while the active checkout is elsewhere. In this repo, prefer jj workspaces over git worktrees for parallel local work.
