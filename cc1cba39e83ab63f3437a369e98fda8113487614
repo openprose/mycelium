@@ -1,0 +1,6 @@
+kind context
+title jj colocation working
+edge explains commit:cc1cba39e83ab63f3437a369e98fda8113487614
+edge targets-change change:ttmpquypskrnxyuutwrtpoxzzqsokqns
+
+Testing auto change_id edge and fallback lookup.
