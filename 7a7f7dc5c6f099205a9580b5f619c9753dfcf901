@@ -1,0 +1,16 @@
+kind value
+title Core values for mycelium
+status active
+edge applies-to tree:7a7f7dc5c6f099205a9580b5f619c9753dfcf901
+edge targets-treepath treepath:.
+
+Core values for this repo:
+
+- GIT-NATIVE. Prefer git-native mechanisms over custom layers when the substrate already solves the problem.
+- UNDERGROUND BY DEFAULT. Notes should stay invisible to normal git/GitHub workflows unless someone intentionally surfaces them.
+- ORGANIC YET DETERMINISTIC. Open vocabulary and natural note growth, but still content-addressed, mergeable, and inspectable with plain git.
+- DOGFOOD. The repo should use its own note layer for coordination and learning.
+- DOCS TRACK CODE. README.md, SKILL.md, tests, and live behavior should agree.
+- PAVE THE DESIRE PATH. Agent friction is a product signal.
+
+The current design is intentionally distributed across code, README, SKILL, tests, and live notes. That is a feature, not documentation failure.
