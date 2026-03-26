@@ -1,4 +1,8 @@
 kind context
 edge explains commit:b0199567227c158ea7c253e1606f30686aa6259d
 
-Testing desire path: no target defaults to HEAD.
+Bootstrap commit. Mycelium is a convention for structured git notes —
+a hidden metadata graph that agents read and write to collaborate
+asynchronously. Born from a conversation about orientation metaphors:
+bearings (where am I), delta (what changed), mycelium (the substrate
+that connects everything underneath).
