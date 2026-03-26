@@ -1,0 +1,5 @@
+kind constraint
+edge applies-to tree:83c5d6e743108ecd4b83e004fec49c71ddd04034
+edge targets-treepath treepath:src/auth
+
+All calls must be retryable
