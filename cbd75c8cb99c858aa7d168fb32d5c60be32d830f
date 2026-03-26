@@ -1,26 +1,23 @@
-kind decision
-title Ergonomic vs pure: the tool is the graph, opinions go in notes
+kind value
+title Capture the emotional labor
+supersedes 0241b63c18e1afaa7b8f996c9a5434998b04505d
 edge applies-to tree:cbd75c8cb99c858aa7d168fb32d5c60be32d830f
 edge targets-treepath treepath:.
 
-This was the hardest design tension of the session.
+Design decisions have an emotional dimension — the oscillation,
+the false starts, the tension between competing goods. Resolved
+decisions look clean. The process of arriving at them is messy.
 
-On one side: make the tool useful. doctor that checks doc drift.
-gaps that shows uncovered files. preflight that verifies session
-hygiene. Every feature request from dogfooding pulled toward more
-opinion in the tool.
+A future agent reading 'doctor: facts only' sees the conclusion.
+Without the story of v1→v2→v3 and the repeated pushback from the
+human ('are we being too opinionated?', 'can this be general?',
+'is constraints the only namespace?'), the agent doesn't learn HOW
+to make decisions in the same spirit. They'll add a prescriptive
+check because it seems useful, not understanding that we tried
+that and pruned it back three times.
 
-On the other: keep the tool minimal. Kinds are just strings. Edge
-types are open vocabulary. The tool reads and writes a graph. It
-doesn't know what 'good' looks like — YOU define good through the
-notes you write (constraints, values, warnings).
-
-Where we landed: the tool provides primitives (note, read, follow,
-refs, context, find, kinds, doctor, branch). Doctor reports graph
-state as facts. Everything above that — doc drift checks, tested-by
-coverage, session hygiene — belongs in the repo's own test suite
-or in notes, not in the tool.
-
-This means: adopting mycelium doesn't impose a workflow. You bring
-your own culture. The tool carries it. The skill shows patterns.
-But the tool never tells you you're doing it wrong.
+The emotional labor of taste — knowing when to stop adding, when a
+feature is actually an opinion, when 'helpful' becomes 'imposing' —
+is the hardest thing to transmit. Value notes with stories are the
+closest we can get. They won't always work. But without them, the
+culture dies with the session.
