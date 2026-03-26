@@ -1,10 +1,8 @@
-kind observation
-title The 882-line original
+kind context
+title Superseded full-system design space
+supersedes 9e4e0e0786b3025c2470381fd9ecd1dff1cfe667
+status archived
 edge applies-to blob:0989c43dbbdfdf16ddbaed5d33e203f25bf2f7ca
 edge targets-path path:mycelium-v1.md
 
-Synthesized from three separate planning sessions. Included
-catalogs, manifests, six traversal primitives, seven query-time
-classifications, three-tier identity, and a full CLI spec. Most of
-it was correct but premature — tooling dressed as protocol. Kept
-as reference for when scale demands the features we deferred.
+Explored catalogs, manifests, indices, traversal primitives, query-time classifications, and three-tier identity. Most of it was useful design space but premature for v1. The lasting pieces were supersession, sync, and open vocabulary; the rest was cut as tooling or future scale work.
