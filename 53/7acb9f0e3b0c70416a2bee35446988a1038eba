@@ -1,0 +1,6 @@
+kind decision
+title OID renew test
+edge applies-to blob:537acb9f0e3b0c70416a2bee35446988a1038eba
+edge targets-path path:oid-renew.ts
+
+Renew by OID.
