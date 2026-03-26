@@ -87,7 +87,8 @@ mycelium — structured notes on git objects
   mycelium list                                   List all annotated objects
   mycelium log [n]                                Recent commits with notes
   mycelium dump                                   All notes, greppable
-  mycelium branch [use|merge] [name]               Branch-scoped notes
+  mycelium doctor                                 Check consistency
+  mycelium branch [use|merge] [name]              Branch-scoped notes
   mycelium activate                               Show notes in git log
   mycelium sync-init [remote]                     Configure fetch/push
 
@@ -598,6 +599,71 @@ EOF
   esac
 }
 
+cmd_doctor() {
+  # White hat: facts only. What exists, in what state.
+
+  local tmp
+  tmp=$(mktemp)
+
+  # Classify each note — avoid grep (exits 1 on no match + pipefail)
+  local notelist
+  notelist=$(git notes --ref="$REF" list 2>/dev/null || true)
+  [[ -z "$notelist" ]] && { echo "notes  0"; rm -f "$tmp"; return; }
+
+  while read noteblob obj; do
+    local content kind status target_path target_treepath n_edges
+    content=$(git cat-file -p "$noteblob")
+    kind=$(echo "$content" | awk '/^kind /{print $2; exit}')
+    status="current"
+
+    target_path=$(echo "$content" | awk '/^edge targets-path /{sub(/^edge targets-path path:/,""); print; exit}')
+    target_treepath=$(echo "$content" | awk '/^edge targets-treepath /{sub(/^edge targets-treepath treepath:/,""); print; exit}')
+
+    if [[ -n "$target_path" ]]; then
+      local current_blob
+      current_blob=$(git rev-parse "HEAD:$target_path" 2>/dev/null || true)
+      if [[ -z "$current_blob" ]]; then status="orphaned"
+      elif [[ "$current_blob" != "$obj" ]]; then status="stale"
+      fi
+    elif [[ -n "$target_treepath" ]]; then
+      local current_tree
+      if [[ "$target_treepath" == "." ]]; then
+        current_tree=$(git rev-parse "HEAD^{tree}" 2>/dev/null || true)
+      else
+        current_tree=$(git rev-parse "HEAD:$target_treepath" 2>/dev/null || true)
+      fi
+      if [[ -z "$current_tree" ]]; then status="orphaned"
+      elif [[ "$current_tree" != "$obj" ]]; then status="stale"
+      fi
+    else
+      git cat-file -t "$obj" &>/dev/null || status="orphaned"
+    fi
+
+    n_edges=$(echo "$content" | awk '/^edge /{n++} END{print n+0}')
+    echo "$kind $status $n_edges"
+  done <<< "$notelist" > "$tmp"
+
+  # Summarize
+  read total n_current n_stale n_orphaned n_edges < <(
+    awk '
+      { total++; edges+=$3 }
+      $2=="current"  { current++ }
+      $2=="stale"    { stale++ }
+      $2=="orphaned" { orphaned++ }
+      END { print total+0, current+0, stale+0, orphaned+0, edges+0 }
+    ' "$tmp"
+  )
+
+  echo "notes  $total  (current:$n_current stale:$n_stale orphaned:$n_orphaned)"
+  echo "edges  $n_edges"
+  printf "kinds  "
+  awk '{print $1}' "$tmp" | sort | uniq -c | sort -rn | \
+    awk '{printf "%s:%s ", $2, $1}'
+  echo ""
+
+  rm -f "$tmp"
+}
+
 cmd_dump() {
   git notes --ref="$REF" list 2>/dev/null | while read blob obj; do
     local label=$(obj_label "$obj")
@@ -622,6 +688,7 @@ case "${1:-help}" in
   branch)     shift; cmd_branch "$@" ;;
   activate)   cmd_activate ;;
   sync-init)  shift; cmd_sync_init "$@" ;;
+  doctor)     cmd_doctor ;;
   dump)       cmd_dump ;;
   help|*)     usage ;;
 esac
