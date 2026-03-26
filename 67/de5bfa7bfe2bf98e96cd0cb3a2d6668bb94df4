@@ -1,9 +1,10 @@
-kind context
-title Normalization: /mycelium restored as canonical jj+git checkout on main
+kind decision
+title Publish canonical notes refs only
 status active
+supersedes 527f42c89ef75a0e9deba7238d1eab7753a51ff9
 edge explains commit:67de5bfa7bfe2bf98e96cd0cb3a2d6668bb94df4
 edge targets-change change:xkoxqmmytttovunmwzowtqsyqkmvskml
 
-Normalization complete. /home/raw/Documents/OpenProse-GitHub/mycelium is again the obvious working path, git is non-bare there, the working copy is on main, and the temporary git worktree was retired.
+When publishing this repo, push only the canonical code branch (main) and the canonical notes refs: refs/notes/mycelium plus the onboarding root slots (principles, values, safety, history).
 
-The repo is still jj+git colocated; the problem was not jj itself but a split local setup. Future parallel local work should prefer jj workspaces over git worktrees here.
+Do not publish temporary branch/workflow/test note refs by default. They remain useful locally, but they are not part of the canonical shared substrate.
