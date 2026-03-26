@@ -1,13 +1,20 @@
-kind warning
-title gitleaks stdin does not load rules
-supersedes 0eff5f1176feda32b61fea4059786cd26fa937a5
+kind value
+title Pave the desire path
+supersedes 882a7d0dd00d86112af1826bb30e410ca7f0c0dc
 edge applies-to blob:0b2e12db5f024637bc2d2fa57341f2f3e951cc20
 edge targets-path path:mycelium.sh
-edge warns-about blob:0b2e12db5f024637bc2d2fa57341f2f3e951cc20
 
-gitleaks v8.30 stdin mode scans but loads zero detection rules.
-The inline scan works around this with a tmpfile + gitleaks dir.
-If someone 'simplifies' this to a pipe, the scan becomes a no-op.
+When an agent hallucates a CLI path or gets an error, the
+interface is wrong, not the agent. Fix the interface.
 
-Do not change the tmpfile approach without verifying stdin actually
-catches secrets. Run: echo 'xoxb-...' | gitleaks stdin -v
+Story: an agent tried eval $(mycelium.sh branch use jj-support) and
+the env var died between shell invocations. The agent did the right
+thing — the tool's design assumed interactive shells. We added
+.git/mycelium-branch file persistence so branch selection survives
+across invocations. Then the agent tried refs/notes/mycelium/jj-support
+and hit a git limitation: refs can't be both a leaf and a directory.
+We changed to mycelium--jj-support. Two fixes, both from listening to
+what the agent naturally tried to do.
+
+(Term from Steve Yegge: desire paths are the trails people wear
+through grass when the sidewalk doesn't go where they need.)
