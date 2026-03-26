@@ -1,6 +1,7 @@
 kind constraint
 title Project principles
 status active
+supersedes 868e330105ec65286041aef7136233bfc64b1289
 edge applies-to tree:c733cd8b99180e1c434ce71aaedf7f5e69c24e3c
 edge targets-treepath treepath:.
 edge depends-on note:626d85330703fde4dcbbb83470074cb835b476c6
@@ -15,3 +16,4 @@ edge depends-on note:dfd085817f6223731b212c332a0067c4929d04cd
 6. Branch for features.
 7. Agent-native by default.
 8. Dogfood the tool while building it.
+9. Prefer jj workspaces over git worktrees for parallel local work. This repo hit confusing states when a temporary git worktree carried the active checkout while the canonical local path looked like the repo but behaved like the git dir. jj workspaces fit the intended workflow better and are easier to reason about.
