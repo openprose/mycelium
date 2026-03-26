@@ -92,6 +92,7 @@ mycelium.sh edges [type]                         List all edges
 mycelium.sh list                                 All annotated objects
 mycelium.sh log [n]                              Recent commits with notes
 mycelium.sh dump                                 Everything, greppable
+mycelium.sh doctor                               Graph state (facts only)
 mycelium.sh activate                             Show notes in git log
 mycelium.sh sync-init [remote]                   Configure fetch/push
 ```

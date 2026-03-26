@@ -488,6 +488,35 @@ assert "help: shows kinds command" "mycelium kinds" "$out"
 out=$($MYCELIUM note HEAD -m "no kind" 2>&1) || true
 assert "error: missing kind" "kind" "$out"
 
+# Docs mention all commands (this is our project's test, not the tool's job)
+ROUTE_CMDS=$(sed -n '/^# Route/,/^esac/p' "$MYCELIUM" | grep -oE '^  [a-z-]+\)' | tr -d ' )' | grep -v help)
+if [[ -f "$(dirname "$MYCELIUM")/README.md" ]]; then
+  README="$(dirname "$MYCELIUM")/README.md"
+  for cmd in $ROUTE_CMDS; do
+    out=$(grep -c "$cmd" "$README" || true)
+    if [[ "$out" -gt 0 ]]; then
+      echo "  ✓ README mentions: $cmd"
+      PASS=$((PASS + 1))
+    else
+      echo "  ✗ README missing: $cmd"
+      FAIL=$((FAIL + 1))
+    fi
+  done
+fi
+if [[ -f "$(dirname "$MYCELIUM")/SKILL.md" ]]; then
+  SKILLF="$(dirname "$MYCELIUM")/SKILL.md"
+  for cmd in $ROUTE_CMDS; do
+    out=$(grep -c "$cmd" "$SKILLF" || true)
+    if [[ "$out" -gt 0 ]]; then
+      echo "  ✓ SKILL.md mentions: $cmd"
+      PASS=$((PASS + 1))
+    else
+      echo "  ✗ SKILL.md missing: $cmd"
+      FAIL=$((FAIL + 1))
+    fi
+  done
+fi
+
 echo ""
 echo "=== Stability Hints ==="
 
