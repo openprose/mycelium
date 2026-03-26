@@ -1,0 +1,39 @@
+kind context
+title Session: slots, compost, agent-native, biomimicry
+supersedes e1656041c4c20db9227dad92dedc38d9fb8bc4b4
+edge explains commit:ce0ea8d4a9ca9e6c9e635008ee6479073034367d
+edge targets-change change:kzlvwsntkqrpxlyqrvqyvrmxqnnsqlxv
+
+Largest session yet. Started with biomimetic analysis, ended with
+slot-scoped multi-ref one-to-many notes. Key deliverables:
+
+1. COMPOST: decomposition for stale notes. --dry-run, --report,
+   --compost, --renew flags. Per-OID and per-path targeting.
+   Context stratification (stale one-liners, composted hidden).
+
+2. SLOTS: multiple notes on same object via named producer slots.
+   --slot flag on note/read/follow/compost. Context/doctor/find/
+   kinds/prime aggregate all slots. Supersedes intra-slot only.
+   OID ambiguity detection when multiple slots match.
+
+3. AGENT-NATIVE (principle 9): every command works non-interactively.
+   Interactive prompts are convenience, never the only path.
+
+4. OVERWRITE WARNING: shows existing note kind+title before clobber.
+
+5. PRIME: outputs skill + live repo state for agent onboarding.
+
+6. DEVELOPMENT PRINCIPLES: added #8 (branch for features) and
+   #9 (agent-native by default).
+
+Meta: session was itself the test. Made every mistake the new
+features now prevent — overwrote root tree without reading it,
+forgot branching workflow, built human-only interactive loop.
+Each failure became a tool fix or culture note.
+
+Consulted gpt-5.4 (openai-codex via tmux pi instance) on the
+one-to-many design. It recommended slot-scoped multi-ref with
+ref-qualified attachment identities. Built and tested.
+
+223 tests, 0 failures. 55 slot topology tests with ground-truth
+git-state assertions verifying creation and composting persist.
