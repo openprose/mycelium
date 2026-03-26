@@ -1,6 +1,6 @@
 kind decision
 title Canonical design lives in code, README, SKILL, tests, and notes
-status active
+status composted
 supersedes e8a46b65498b9899036dcc5440919e1060b09f78
 edge applies-to blob:455f14b946f43db4af01c4f2e5cf0b3d2317179a
 edge targets-path path:README.md
