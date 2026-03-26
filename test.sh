@@ -388,6 +388,21 @@ assert "refs: finds inbound depends-on" "Multi-edge test" "$out"
 assert "refs: shows the edge" "depends-on" "$out"
 
 echo ""
+echo "=== Cross-Platform ==="
+
+# No GNU-specific flags in sed, grep, or awk
+out=$(grep -rn "sed -[iE]" "$MYCELIUM" || true)
+assert_count "no GNU sed -i or -E" 0 "$out"
+
+out=$(grep -rn "grep -P" "$MYCELIUM" || true)
+assert_count "no grep -P (perl regex)" 0 "$out"
+
+# Only bash builtins + POSIX coreutils + git + mktemp
+# Extract external commands from the script
+externals=$(grep -ohE '\b(date|stat|readlink|realpath|xargs|tee)\b' "$MYCELIUM" || true)
+assert_count "no non-portable externals" 0 "$externals"
+
+echo ""
 echo "=== Self-Documenting CLI ==="
 
 # help on unknown command shows usage
