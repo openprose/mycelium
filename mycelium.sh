@@ -3,7 +3,15 @@
 # No dependencies beyond git and bash.
 set -euo pipefail
 
-REF="${MYCELIUM_REF:-mycelium}"
+# Branch selection: env var > .git/mycelium-branch file > default
+_git_dir=$(git rev-parse --git-dir 2>/dev/null || echo ".git")
+if [[ -n "${MYCELIUM_REF:-}" ]]; then
+  REF="$MYCELIUM_REF"
+elif [[ -f "$_git_dir/mycelium-branch" ]]; then
+  REF=$(cat "$_git_dir/mycelium-branch")
+else
+  REF="mycelium"
+fi
 NOTES_REF="refs/notes/$REF"
 
 # --- helpers ---
@@ -74,10 +82,12 @@ mycelium — structured notes on git objects
   mycelium refs [target]                          Find all notes pointing at target
   mycelium context <path> [ref]                   All notes relevant to a path
   mycelium find <kind>                            Find all notes of a kind
+  mycelium kinds                                  List all kinds in use
   mycelium edges [type]                           List all edges
   mycelium list                                   List all annotated objects
   mycelium log [n]                                Recent commits with notes
   mycelium dump                                   All notes, greppable
+  mycelium branch [use|merge] [name]               Branch-scoped notes
   mycelium activate                               Show notes in git log
   mycelium sync-init [remote]                     Configure fetch/push
 
@@ -85,7 +95,8 @@ Targets: HEAD (default), commit ref, file path, directory path, OID.
 Auto-edges: commit→explains, blob→applies-to+targets-path, tree→applies-to+targets-treepath.
 
 Options for 'note':
-  -k, --kind <kind>         Required. decision|context|summary|warning|constraint|observation
+  -k, --kind <kind>         Required. Any string. Common: decision, context, summary,
+                           warning, constraint, observation, value — or invent your own
   -e, --edge <type target>  Extra edges (auto-edges are always added)
   -t, --title <title>       Short label
   -s, --status <status>     active (default)|superseded|archived
@@ -465,6 +476,15 @@ cmd_refs() {
   done
 }
 
+cmd_kinds() {
+  echo "Kinds in use:"
+  git notes --ref="$REF" list 2>/dev/null | while read blob obj; do
+    git cat-file -p "$blob" | grep "^kind " | cut -d' ' -f2
+  done | sort | uniq -c | sort -rn | while read count kind; do
+    printf "  %-20s %s note(s)\n" "$kind" "$count"
+  done
+}
+
 cmd_edges() {
   local filter="${1:-}"
   git notes --ref="$REF" list 2>/dev/null | while read blob obj; do
@@ -528,6 +548,56 @@ cmd_sync_init() {
   echo "Refspecs added for $remote. Run: git fetch $remote && git push $remote"
 }
 
+cmd_branch() {
+  local subcmd="${1:-}"
+  case "$subcmd" in
+    "")
+      echo "current: $REF (refs/notes/$REF)"
+      echo ""
+      echo "all notes refs:"
+      git for-each-ref --format='  %(refname:short)' refs/notes/ 2>/dev/null
+      ;;
+    use)
+      local name="${2:?usage: mycelium branch use <name>}"
+      if [[ "$name" == "main" || "$name" == "default" ]]; then
+        rm -f "$_git_dir/mycelium-branch"
+        echo "Switched to default ref: refs/notes/mycelium"
+      else
+        # Can't nest under refs/notes/mycelium/ — git refs can't be
+        # both a leaf and a directory. Use dash separator instead.
+        echo "mycelium--$name" > "$_git_dir/mycelium-branch"
+        echo "Switched to branch ref: refs/notes/mycelium--$name"
+      fi
+      ;;
+    merge)
+      local name="${2:?usage: mycelium branch merge <name>}"
+      local source_ref="mycelium--$name"
+      local source_count
+      source_count=$(git notes --ref="$source_ref" list 2>/dev/null | wc -l)
+      if [[ "$source_count" -eq 0 ]]; then
+        echo "No notes in refs/notes/$source_ref"
+        return 1
+      fi
+      echo "Merging $source_count note(s) from $source_ref into $REF..."
+      git notes --ref="$REF" merge --strategy=cat_sort_uniq "$source_ref"
+      echo "Done. Notes from $source_ref are now in $REF."
+      ;;
+    *)
+      cat <<'EOF'
+mycelium branch                      Show current ref and all notes refs
+mycelium branch use <name>           Print export command for branch-scoped notes
+mycelium branch merge <name>         Merge branch notes into current ref
+
+Workflow:
+  mycelium.sh branch use jj-support            # switch to branch ref
+  mycelium.sh note HEAD -k decision -m "..."  # notes go to branch ref
+  mycelium.sh branch use main                 # switch back
+  mycelium.sh branch merge jj-support         # merge when ready
+EOF
+      ;;
+  esac
+}
+
 cmd_dump() {
   git notes --ref="$REF" list 2>/dev/null | while read blob obj; do
     local label=$(obj_label "$obj")
@@ -546,8 +616,10 @@ case "${1:-help}" in
   context)    shift; cmd_context "$@" ;;
   edges)      shift; cmd_edges "$@" ;;
   find)       shift; cmd_find "$@" ;;
+  kinds)      cmd_kinds ;;
   log)        shift; cmd_log "$@" ;;
   list)       cmd_list ;;
+  branch)     shift; cmd_branch "$@" ;;
   activate)   cmd_activate ;;
   sync-init)  shift; cmd_sync_init "$@" ;;
   dump)       cmd_dump ;;
