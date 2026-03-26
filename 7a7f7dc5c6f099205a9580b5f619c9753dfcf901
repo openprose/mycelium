@@ -1,0 +1,21 @@
+kind context
+title Design lineage and archived notes
+status active
+edge applies-to tree:7a7f7dc5c6f099205a9580b5f619c9753dfcf901
+edge targets-treepath treepath:.
+
+Design lineage is preserved as archived notes rather than tracked markdown specs.
+
+Current contract:
+- mycelium.sh
+- README.md
+- SKILL.md
+- test/
+- current mycelium notes
+
+Historical lineage preserved as archived notes:
+- "Canonical substrate summary"
+- "Superseded full-system design space"
+- "Why the design was reduced to substrate"
+
+Treat archived history as rationale and background, not as the current contract. A fresh agent should orient on the visible layer first, then use the archived notes to understand why the design ended up here.
