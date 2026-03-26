@@ -1,0 +1,13 @@
+kind observation
+title Decisions are mycelium's strongest use case
+edge explains commit:ea10985161f3053d17355bd29e32cc448c7e76f8
+
+Demonstrated the decision workflow. Key advantages over git log:
+1. find decision — one command, every decision (git can't filter by intent)
+2. Decisions attach to the objects they affect (not a separate docs/ dir)
+3. Staleness is automatic (blob changed → [stale] label)
+4. Supersession chain shows how decisions evolved
+5. Decision notes capture alternatives considered (commit messages can't)
+
+The gap: git log tells you WHAT happened. Mycelium tells you WHY,
+WHAT ELSE was considered, and WHETHER it's still current.
