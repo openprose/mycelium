@@ -1,0 +1,28 @@
+kind value
+title Underground by default
+edge applies-to tree:2ae6bf4db9cedbc9cbe773d824cd01ae1a615616
+edge targets-treepath treepath:.
+
+Git notes are invisible. GitHub doesn't render them. git log
+doesn't show them unless activated. git diff ignores them. PRs don't
+include them. CI doesn't see them. This is the feature, not a bug.
+
+Mycelium must never impede normal git workflows. A developer who has
+never heard of mycelium should be able to clone, commit, push, and
+PR without ever encountering a mycelium note. Zero friction for
+non-participants.
+
+But the network is there. Agents read it on arrival, write to it on
+departure, and use it to coordinate across sessions. When a human
+wants to see the reasoning layer: git config --add notes.displayRef
+refs/notes/mycelium — and suddenly git log shows everything.
+
+The metaphor is literal: mycelium is the fungal network underground.
+The mushrooms (visible artifacts: commits, PRs, code) are what
+people see. The network that connects them is invisible until you
+dig. Transparent, not private. Underground, not encrypted.
+
+This constrains the tool: mycelium must never modify tracked files,
+never add to .gitignore, never create visible artifacts in the
+working tree. The only trace is refs/notes/mycelium in .git/ and
+an optional .git/mycelium-branch file. Everything else is invisible.
