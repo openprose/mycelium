@@ -1,6 +1,7 @@
-kind observation
-title from branch
+kind summary
+title main version
+supersedes 38d7831e566c525dc9d07e34cd4533346905075d
 edge applies-to blob:4422af5dc1adb8ffaf3f170da29e4ca0974afae5
 edge targets-path path:merge-target.txt
 
-branch note
+from main
