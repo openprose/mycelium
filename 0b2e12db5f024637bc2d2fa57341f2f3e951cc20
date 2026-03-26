@@ -1,27 +1,32 @@
 kind context
-title jj+git: research questions
-supersedes 1609542a583735822981b20ed0f0dcf9f09b4edc
+title jj+git: empirical questions
+supersedes 71c292cce7cb76cbbe156e5a7ac5b96dab0a4f45
 edge applies-to blob:0b2e12db5f024637bc2d2fa57341f2f3e951cc20
 edge targets-path path:mycelium.sh
+edge depends-on blob:0b2e12db5f024637bc2d2fa57341f2f3e951cc20
 
-Questions that need web research (exa) before implementing:
+Questions that can only be answered in a real jj+git colocated repo:
 
-1. Does jj preserve refs/notes/* in colocated mode? The docs say jj
-   preserves 'refs it does not own' — but does it consider notes refs
-   its own? Need to find the actual jj source or docs on ref handling.
+1. CREATE a colocated repo, write notes with mycelium.sh, then do
+   jj amend / jj squash / jj rebase. Which notes survive? Which orphan?
+   This is the ground truth — not docs, not assumptions.
 
-2. What happens to git notes when jj rewrites commits? Does jj's
-   operation log track predecessor→successor for notes refs? Or only
-   for branch refs?
+2. BLOB STABILITY: edit a file, jj commit, add a note on the blob,
+   then jj amend the commit message (no content change). Does the blob
+   OID stay the same? Does the note survive?
 
-3. Does jj have a hook system? Pre-commit/pre-push equivalents?
-   The gitleaks hooks rely on git hooks — do those fire in jj workflows?
+3. TREE STABILITY: same test but for directory trees. Does jj amend
+   change the tree OID even when file content is unchanged?
 
-4. jj change-id stability guarantees: is change_id truly immutable
-   across all rewrites? What about jj abandon + jj new?
+4. GIT HOOKS: do .git/hooks/pre-commit and pre-push fire when using
+   jj commit / jj git push? Or are they bypassed?
 
-5. Does anyone else use git notes with jj? Search for prior art,
-   issues, discussions on github.com/martinvonz/jj.
+5. ROUND-TRIP: write a note with mycelium.sh (git notes), then check
+   if jj log shows any awareness of it. Then jj git push — do notes
+   get pushed?
 
-6. jj's template language: what's the equivalent of git rev-parse
-   HEAD:path/to/file? Can jj resolve path→OID natively?
+6. RESOLVE PATH: run 'git rev-parse HEAD:path' in a colocated repo
+   after jj operations. Does HEAD stay in sync? Does jj's @ differ?
+
+7. PERFORMANCE: does 'git notes list' slow down in repos where jj
+   has created many rewritten commits? Hidden objects accumulate.
