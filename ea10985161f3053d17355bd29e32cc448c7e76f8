@@ -1,12 +1,5 @@
 kind observation
-title Probe result: notes capture decisions, gaps in operational how
-supersedes 19986eec0ccf7ec72dad28a6b4c75ec51ed7f9ab
+supersedes 120aae02d7d42c1b41cec9f6ba4e16a2d4bfc5a0
 edge explains commit:ea10985161f3053d17355bd29e32cc448c7e76f8
 
-Fresh agent (no conversation context) reconstructed all 10 major decisions
-and their rationale from mycelium notes alone. Gap pattern: notes are strong
-on 'why we chose X' but weak on operational guidance — conflict handling,
-scaling triggers, enforcement, multi-agent workflows. The decision log note
-references 10 hard questions but only ~5 are fully expanded as standalone
-decision notes. Good enough to orient. Not yet good enough to fully replace
-the conversation context.
+this is fine
