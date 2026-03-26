@@ -1,0 +1,6 @@
+kind summary
+title migrate command added
+edge applies-to blob:9afa129c8fa3ac2b098e9f766a2e25b3badad83b
+edge targets-path path:mycelium.sh
+
+cmd_migrate at ~line 1441. Accepts --dry-run, --map, --ref. Auto-detects jj via .jj/ dir. The jj auto-resolve path runs in a subshell (pipe to while-read) so only works for --map in current impl — jj auto needs the associative array fix if notes volume grows. Fine for now.
