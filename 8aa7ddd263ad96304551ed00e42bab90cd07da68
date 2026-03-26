@@ -1,6 +1,7 @@
-kind value
-title test custom kind
-supersedes c95f0ef95c410b17578ca0fde0f45c5742212749
+kind context
+title Session: dogfooding audit and fixes
+supersedes a448222aa98908bd52290217671d1ebb4baf2e5e
 edge explains commit:8aa7ddd263ad96304551ed00e42bab90cd07da68
 
-testing
+Audited all 23 notes for dogfooding gaps. Added tested-by edges,
+warnings, and orientation pattern in SKILL.md.
