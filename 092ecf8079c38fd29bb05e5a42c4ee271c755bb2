@@ -1,6 +1,6 @@
 kind constraint
 title Mycelium development principles
-supersedes 74c74ced66b51b980ff29100f6387690c36288c8
+supersedes 2c98e28f60c707b47e16dbdc6abf471a199239b0
 edge applies-to tree:092ecf8079c38fd29bb05e5a42c4ee271c755bb2
 edge targets-treepath treepath:.
 
@@ -45,3 +45,13 @@ edge targets-treepath treepath:.
 
    Code and notes branch together, merge together. An agent arriving
    on main during development sees stable code and stable notes.
+
+9. AGENT-NATIVE BY DEFAULT. Every command must work non-interactively
+   with flags alone. Interactive prompts are a convenience layer on
+   top, never the only path. If a test has to pipe characters to fake
+   being a human, the interface is wrong.
+
+   Test: can an agent call this command, read the output, and take
+   action — without piping stdin, without prompts, without expecting
+   a human? If not, add a flag-driven path first, then the interactive
+   wrapper.
