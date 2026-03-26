@@ -1,0 +1,35 @@
+kind context
+title Session: compost feature + workflow gaps
+edge explains commit:527129c565a6d6c24e0e1f8ab8a44ddffe907463
+edge targets-change change:wymopoxroqtorxzqrswvmytvkuzqqwrs
+
+Built the compost command and discovered workflow gaps in the process.
+
+Three things shipped:
+1. compost command — interactive triage of stale notes (compost/renew/skip),
+   with --dry-run and --report modes for scripting and hooks.
+2. context stratification — stale notes compressed to one-liners, composted
+   notes hidden by default, --all flag to see everything.
+3. overwrite warning — shows existing note kind+title on stderr before
+   clobbering. Born from accidentally overwriting the 7-principle root
+   tree constraint with a single-point note about branching.
+
+Two bugs fixed:
+1. note_header() crashed under pipefail when grep found no match. Same
+   class of bug as the 'grep -qF breaks on --- prefixes' warning. Fixed
+   with || true.
+2. compost arg parsing consumed positional arg before flag parsing loop.
+
+Meta-observations from this session:
+- I (the agent) arrived, read the README and SKILL, ran doctor/dump/find,
+  but still made basic mistakes: overwrote the root tree note without
+  reading it, wrote to main when on a feature branch, kept asking
+  'shall I?' instead of following the principles. The onboarding path
+  wasn't clear enough.
+- The overwrite warning was born from this session's own failure. Pave
+  the desire path: the tool should have told me what I was replacing.
+- Principle 8 (branch for features) was added to the development
+  principles because nothing in the existing culture said 'don't
+  develop on main.' Six sessions worked directly on main without
+  issue because the changes were small enough. Compost was the first
+  feature large enough to make the gap visible.
