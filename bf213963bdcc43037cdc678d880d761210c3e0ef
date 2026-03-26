@@ -1,0 +1,23 @@
+kind decision
+title Audit fixes: 3 bugs from codex review
+edge applies-to blob:bf213963bdcc43037cdc678d880d761210c3e0ef
+edge targets-path path:mycelium.sh
+
+gpt-5.4 (openai-codex, tmux pi instance) audited the slot implementation
+and found 3 bugs + 1 UX issue. All fixed with failing tests added first:
+
+1. prime not slot-aggregated: checked only default ref, missed slot-only repos.
+   Fixed: prime now uses _all_notes and _all_slot_refs for all sections.
+
+2. compost --report ignored tree notes: only checked targets-path, not
+   targets-treepath. Fixed: report now checks both path types.
+
+3. git noise leak: _compost_note and _renew_note leaked 'Overwriting existing
+   notes for object' from git notes add -f. Fixed: redirect stderr to /dev/null
+   on internal git notes add calls. cmd_note keeps its own overwrite warning.
+
+4. activate wildcard: codex flagged that git config notes.displayRef doesn't
+   support wildcards for slot refs. Deferred — activate already iterates
+   discovered refs via _all_slot_refs.
+
+5 new audit tests added. 228 total, 0 failures.
