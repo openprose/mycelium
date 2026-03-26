@@ -1,0 +1,12 @@
+kind warning
+title grep -qF breaks on --- prefixes
+edge applies-to blob:38596bf1085058af7585b7258d17fcdcff5d3cd8
+edge targets-path path:test.sh
+edge warns-about blob:38596bf1085058af7585b7258d17fcdcff5d3cd8
+
+The assert helper uses grep -qF. Strings starting with --- are
+interpreted as grep options, causing 'unrecognized option' errors.
+Use a substring without the leading dashes, or switch to grep -qe.
+
+Hit this in the follow test: assert 'edges section' '--- edges ---'
+failed because grep saw --- as a flag.
