@@ -1,0 +1,5 @@
+kind context
+title jj test: note before amend
+edge explains commit:d0024e29010420b660adbaee3e54a2c1cbbeb81c
+
+Testing whether this note survives jj amend.
