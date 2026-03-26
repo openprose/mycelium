@@ -1,0 +1,7 @@
+kind todo
+title jj migrate command
+edge applies-to blob:1d2814b527ed1bdf77e89b6b6eb36e2742992633
+edge targets-path path:mycelium.sh
+
+Copy notes from old commit OIDs to new ones using jj predecessor info.
+jj log -r 'all()' exposes predecessor→successor pairs.
