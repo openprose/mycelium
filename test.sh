@@ -314,6 +314,94 @@ assert "deep inheritance: surfaces parent tree note" "[tree]" "$out"
 assert "deep inheritance: shows constraint" "experimental" "$out"
 
 echo ""
+echo "=== Root Tree Resolution ==="
+
+# "." should resolve to the root tree
+out=$($MYCELIUM read .)
+assert "root tree: resolves" "tree:" "$out"
+
+# Write a constraint on root tree
+$MYCELIUM note . -k constraint -t "Test root principle" -m "Applies to everything." >/dev/null
+
+# Should be readable
+out=$($MYCELIUM read .)
+assert "root tree: note readable" "Test root principle" "$out"
+assert "root tree: has treepath edge" "targets-treepath treepath:." "$out"
+
+# Should surface in context for any file
+out=$($MYCELIUM context README.md)
+assert "root tree: surfaces in context for files" "Test root principle" "$out"
+assert "root tree: tagged as [tree] inherited" "[tree]" "$out"
+
+out=$($MYCELIUM context deep/a/b/c/leaf.ts)
+assert "root tree: surfaces for deeply nested files" "Test root principle" "$out"
+
+# find constraint should discover it
+out=$($MYCELIUM find constraint)
+assert "root tree: findable via find constraint" "Test root principle" "$out"
+
+echo ""
+echo "=== Stale Root Tree ==="
+
+# After a new commit, root tree OID changes — constraint becomes stale
+echo "trigger tree change" > stale-test.txt
+git add stale-test.txt
+git commit -q --no-verify -m "change root tree"
+
+# Exact match should fail (different tree OID now)
+out=$($MYCELIUM read .)
+assert_not "stale root: current tree has no note" "Test root principle" "$out"
+
+# But context should find it via stale-tree scan
+out=$($MYCELIUM context README.md)
+assert "stale root: surfaces as stale-tree" "Test root principle" "$out"
+assert "stale root: marked as stale" "[stale-tree]" "$out"
+
+echo ""
+echo "=== Follow Command ==="
+
+# Setup: note with multiple edges
+$MYCELIUM note README.md -k decision -t "Multi-edge test" \
+  -e "depends-on blob:$(git rev-parse HEAD:src/auth/retry.ts)" \
+  -m "A note pointing at multiple objects." >/dev/null
+
+out=$($MYCELIUM follow README.md)
+assert "follow: shows the note" "Multi-edge test" "$out"
+assert "follow: shows edges section" "edges" "$out"
+assert "follow: resolves applies-to" "applies-to" "$out"
+assert "follow: resolves depends-on" "depends-on" "$out"
+
+# Follow on object with no note
+out=$($MYCELIUM follow src/http/client.ts)
+assert "follow: reports no note" "no mycelium note" "$out"
+
+echo ""
+echo "=== Refs Command ==="
+
+# refs should find all notes pointing at README.md
+out=$($MYCELIUM refs README.md)
+assert "refs: finds note by OID" "Multi-edge test" "$out"
+
+# refs on retry.ts should find the depends-on edge
+out=$($MYCELIUM refs src/auth/retry.ts)
+assert "refs: finds inbound depends-on" "Multi-edge test" "$out"
+assert "refs: shows the edge" "depends-on" "$out"
+
+echo ""
+echo "=== Self-Documenting CLI ==="
+
+# help on unknown command shows usage
+out=$($MYCELIUM help 2>&1)
+assert "help: shows note command" "mycelium note" "$out"
+assert "help: shows follow command" "mycelium follow" "$out"
+assert "help: shows refs command" "mycelium refs" "$out"
+assert "help: shows context command" "mycelium context" "$out"
+
+# Missing --kind gives clear error
+out=$($MYCELIUM note HEAD -m "no kind" 2>&1) || true
+assert "error: missing kind" "kind" "$out"
+
+echo ""
 echo "================================"
 echo "  $PASS passed, $FAIL failed"
 echo "================================"

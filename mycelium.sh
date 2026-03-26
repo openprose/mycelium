@@ -31,6 +31,16 @@ resolve_target() {
   local target="$1"
   local at="${2:-HEAD}"
 
+  # Root tree: "." needs special handling (git rev-parse HEAD:. fails)
+  if [[ "$target" == "." ]]; then
+    local oid
+    oid=$(git rev-parse "$at^{tree}" 2>/dev/null) || true
+    if [[ -n "$oid" ]]; then
+      echo "$oid tree ."
+      return
+    fi
+  fi
+
   # Try as a file/dir path first (relative to repo root)
   if [[ -e "$target" ]] || git rev-parse --verify "$at:$target" &>/dev/null 2>&1; then
     local oid
@@ -266,23 +276,48 @@ cmd_context() {
     fi
   done
 
-  # 3. Walk parent directories for tree notes
+  # 3. Walk parent directories for tree notes (exact + stale)
   local dir="$filepath"
   while true; do
     dir=$(dirname "$dir")
     local tree
-    tree=$(git rev-parse "$at:$dir" 2>/dev/null || true)
+    if [[ "$dir" == "." ]]; then
+      tree=$(git rev-parse "$at^{tree}" 2>/dev/null || true)
+    else
+      tree=$(git rev-parse "$at:$dir" 2>/dev/null || true)
+    fi
+    local dir_label="${dir}"
+    [[ "$dir" == "." ]] && dir_label="(root)"
+
     if [[ -n "$tree" ]]; then
+      # Exact match
       local note
       note=$(git notes --ref="$REF" show "$tree" 2>/dev/null || true)
       if [[ -n "$note" ]]; then
         local kind=$(note_header "$note" "kind")
         local title=$(note_header "$note" "title")
-        echo "[tree] ${title:-$dir/} ($kind) — inherited"
+        echo "[tree] ${title:-$dir_label} ($kind) — inherited"
         echo "$note"
         echo ""
       fi
     fi
+
+    # Stale tree notes: target this dir path but on an older tree OID
+    local treepath_target
+    [[ "$dir" == "." ]] && treepath_target="treepath:." || treepath_target="treepath:$dir"
+    git notes --ref="$REF" list 2>/dev/null | while read noteblob obj; do
+      [[ "$obj" == "${tree:-}" ]] && continue
+      local content
+      content=$(git cat-file -p "$noteblob")
+      if echo "$content" | grep -q "targets-treepath $treepath_target\$"; then
+        local kind=$(note_header "$content" "kind")
+        local title=$(note_header "$content" "title")
+        echo "[stale-tree] ${title:-$dir_label} ($kind) — tree changed since note was written"
+        echo "$content"
+        echo ""
+      fi
+    done
+
     [[ "$dir" == "." || "$dir" == "/" ]] && break
   done
 
