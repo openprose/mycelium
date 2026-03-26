@@ -1,19 +1,32 @@
-kind warning
-title Hooks are in .git/hooks, not portable
+kind decision
+title doctor: facts only, no opinions
+supersedes af7bf67fe1f31cfaf679fcdd708cd55a41355b5a
 edge applies-to blob:f2fef6abf44eda5bd5094026ae5959868d2c103c
 edge targets-path path:mycelium.sh
-edge warns-about blob:f2fef6abf44eda5bd5094026ae5959868d2c103c
 
-The pre-commit and pre-push gitleaks hooks live in .git/hooks/
-which is not tracked or cloned. New clones don't get them. This is
-actually correct for the underground principle — hooks are local
-setup, not imposed on other users. But it means the gitleaks
-protection requires per-clone setup.
+doctor went through three rewrites in one session.
 
-Options for portability without violating underground:
-- activate command could install hooks (opt-in)
-- document in SKILL.md 'On arrival' section
-- a future 'mycelium.sh setup' command
+v1: prescriptive. Checked for departure notes, root tree constraints,
+tested-by coverage, doc drift. Told you what was wrong and what to fix.
+Problem: assumed our workflow. A user with 5 notes on key decisions
+would get a wall of false warnings.
 
-Do NOT put hooks in a tracked .githooks/ directory — that would
-make mycelium visible in the working tree.
+v2: 'structural but descriptive.' Separated graph/kinds/edges/drift
+sections. Still had doc-drift checking (does README mention all
+commands?). Problem: doc drift is OUR concern for OUR repo. It
+belongs in our test suite, not in the tool.
+
+v3: white hat. Three numbers: notes (current/stale/orphaned),
+edges (count), kinds (breakdown). No should, no missing, no drift.
+Like git status — reports what IS, not what OUGHT TO BE.
+
+The tension: every useful check is also an opinion. 'Decisions should
+have tested-by edges' is useful for us but prescriptive for everyone.
+The line we drew: doctor reports the state of the note graph itself.
+Not the state of your project. Your project's standards go in your
+notes (kind constraint, kind value), not in the tool's commands.
+
+Aplumb inspired this — its doctor/gaps/coverage commands check
+spec↔test↔code sync. But aplumb is deliberately opinionated (it has
+a spec-driven development model). Mycelium is deliberately not. The
+tool is the graph. The opinions are in the notes.
