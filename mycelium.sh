@@ -637,15 +637,30 @@ cmd_branch() {
     merge)
       local name="${2:?usage: mycelium branch merge <name>}"
       local source_ref="mycelium--$name"
-      local source_count
-      source_count=$(git notes --ref="$source_ref" list 2>/dev/null | wc -l)
-      if [[ "$source_count" -eq 0 ]]; then
+      local notelist
+      notelist=$(git notes --ref="$source_ref" list 2>/dev/null || true)
+      if [[ -z "$notelist" ]]; then
         echo "No notes in refs/notes/$source_ref"
         return 1
       fi
-      echo "Merging $source_count note(s) from $source_ref into $REF..."
-      git notes --ref="$REF" merge --strategy=cat_sort_uniq "$source_ref"
-      echo "Done. Notes from $source_ref are now in $REF."
+      local count=0
+      while read noteblob obj; do
+        local existing
+        existing=$(git notes --ref="$REF" list "$obj" 2>/dev/null | awk '{print $1}' || true)
+        if [[ -n "$existing" ]]; then
+          # Object has notes in both refs — branch supersedes main
+          local branch_content
+          branch_content=$(git cat-file -p "$noteblob")
+          # Prepend supersedes header pointing to main's note blob
+          local merged="$(echo "$branch_content" | awk '/^kind /{print; next} /^title /{print; next} !done{print "supersedes '"$existing"'"; done=1} {print}')"
+          git notes --ref="$REF" add -f -m "$merged" "$obj"
+        else
+          # Object only in branch — copy directly
+          git notes --ref="$REF" add -f -C "$noteblob" "$obj"
+        fi
+        count=$((count + 1))
+      done <<< "$notelist"
+      echo "Merged $count note(s) from $source_ref into $REF."
       ;;
     *)
       cat <<'EOF'

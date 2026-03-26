@@ -15,7 +15,7 @@ trap cleanup EXIT
 
 assert() {
   local name="$1" expected="$2" actual="$3"
-  if echo "$actual" | grep -qF "$expected"; then
+  if echo "$actual" | grep -qF -- "$expected"; then
     echo "  ✓ $name"
     PASS=$((PASS + 1))
   else
@@ -28,7 +28,7 @@ assert() {
 
 assert_not() {
   local name="$1" unexpected="$2" actual="$3"
-  if echo "$actual" | grep -qF "$unexpected"; then
+  if echo "$actual" | grep -qF -- "$unexpected"; then
     echo "  ✗ $name (should NOT contain)"
     echo "    unexpected: $unexpected"
     FAIL=$((FAIL + 1))
@@ -462,14 +462,30 @@ $MYCELIUM branch use main >/dev/null
 out=$($MYCELIUM list)
 assert_not "branch: note isolated from main" "branch-scoped note" "$out"
 
-# Merge
-$MYCELIUM branch merge test-branch >/dev/null
-out=$($MYCELIUM list)
-# After merge, the branch note should be in main
-# (note: merge may not bring text verbatim — just check the ref has more notes)
+# Merge — non-conflicting (branch has note on object main doesn't)
+echo "branch-merge-target" > merge-target.txt
+git add merge-target.txt
+git commit -q --no-verify -m "merge target file"
+$MYCELIUM branch use merge-branch >/dev/null
+$MYCELIUM note merge-target.txt -k observation -t "from branch" -m "branch note" >/dev/null
+$MYCELIUM branch use main >/dev/null
 
-# Switch back to main for remaining tests
-$MYCELIUM branch use main >/dev/null 2>&1 || true
+out=$($MYCELIUM branch merge merge-branch)
+assert "branch merge: reports count" "Merged 1" "$out"
+
+out=$($MYCELIUM read merge-target.txt)
+assert "branch merge: note appears in main" "from branch" "$out"
+
+# Merge — conflicting (both refs have note on same object)
+$MYCELIUM note merge-target.txt -k summary -t "main version" -m "from main" >/dev/null
+$MYCELIUM branch use merge-branch2 >/dev/null
+$MYCELIUM note merge-target.txt -k warning -t "branch version" -m "from branch" >/dev/null
+$MYCELIUM branch use main >/dev/null
+
+$MYCELIUM branch merge merge-branch2 >/dev/null
+out=$($MYCELIUM read merge-target.txt)
+assert "branch merge conflict: branch wins" "branch version" "$out"
+assert "branch merge conflict: supersedes main" "supersedes" "$out"
 
 echo ""
 echo "=== Self-Documenting CLI ==="
