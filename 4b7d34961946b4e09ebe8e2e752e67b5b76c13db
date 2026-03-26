@@ -1,0 +1,12 @@
+kind decision
+title Desire path smoothing
+edge applies-to blob:4b7d34961946b4e09ebe8e2e752e67b5b76c13db
+edge targets-path path:mycelium.sh
+edge depends-on blob:4b7d34961946b4e09ebe8e2e752e67b5b76c13db
+
+Three desire paths discovered from dogfooding:
+1. No target → defaults to HEAD (most common: annotate what I just committed)
+2. File/dir path → auto-resolves to blob/tree (no manual git rev-parse)
+3. Auto-edges by object type (no manual edge construction for the obvious ones)
+Also: all output now shows object type labels (commit:/blob:/tree:)
+and 'context' command walks blob→parent trees→commit for full picture.
