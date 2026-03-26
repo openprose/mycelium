@@ -702,6 +702,332 @@ assert "overwrite: shows warning" "overwriting" "$out"
 assert "overwrite: shows old title" "First note" "$out"
 
 echo ""
+echo "=== Slot Topologies: One-to-Many ==="
+
+# Setup: one file, two slots writing different notes on same object
+echo "shared-file" > shared.ts
+git add shared.ts && git commit -m "shared file" --quiet
+SHARED_BLOB=$(git rev-parse HEAD:shared.ts)
+
+# Two different slots note the same file — neither obliterates the other
+$MYCELIUM note shared.ts --slot skeleton -k observation -t "Skeleton obs" -m "File structure noted." >/dev/null 2>&1
+$MYCELIUM note shared.ts --slot enricher -k summary -t "Enricher summary" -m "Rich context added." >/dev/null 2>&1
+
+# GROUND TRUTH: verify git refs actually exist with correct content
+out=$(git notes --ref=mycelium--slot--skeleton show "$SHARED_BLOB" 2>/dev/null)
+assert "slot-git: skeleton ref has note on blob" "kind observation" "$out"
+assert "slot-git: skeleton note has correct title" "Skeleton obs" "$out"
+
+out=$(git notes --ref=mycelium--slot--enricher show "$SHARED_BLOB" 2>/dev/null)
+assert "slot-git: enricher ref has note on blob" "kind summary" "$out"
+assert "slot-git: enricher note has correct title" "Enricher summary" "$out"
+
+# GROUND TRUTH: default ref does NOT have skeleton/enricher notes
+out=$(git notes --ref=mycelium show "$SHARED_BLOB" 2>/dev/null || echo "NO_NOTE")
+assert "slot-git: default ref untouched by slot writes" "NO_NOTE" "$out"
+
+# Both notes exist — read by slot
+out=$($MYCELIUM read shared.ts --slot skeleton 2>&1)
+assert "slot: skeleton note exists" "Skeleton obs" "$out"
+
+out=$($MYCELIUM read shared.ts --slot enricher 2>&1)
+assert "slot: enricher note exists" "Enricher summary" "$out"
+
+# Default slot still works (no --slot flag)
+$MYCELIUM note shared.ts -k context -t "Default note" -m "Written to default slot." >/dev/null 2>&1
+out=$($MYCELIUM read shared.ts 2>&1)
+assert "slot: default note exists" "Default note" "$out"
+
+# GROUND TRUTH: default ref now has the note, slot refs unchanged
+out=$(git notes --ref=mycelium show "$SHARED_BLOB" 2>/dev/null)
+assert "slot-git: default ref has default note" "Default note" "$out"
+out=$(git notes --ref=mycelium--slot--skeleton show "$SHARED_BLOB" 2>/dev/null)
+assert "slot-git: skeleton unchanged after default write" "Skeleton obs" "$out"
+
+# Context aggregates all slots by default
+out=$($MYCELIUM context shared.ts 2>&1)
+assert "slot: context shows skeleton" "Skeleton obs" "$out"
+assert "slot: context shows enricher" "Enricher summary" "$out"
+assert "slot: context shows default" "Default note" "$out"
+
+# Context shows which slot each note is from
+assert "slot: context labels skeleton slot" "skeleton" "$out"
+assert "slot: context labels enricher slot" "enricher" "$out"
+
+echo ""
+echo "=== Slot Topologies: Supersedes Within Slot ==="
+
+# Overwrite within same slot = supersedes (intra-slot)
+$MYCELIUM note shared.ts --slot skeleton -k observation -t "Updated skeleton" -m "Revised." >/dev/null 2>&1
+out=$($MYCELIUM read shared.ts --slot skeleton 2>&1)
+assert "slot: supersede within slot" "Updated skeleton" "$out"
+assert_not "slot: old note gone from slot read" "Skeleton obs" "$out"
+
+# Enricher note untouched by skeleton overwrite
+out=$($MYCELIUM read shared.ts --slot enricher 2>&1)
+assert "slot: enricher survives skeleton overwrite" "Enricher summary" "$out"
+
+echo ""
+echo "=== Slot Topologies: Cross-Slot Edges ==="
+
+# A note in one slot can reference a note in another slot via edge
+SKEL_BLOB=$(git notes --ref=mycelium--slot--skeleton list "$SHARED_BLOB" 2>/dev/null | cut -d' ' -f1 || true)
+$MYCELIUM note shared.ts --slot enricher -k summary -t "Enricher v2" \
+  -e "incorporates note:$SKEL_BLOB" \
+  -m "Built on skeleton's observation." >/dev/null 2>&1
+out=$($MYCELIUM follow shared.ts --slot enricher 2>&1)
+assert "slot: cross-slot edge exists" "incorporates" "$out"
+
+echo ""
+echo "=== Slot Topologies: Doctor Aggregates ==="
+
+out=$($MYCELIUM doctor 2>&1)
+assert "slot: doctor counts all slots" "notes" "$out"
+# Should show notes from skeleton + enricher + default
+# At minimum 3 current notes on shared.ts across 3 slots
+
+echo ""
+echo "=== Slot Topologies: Stale Detection Per-Slot ==="
+
+# Change the file — all slots' notes on old blob go stale independently
+echo "shared-file-v2" > shared.ts
+git add shared.ts && git commit -m "change shared file" --quiet
+
+out=$($MYCELIUM compost shared.ts --dry-run 2>&1)
+# All three slot notes should show as stale
+assert "slot: stale detects skeleton" "Updated skeleton" "$out"
+assert "slot: stale detects enricher" "Enricher" "$out"
+assert "slot: stale detects default" "Default note" "$out"
+
+echo ""
+echo "=== Slot Topologies: Compost Per-Slot ==="
+
+# Compost just the skeleton note, leave enricher and default alone
+STALE_SKEL_BLOB=$SHARED_BLOB  # blob before file change
+$MYCELIUM compost shared.ts --slot skeleton --compost >/dev/null 2>&1
+
+# GROUND TRUTH: skeleton note on old blob has status composted
+out=$(git notes --ref=mycelium--slot--skeleton show "$STALE_SKEL_BLOB" 2>/dev/null)
+assert "slot-git: skeleton composted in git" "status composted" "$out"
+
+# GROUND TRUTH: enricher note on old blob does NOT have status composted
+out=$(git notes --ref=mycelium--slot--enricher show "$STALE_SKEL_BLOB" 2>/dev/null)
+assert_not "slot-git: enricher NOT composted" "status composted" "$out"
+
+# GROUND TRUTH: default note on old blob does NOT have status composted
+out=$(git notes --ref=mycelium show "$STALE_SKEL_BLOB" 2>/dev/null)
+assert_not "slot-git: default NOT composted" "status composted" "$out"
+
+# Skeleton gone from stale list, others remain
+out=$($MYCELIUM compost shared.ts --dry-run 2>&1)
+assert_not "slot: skeleton composted, gone from stale" "Updated skeleton" "$out"
+assert "slot: enricher still stale" "Enricher" "$out"
+assert "slot: default still stale" "Default note" "$out"
+
+# Renew enricher to current blob
+$MYCELIUM compost shared.ts --slot enricher --renew >/dev/null 2>&1
+NEW_SHARED_BLOB=$(git rev-parse HEAD:shared.ts)
+
+# GROUND TRUTH: new blob has enricher note
+out=$(git notes --ref=mycelium--slot--enricher show "$NEW_SHARED_BLOB" 2>/dev/null)
+assert "slot-git: enricher renewed on new blob" "Enricher v2" "$out"
+
+# GROUND TRUTH: old blob enricher is composted
+out=$(git notes --ref=mycelium--slot--enricher show "$STALE_SKEL_BLOB" 2>/dev/null)
+assert "slot-git: old enricher blob composted" "status composted" "$out"
+
+out=$($MYCELIUM read shared.ts --slot enricher 2>&1)
+assert "slot: enricher renewed to current" "Enricher v2" "$out"
+
+echo ""
+echo "=== Slot Topologies: Batch Compost Across Slots ==="
+
+# Setup fresh stale notes across slots
+echo "batch-file" > batch.ts
+git add batch.ts && git commit -m "batch file" --quiet
+BATCH_BLOB=$(git rev-parse HEAD:batch.ts)
+$MYCELIUM note batch.ts --slot alpha -k observation -t "Alpha note" -m "a" >/dev/null 2>&1
+$MYCELIUM note batch.ts --slot beta -k observation -t "Beta note" -m "b" >/dev/null 2>&1
+$MYCELIUM note batch.ts -k context -t "Default batch" -m "c" >/dev/null 2>&1
+echo "batch-file-v2" > batch.ts
+git add batch.ts && git commit -m "change batch" --quiet
+
+# Batch compost by path (no --slot) = compost across ALL slots
+$MYCELIUM compost batch.ts --compost >/dev/null 2>&1
+
+# GROUND TRUTH: all three refs have composted status on old blob
+out=$(git notes --ref=mycelium--slot--alpha show "$BATCH_BLOB" 2>/dev/null)
+assert "slot-git: batch alpha composted" "status composted" "$out"
+out=$(git notes --ref=mycelium--slot--beta show "$BATCH_BLOB" 2>/dev/null)
+assert "slot-git: batch beta composted" "status composted" "$out"
+out=$(git notes --ref=mycelium show "$BATCH_BLOB" 2>/dev/null)
+assert "slot-git: batch default composted" "status composted" "$out"
+
+# Verify they're gone from stale listing
+out=$($MYCELIUM compost batch.ts --dry-run 2>&1)
+assert_not "slot: batch composted alpha" "Alpha note" "$out"
+assert_not "slot: batch composted beta" "Beta note" "$out"
+assert_not "slot: batch composted default" "Default batch" "$out"
+
+echo ""
+echo "=== Slot Topologies: Find/Kinds Across Slots ==="
+
+# find and kinds should aggregate across all slots
+out=$($MYCELIUM find observation 2>&1)
+assert "slot: find spans slots" "Updated skeleton" "$out"
+
+out=$($MYCELIUM kinds 2>&1)
+assert "slot: kinds spans slots" "observation" "$out"
+
+echo ""
+echo "=== Slot Topologies: Backward Compatibility ==="
+
+# Existing notes written without --slot still work
+# (they live in refs/notes/mycelium, the default)
+echo "legacy-file" > legacy.ts
+git add legacy.ts && git commit -m "legacy" --quiet
+$MYCELIUM note legacy.ts -k context -t "Legacy note" -m "No slot specified." >/dev/null 2>&1
+out=$($MYCELIUM read legacy.ts 2>&1)
+assert "slot: legacy note readable" "Legacy note" "$out"
+out=$($MYCELIUM context legacy.ts 2>&1)
+assert "slot: legacy note in context" "Legacy note" "$out"
+
+echo ""
+echo "=== Slot Topologies: Read Semantics ==="
+
+# read with no --slot returns default slot only (not aggregate)
+out=$($MYCELIUM read shared.ts 2>&1)
+assert "slot: read no-slot returns default" "Default note" "$out"
+assert_not "slot: read no-slot excludes skeleton" "Skeleton" "$out"
+assert_not "slot: read no-slot excludes enricher" "Enricher" "$out"
+
+# read with --slot returns that slot only
+out=$($MYCELIUM read shared.ts --slot skeleton 2>&1)
+assert "slot: read --slot skeleton" "Updated skeleton" "$out"
+assert_not "slot: read --slot skeleton excludes enricher" "Enricher" "$out"
+
+echo ""
+echo "=== Slot Topologies: OID Ambiguity ==="
+
+# Setup: same object noted in two slots
+echo "ambig-file" > ambig.ts
+git add ambig.ts && git commit -m "ambig" --quiet
+AMBIG_BLOB=$(git rev-parse HEAD:ambig.ts)
+$MYCELIUM note ambig.ts --slot red -k observation -t "Red note" -m "r" >/dev/null 2>&1
+$MYCELIUM note ambig.ts --slot blue -k observation -t "Blue note" -m "b" >/dev/null 2>&1
+echo "ambig-v2" > ambig.ts
+git add ambig.ts && git commit -m "change ambig" --quiet
+
+# Bare OID compost should error when multiple slots match
+out=$($MYCELIUM compost "${AMBIG_BLOB:0:12}" --compost 2>&1 || true)
+assert "slot: bare OID ambiguous errors" "ambiguous" "$out"
+
+# With --slot, it works
+out=$($MYCELIUM compost "${AMBIG_BLOB:0:12}" --slot red --compost 2>&1)
+assert "slot: OID + slot compost works" "composted" "$out"
+
+echo ""
+echo "=== Slot Topologies: Cross-Slot Supersedes Forbidden ==="
+
+# Writing to slot A should never auto-supersede a note in slot B
+echo "xsuper-file" > xsuper.ts
+git add xsuper.ts && git commit -m "xsuper" --quiet
+$MYCELIUM note xsuper.ts --slot alpha -k observation -t "Alpha" -m "a" >/dev/null 2>&1
+$MYCELIUM note xsuper.ts --slot beta -k summary -t "Beta" -m "b" >/dev/null 2>&1
+
+# Overwrite alpha — beta must not get a supersedes header
+$MYCELIUM note xsuper.ts --slot alpha -k observation -t "Alpha v2" -m "a2" >/dev/null 2>&1
+out=$($MYCELIUM read xsuper.ts --slot beta 2>&1)
+assert "slot: beta has no supersedes from alpha" "Beta" "$out"
+assert_not "slot: beta not superseded" "supersedes" "$out"
+
+echo ""
+echo "=== Slot Topologies: Renew Collision ==="
+
+# Renew should only fail if same slot has current note, not other slots
+echo "renew-col" > renew-col.ts
+git add renew-col.ts && git commit -m "renew-col" --quiet
+$MYCELIUM note renew-col.ts --slot enricher -k summary -t "Enricher col" -m "e" >/dev/null 2>&1
+OLD_RC_BLOB=$(git rev-parse HEAD:renew-col.ts)
+echo "renew-col-v2" > renew-col.ts
+git add renew-col.ts && git commit -m "change renew-col" --quiet
+NEW_RC_BLOB=$(git rev-parse HEAD:renew-col.ts)
+
+# Write a note on current version in default slot
+$MYCELIUM note renew-col.ts -k context -t "Default current" -m "d" >/dev/null 2>&1
+
+# Renew enricher should succeed even though default has a current note
+out=$($MYCELIUM compost renew-col.ts --slot enricher --renew 2>&1)
+assert "slot: renew succeeds despite other slot having current" "renewed" "$out"
+
+echo ""
+echo "=== Slot Topologies: Follow Across Slots ==="
+
+# follow with no --slot shows default slot note + edges
+out=$($MYCELIUM follow shared.ts 2>&1)
+assert "slot: follow no-slot shows default" "Default note" "$out"
+
+echo ""
+echo "=== Slot Topologies: Unsafe Slot Names ==="
+
+# Reserved/dangerous names should be rejected
+out=$($MYCELIUM note shared.ts --slot "main" -k context -m "bad" 2>&1 || true)
+assert "slot: reject 'main' as slot name" "Error" "$out"
+
+out=$($MYCELIUM note shared.ts --slot "default" -k context -m "bad" 2>&1 || true)
+assert "slot: reject 'default' as slot name" "Error" "$out"
+
+echo ""
+echo "=== Slot Topologies: Prime Shows Slots ==="
+
+out=$($MYCELIUM prime 2>&1)
+# Prime should show notes from all slots and label them
+assert "slot: prime aggregates" "notes" "$out"
+
+echo ""
+echo "=== Audit Bug: Prime Slot-Only Repo ==="
+
+# In a repo with ONLY slot notes (no default ref notes), prime must still work
+# Bug: prime checked only $REF, missed slot-only repos
+echo "prime-only" > prime-only.ts
+git add prime-only.ts && git commit -m "prime-only" --quiet
+$MYCELIUM note prime-only.ts --slot alpha -k observation -t "Alpha only" -m "Only slot note." >/dev/null 2>&1
+# Remove any default-ref notes on this blob to simulate slot-only
+git notes --ref=mycelium remove "$(git rev-parse HEAD:prime-only.ts)" 2>/dev/null || true
+out=$($MYCELIUM prime 2>&1)
+assert_not "audit: prime doesn't say 'No mycelium notes'" "No mycelium notes" "$out"
+assert "audit: prime sees slot-only notes" "notes" "$out"
+
+echo ""
+echo "=== Audit Bug: Compost Report Ignores Tree Notes ==="
+
+# Bug: compost --report only checked targets-path, not targets-treepath
+mkdir -p treedir
+echo "treefile" > treedir/f.ts
+git add treedir && git commit -m "treedir" --quiet
+$MYCELIUM note treedir/ -k constraint -t "Dir constraint" -m "Rule." >/dev/null 2>&1
+echo "treefile-v2" > treedir/f.ts
+git add treedir && git commit -m "change treedir" --quiet
+out=$($MYCELIUM compost --report 2>&1)
+# Report should count the stale tree note
+assert "audit: report counts stale tree notes" "stale" "$out"
+# Verify dry-run sees it
+out=$($MYCELIUM compost treedir --dry-run 2>&1)
+assert "audit: dry-run sees stale tree note" "Dir constraint" "$out"
+
+echo ""
+echo "=== Audit Bug: Git Noise Suppressed ==="
+
+# Bug: compost/renew leaked "Overwriting existing notes for object" from git
+echo "noise-file" > noise.ts
+git add noise.ts && git commit -m "noise" --quiet
+$MYCELIUM note noise.ts -k context -t "Noise note" -m "n" >/dev/null 2>&1
+echo "noise-v2" > noise.ts
+git add noise.ts && git commit -m "change noise" --quiet
+out=$($MYCELIUM compost noise.ts --compost 2>&1)
+assert_not "audit: no git noise on compost" "Overwriting existing" "$out"
+
+echo ""
 echo "================================"
 echo "  $PASS passed, $FAIL failed"
 echo "================================"

@@ -117,6 +117,22 @@ mycelium.sh compost --report                   # counts only (for hooks)
 
 Composted notes aren't deleted — they're still accessible via `read` and `dump`, just no longer surfaced by `context`.
 
+### Slots
+
+Multiple tools or agents can write notes on the same object without obliterating each other. Each slot is an independent notes ref.
+
+```bash
+mycelium.sh note src/auth.ts --slot skeleton -k observation -m "File structure."
+mycelium.sh note src/auth.ts --slot enricher -k summary -m "Rich context."
+mycelium.sh note src/auth.ts -k context -m "Default slot."  # no --slot
+
+mycelium.sh read src/auth.ts --slot skeleton   # read one slot
+mycelium.sh context src/auth.ts                # aggregates all slots
+mycelium.sh compost src/auth.ts --slot skeleton --compost  # compost per-slot
+```
+
+`context`, `doctor`, `find`, `kinds`, `prime` aggregate across all slots. `read` and `follow` use the default slot unless `--slot` is specified. Supersedes is intra-slot only — writing to one slot never affects another.
+
 ## Platform support
 
 Works on **Linux**, **macOS**, and **Windows** (via Git Bash).

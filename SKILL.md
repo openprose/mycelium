@@ -259,23 +259,53 @@ the full body. Composted notes are hidden unless you pass `--all`.
 The interactive mode (`mycelium.sh compost src/auth.ts` with no action flag)
 prompts per-note for humans. Agents should use `--dry-run` + `--compost`/`--renew`.
 
+## Slots
+
+Multiple tools or agents can write notes on the same object without obliteration.
+Each slot is a named lane backed by its own notes ref.
+
+```bash
+# Write to named slots
+mycelium.sh note src/auth.ts --slot skeleton -k observation -m "Structure."
+mycelium.sh note src/auth.ts --slot enricher -k summary -m "Context."
+
+# Read from a specific slot
+mycelium.sh read src/auth.ts --slot skeleton
+
+# Aggregation commands scan all slots by default
+mycelium.sh context src/auth.ts    # shows notes from every slot, labeled
+mycelium.sh find decision          # finds across all slots
+mycelium.sh doctor                 # counts all slots
+
+# Compost per-slot
+mycelium.sh compost src/auth.ts --slot skeleton --compost
+mycelium.sh compost src/auth.ts --compost    # batch: all slots
+```
+
+**Rules:**
+- `read`/`follow` use the default slot unless `--slot` given
+- `context`/`find`/`kinds`/`doctor`/`prime` aggregate all slots
+- Supersedes is intra-slot only — writing to skeleton never touches enricher
+- Bare OID compost errors if multiple slots match — use `--slot` to disambiguate
+- Reserved names: `main`, `default`
+
 ## All commands
 
 ```
 mycelium.sh note [target] -k <kind> -m <body>   Write (default: HEAD)
-mycelium.sh read [target]                        Read (default: HEAD)
-mycelium.sh follow [target]                      Read + resolve all edges
+mycelium.sh read [target] [--slot <name>]        Read (default: HEAD)
+mycelium.sh follow [target] [--slot <name>]      Read + resolve all edges
 mycelium.sh refs [target]                        All notes pointing at target
 mycelium.sh context <path> [--all]               All notes for a path
 mycelium.sh find <kind>                          Find by kind
 mycelium.sh kinds                                List all kinds in use
-mycelium.sh compost [path|.] [--dry-run|--report] Triage stale notes
+mycelium.sh compost [path|oid] [--compost|--renew|--dry-run|--report] [--slot]
 mycelium.sh edges [type]                         List edges
 mycelium.sh list                                 All annotated objects
 mycelium.sh log [n]                              Recent commits with notes
 mycelium.sh dump                                 Everything, greppable
 mycelium.sh doctor                               Graph health (facts only)
-mycelium.sh prime                                Skill + live repo context for agents
+mycelium.sh prime                                Skill + live repo context
 mycelium.sh branch [use|merge] [name]            Branch-scoped notes
 mycelium.sh activate                             Show in git log
 mycelium.sh sync-init [remote]                   Configure fetch/push
