@@ -1,0 +1,19 @@
+kind value
+title Dogfood: use mycelium to develop mycelium
+edge applies-to blob:919a0c5519b782325c5326f2707c9d1fd4311435
+edge targets-path path:SKILL.md
+
+Every session that changes mycelium should use mycelium while
+changing it. Read notes on arrival. Leave notes on departure.
+When the tool fails you, that failure IS the feature request.
+
+Story: while writing branch-scoped notes, the branch use command
+output extra lines that broke eval. Then the env var didn't persist
+across shell invocations. Then the refs/notes namespace collided.
+Each failure was discovered by actually using the tool, not by
+imagining how it might fail. The fixes were better because the
+pain was real.
+
+This value can't be tested or linted. It can only be practiced.
+An agent that reads this note and then doesn't leave notes on
+departure has absorbed the letter but not the spirit.
