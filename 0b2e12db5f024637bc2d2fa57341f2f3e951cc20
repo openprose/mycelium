@@ -1,12 +1,27 @@
-kind warning
-title gitleaks stdin does not load rules
+kind context
+title jj+git: research questions
+supersedes 1609542a583735822981b20ed0f0dcf9f09b4edc
 edge applies-to blob:0b2e12db5f024637bc2d2fa57341f2f3e951cc20
 edge targets-path path:mycelium.sh
-edge warns-about blob:0b2e12db5f024637bc2d2fa57341f2f3e951cc20
 
-gitleaks v8.30 stdin mode scans but loads zero detection rules.
-The inline scan works around this with a tmpfile + gitleaks dir.
-If someone 'simplifies' this to a pipe, the scan becomes a no-op.
+Questions that need web research (exa) before implementing:
 
-Do not change the tmpfile approach without verifying stdin actually
-catches secrets. Run: echo 'xoxb-...' | gitleaks stdin -v
+1. Does jj preserve refs/notes/* in colocated mode? The docs say jj
+   preserves 'refs it does not own' — but does it consider notes refs
+   its own? Need to find the actual jj source or docs on ref handling.
+
+2. What happens to git notes when jj rewrites commits? Does jj's
+   operation log track predecessor→successor for notes refs? Or only
+   for branch refs?
+
+3. Does jj have a hook system? Pre-commit/pre-push equivalents?
+   The gitleaks hooks rely on git hooks — do those fire in jj workflows?
+
+4. jj change-id stability guarantees: is change_id truly immutable
+   across all rewrites? What about jj abandon + jj new?
+
+5. Does anyone else use git notes with jj? Search for prior art,
+   issues, discussions on github.com/martinvonz/jj.
+
+6. jj's template language: what's the equivalent of git rev-parse
+   HEAD:path/to/file? Can jj resolve path→OID natively?
