@@ -1,0 +1,17 @@
+kind value
+title Git-native
+edge applies-to tree:fb6255ad01da67c217b8cefa94426d7a224323c6
+edge targets-treepath treepath:.
+
+Git notes is the substrate. If git can do it, we don't wrap it.
+If git can't do it, we think twice before building it.
+
+Story: branch-scoped notes needed a way to merge. Instead of writing
+a merge algorithm, we used git notes merge — a built-in command with
+conflict strategies (ours/theirs/union/cat_sort_uniq). The entire
+branch command is 40 lines because git does the hard work.
+
+The constraint 'bash and git only' is the hard version of this value.
+The value is softer: prefer the git-native way even when a custom
+solution would be slightly more ergonomic. The git way composes with
+the rest of the ecosystem. The custom way doesn't.
