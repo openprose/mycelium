@@ -1,0 +1,15 @@
+kind context
+title Session: dogfooding audit and fixes
+edge explains commit:8aa7ddd263ad96304551ed00e42bab90cd07da68
+
+Audited all 23 notes for dogfooding gaps. Found:
+- 0/7 decisions had tested-by edges (now 4/7 do)
+- 0 warning notes existed (now 3)
+- 0 warns-about edges (now 3)
+- No orientation pattern in skill (now has 'On arrival' section)
+
+Remaining gaps:
+- 3 decisions still lack tested-by (older ones from initial session)
+- No session arrival/departure discipline yet (this is the first departure note)
+- No compliance checking (principles are written but not enforced)
+- grep -qF assert helper should be fixed to handle --- prefixes
