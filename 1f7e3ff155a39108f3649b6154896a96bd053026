@@ -1,4 +1,5 @@
 kind constraint
+status composted
 title Mycelium development principles
 edge applies-to tree:1f7e3ff155a39108f3649b6154896a96bd053026
 edge targets-treepath treepath:.
