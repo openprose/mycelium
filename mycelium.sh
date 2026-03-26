@@ -1438,6 +1438,104 @@ cmd_compost() {
   done <<< "$stale_lines"
 }
 
+cmd_migrate() {
+  local dry_run=false map_file="" ref="$NOTES_REF"
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --dry-run) dry_run=true; shift ;;
+      --map)     map_file="$2"; shift 2 ;;
+      --ref)     ref="$2"; shift 2 ;;
+      *)         echo "Usage: mycelium migrate [--dry-run] [--map <file>] [--ref <ref>]" >&2; exit 1 ;;
+    esac
+  done
+
+  # Build mapping: old_oid -> new_oid
+  # Source 1: explicit map file (old_oid new_oid change_id)
+  # Source 2: jj predecessor info (auto-detect)
+  declare -A oid_map  # old_oid -> new_oid
+
+  if [[ -n "$map_file" ]]; then
+    while read -r old_oid new_oid cid rest; do
+      [[ -z "$old_oid" || "$old_oid" == "#"* ]] && continue
+      oid_map["$old_oid"]="$new_oid"
+    done < "$map_file"
+  elif [[ -d ".jj" ]] || [[ -d "$_git_dir/../.jj" ]]; then
+    # Auto-resolve via jj: find notes with targets-change edges, resolve current OID
+    echo "jj colocated repo detected — auto-resolving via change_id edges" >&2
+    if ! command -v jj &>/dev/null; then
+      echo "jj not found — provide --map file or install jj" >&2
+      exit 1
+    fi
+    # Scan all notes for targets-change edges on commit objects
+    git notes --ref="$ref" list 2>/dev/null | while read -r noteblob obj; do
+      [[ -z "$noteblob" ]] && continue
+      local otype
+      otype=$(git cat-file -t "$obj" 2>/dev/null || echo "unknown")
+      [[ "$otype" != "commit" ]] && continue
+      local content
+      content=$(git cat-file -p "$noteblob")
+      local cid
+      cid=$(echo "$content" | grep '^edge targets-change change:' | head -1 | sed 's/^edge targets-change change://')
+      [[ -z "$cid" ]] && continue
+      # Resolve change_id to current commit
+      local current_oid
+      current_oid=$(jj log -r "$cid" --no-graph -T 'commit_id' 2>/dev/null || true)
+      [[ -z "$current_oid" ]] && continue
+      [[ "$current_oid" == "$obj" ]] && continue  # no rewrite
+      oid_map["$obj"]="$current_oid"
+    done
+  else
+    echo "No --map file and no jj repo detected. Nothing to migrate." >&2
+    echo "Usage: mycelium migrate [--dry-run] [--map <file>]" >&2
+    exit 1
+  fi
+
+  local reattached=0 skipped=0 total=0
+
+  # Walk all notes on the ref looking for ones attached to old OIDs in the map
+  local notelist
+  notelist=$(git notes --ref="$ref" list 2>/dev/null || true)
+  while read -r noteblob obj; do
+    [[ -z "$noteblob" ]] && continue
+    local new_oid="${oid_map[$obj]:-}"
+    [[ -z "$new_oid" ]] && continue
+    total=$((total + 1))
+
+    local content
+    content=$(git cat-file -p "$noteblob")
+    local title
+    title=$(note_header "$content" "title")
+
+    # Check for conflict: new OID already has a note
+    if git notes --ref="$ref" show "$new_oid" &>/dev/null; then
+      echo "  skip: ${title:-(untitled)} — target ${new_oid:0:12} already has a note" >&2
+      skipped=$((skipped + 1))
+      continue
+    fi
+
+    if $dry_run; then
+      echo "  dry-run: would reattach \"${title:-(untitled)}\" ${obj:0:12} → ${new_oid:0:12}" >&2
+    else
+      # Update the explains commit: edge in the note body
+      local new_content
+      new_content=$(echo "$content" | sed "s|^edge explains commit:${obj}|edge explains commit:${new_oid}|")
+      # Attach to new OID
+      echo "$new_content" | git notes --ref="$ref" add -f -F - "$new_oid" 2>/dev/null
+      # Remove from old OID
+      git notes --ref="$ref" remove "$obj" 2>/dev/null || true
+      echo "  reattached: \"${title:-(untitled)}\" ${obj:0:12} → ${new_oid:0:12}" >&2
+    fi
+    reattached=$((reattached + 1))
+  done <<< "$notelist"
+
+  if $dry_run; then
+    echo "dry-run: $reattached to reattach, $skipped to skip" >&2
+  else
+    echo "migrate: $reattached reattached, $skipped skipped" >&2
+  fi
+}
+
 cmd_dump() {
   _all_notes | while read sref blob obj; do
     local label=$(obj_label "$obj")
@@ -1555,6 +1653,7 @@ case "${1:-help}" in
   activate)   cmd_activate ;;
   sync-init)  shift; cmd_sync_init "$@" ;;
   compost)    shift; cmd_compost "$@" ;;
+  migrate)    shift; cmd_migrate "$@" ;;
   doctor)     cmd_doctor ;;
   dump)       cmd_dump ;;
   prime)      cmd_prime ;;

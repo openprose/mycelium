@@ -104,6 +104,7 @@ mycelium.sh list                                 All annotated objects
 mycelium.sh log [n]                              Recent commits with notes
 mycelium.sh dump                                 Everything, greppable
 mycelium.sh compost [path|.] [--dry-run|--report] Triage stale notes
+mycelium.sh migrate [--dry-run] [--map <file>]   Reattach notes after jj rewrites
 mycelium.sh doctor                               Graph state (facts only)
 mycelium.sh prime                                Skill + live repo context for agents
 mycelium.sh activate                             Show notes in git log
@@ -126,6 +127,18 @@ mycelium.sh compost --report                   # counts only (for hooks)
 ```
 
 Composted notes aren't deleted — they're still accessible via `read` and `dump`, just no longer surfaced by `context`.
+
+### Migrate (jj)
+
+When jj rewrites commits (amend, rebase, squash), notes on old commit OIDs become orphaned. `migrate` bulk-reattaches them using the `targets-change` edges that mycelium auto-adds in jj repos:
+
+```bash
+mycelium.sh migrate --dry-run          # show what would be reattached
+mycelium.sh migrate                    # auto-resolve via jj change_id edges
+mycelium.sh migrate --map mapping.txt  # explicit file: old_oid new_oid change_id
+```
+
+Skips conflicts (target already has a note), updates `explains commit:` edges, and is idempotent.
 
 ### Slots
 
@@ -151,7 +164,8 @@ Dependencies: `bash` (3.2+), `git`, and POSIX coreutils (`awk`, `grep`, `sed`, `
 
 ## Roadmap
 
-- **jj `migrate` command** — jj colocation works (auto change-id edges, fallback lookup), but notes on rewritten commits still need manual recovery. A `migrate` command to bulk-reattach orphaned notes via change-id edges is planned.
+- **Claude Code plugin** — native integration so Claude Code reads/writes mycelium notes automatically when working in git repos.
+- **Pi extension** — same for the [pi coding agent](https://github.com/badlogic/pi-mono), making mycelium a first-class part of the agent loop.
 
 ## Spiritual predecessors
 

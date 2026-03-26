@@ -306,6 +306,7 @@ mycelium.sh log [n]                              Recent commits with notes
 mycelium.sh dump                                 Everything, greppable
 mycelium.sh doctor                               Graph health (facts only)
 mycelium.sh prime                                Skill + live repo context
+mycelium.sh migrate [--dry-run] [--map <file>]    Reattach notes after jj rewrites
 mycelium.sh branch [use|merge] [name]            Branch-scoped notes
 mycelium.sh activate                             Show in git log
 mycelium.sh sync-init [remote]                   Configure fetch/push
@@ -313,4 +314,14 @@ mycelium.sh sync-init [remote]                   Configure fetch/push
 
 ## jj+git colocated repos
 
-If `.jj/` is detected, mycelium adapts automatically — no flags needed. Commit notes get a `targets-change` edge (stable across jj rewrites). `read` falls back to change_id lookup when the commit OID changes. Prefer notes on files over commits — blob OIDs survive rewrites, commit OIDs don't. Run `mycelium.sh help` for jj-specific guidance.
+If `.jj/` is detected, mycelium adapts automatically — no flags needed. Commit notes get a `targets-change` edge (stable across jj rewrites). `read` falls back to change_id lookup when the commit OID changes. Prefer notes on files over commits — blob OIDs survive rewrites, commit OIDs don't.
+
+When jj rewrites commits (amend, rebase, squash), notes on old OIDs become orphaned. Use `migrate` to bulk-reattach them:
+
+```bash
+mycelium.sh migrate --dry-run        # auto-resolves via jj change_id edges
+mycelium.sh migrate                  # reattach orphaned notes to new OIDs
+mycelium.sh migrate --map mapping.txt  # explicit old→new mapping (old_oid new_oid change_id)
+```
+
+Run `mycelium.sh help` for jj-specific guidance.

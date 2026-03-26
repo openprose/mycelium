@@ -1029,6 +1029,121 @@ out=$($MYCELIUM compost noise.ts --compost 2>&1)
 assert_not "audit: no git noise on compost" "Overwriting existing" "$out"
 
 echo ""
+echo "=== Migrate: Dry Run ==="
+
+# Simulate jj rewrite: note on old commit OID with a targets-change edge,
+# then the commit gets a new OID but same change_id.
+MIGRATE_CID="testmigrate00change00id00000000"
+OLD_COMMIT=$(git rev-parse HEAD)
+
+# Create a note with a targets-change edge on current HEAD
+git notes --ref=mycelium add -f -m "kind context
+title Migrate me
+edge explains commit:$OLD_COMMIT
+edge targets-change change:$MIGRATE_CID
+
+Body of note to migrate." "$OLD_COMMIT"
+
+# Simulate rewrite: new commit with same tree but different OID
+git commit --allow-empty -m "rewritten commit" --quiet
+NEW_COMMIT=$(git rev-parse HEAD)
+
+# The note is on OLD_COMMIT. We need a way to resolve change_id -> new commit.
+# In real jj, `jj log -r $cid` does this. For testing, we create a fake resolver.
+# migrate should accept a mapping file or we mock jj.
+# Strategy: create a mapping file (old_oid new_oid change_id) that migrate can consume.
+MIGRATE_MAP=$(mktemp)
+echo "$OLD_COMMIT $NEW_COMMIT $MIGRATE_CID" > "$MIGRATE_MAP"
+
+# Dry run should report what it would do
+out=$($MYCELIUM migrate --dry-run --map "$MIGRATE_MAP" 2>&1)
+assert "migrate: dry-run reports reattach" "${OLD_COMMIT:0:12}" "$out"
+assert "migrate: dry-run shows new target" "${NEW_COMMIT:0:12}" "$out"
+assert "migrate: dry-run shows title" "Migrate me" "$out"
+assert "migrate: dry-run does not modify" "dry-run" "$out"
+
+# Verify note is still on old commit (dry-run didn't move it)
+out=$(git notes --ref=mycelium show "$OLD_COMMIT" 2>&1)
+assert "migrate: note still on old OID after dry-run" "Migrate me" "$out"
+
+# New commit should NOT have a note yet
+out=$(git notes --ref=mycelium show "$NEW_COMMIT" 2>&1 || echo "(no note)")
+assert "migrate: new OID has no note before migrate" "(no note)" "$out"
+
+echo ""
+echo "=== Migrate: Apply ==="
+
+out=$($MYCELIUM migrate --map "$MIGRATE_MAP" 2>&1)
+assert "migrate: reports reattach" "reattached" "$out"
+assert "migrate: shows count" "1" "$out"
+
+# Note should now exist on new commit
+out=$(git notes --ref=mycelium show "$NEW_COMMIT" 2>&1)
+assert "migrate: note on new OID" "Migrate me" "$out"
+assert "migrate: body preserved" "Body of note to migrate" "$out"
+assert "migrate: explains edge updated" "explains commit:$NEW_COMMIT" "$out"
+assert "migrate: change edge preserved" "targets-change change:$MIGRATE_CID" "$out"
+
+# Old commit note should be gone (moved, not copied)
+out=$(git notes --ref=mycelium show "$OLD_COMMIT" 2>&1 || echo "(no note)")
+assert "migrate: old OID note removed" "(no note)" "$out"
+
+echo ""
+echo "=== Migrate: Skip Conflicts ==="
+
+# If new commit already has a note, migrate should skip (not clobber)
+CONFLICT_CID="testconflict0change00id00000000"
+C1=$(git rev-parse HEAD~1)
+C2=$(git rev-parse HEAD)
+
+git notes --ref=mycelium add -f -m "kind context
+title Existing note
+edge explains commit:$C2
+
+Already here." "$C2"
+
+git notes --ref=mycelium add -f -m "kind context
+title Orphaned note
+edge explains commit:$C1
+edge targets-change change:$CONFLICT_CID
+
+Would collide." "$C1"
+
+CONFLICT_MAP=$(mktemp)
+echo "$C1 $C2 $CONFLICT_CID" > "$CONFLICT_MAP"
+
+out=$($MYCELIUM migrate --map "$CONFLICT_MAP" 2>&1)
+assert "migrate: reports skip on conflict" "skip" "$out"
+
+# Existing note should be untouched
+out=$(git notes --ref=mycelium show "$C2" 2>&1)
+assert "migrate: existing note preserved" "Existing note" "$out"
+
+# Orphaned note should still be on old OID (not deleted)
+out=$(git notes --ref=mycelium show "$C1" 2>&1)
+assert "migrate: orphaned note kept on conflict" "Orphaned note" "$out"
+
+echo ""
+echo "=== Migrate: Idempotent ==="
+
+# Running migrate again on an already-migrated map should be a no-op
+out=$($MYCELIUM migrate --map "$MIGRATE_MAP" 2>&1)
+assert "migrate: idempotent run shows 0" "0" "$out"
+
+rm -f "$MIGRATE_MAP" "$CONFLICT_MAP"
+
+echo ""
+echo "=== Migrate: Auto (jj) ==="
+
+# When no --map given AND .jj exists, migrate should attempt jj-based resolution.
+# Without real jj binary, it should report that jj is unavailable gracefully.
+mkdir -p .jj
+out=$($MYCELIUM migrate --dry-run 2>&1 || true)
+# Should either use jj or report it can't
+assert "migrate: auto mode mentions jj or map" "jj" "$out"
+rm -rf .jj
+
+echo ""
 echo "================================"
 echo "  $PASS passed, $FAIL failed"
 echo "================================"
