@@ -1,6 +1,6 @@
 kind context
 title Design lineage
-status archived
+status composted
 edge applies-to tree:c733cd8b99180e1c434ce71aaedf7f5e69c24e3c
 edge targets-treepath treepath:.
 edge depends-on note:26d5b4bf0d41ba15b655914a22005cb82dd7678b
