@@ -1,4 +1,5 @@
 kind todo
+status composted
 title jj migrate command
 edge explains commit:1bab91df7cc203457a16a9df55e165aa9d8145cf
 edge targets-change change:kwpxryoquuptrsppkoqutrulpxnzvwwl
