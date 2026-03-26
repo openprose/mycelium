@@ -1,0 +1,16 @@
+kind decision
+title gitleaks: recommended, not required
+edge explains commit:22675e2f03935d72f35759a3bcd7da1ffbebba75
+
+gitleaks is strongly recommended but not a strict dependency.
+
+Three scan layers, all skip gracefully when gitleaks is absent:
+1. Inline (mycelium.sh note): gitleaks dir on tmpfile before write
+2. Pre-commit hook: gitleaks git --staged
+3. Pre-push hook: gitleaks git (--all default, covers refs/notes/*)
+
+Key findings:
+- gitleaks v8.30 scans notes by default (git log --all includes refs/notes/*)
+- gitleaks stdin mode does NOT load rules — use dir mode with tmpfile instead
+- git notes remove does NOT erase history — the add commit persists in --all
+- test suite: test-gitleaks.sh, 16 tests, runs independently, SKIPs without gitleaks
