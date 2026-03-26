@@ -20,7 +20,25 @@ mycelium.sh note HEAD -k context -m "Refactored retry logic. See warning on auth
 
 ## Install
 
-One file, no dependencies beyond bash and git. Copy `mycelium.sh` anywhere on your PATH.
+Install the runtime file (`mycelium.sh`) with the one-line installer:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/openprose/mycelium/main/install.sh | bash
+```
+
+By default this installs to `~/.local/bin/mycelium.sh`. Override the location with `PREFIX`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/openprose/mycelium/main/install.sh | PREFIX=/usr/local bash
+```
+
+If you already cloned the repo, you can install from the local checkout instead:
+
+```bash
+./install.sh
+```
+
+The runtime is still one file, with no dependencies beyond bash and git.
 
 ## Quick start
 
@@ -69,14 +87,15 @@ mycelium.sh branch merge my-feature # merge when ready
 
 ## The tool
 
-Two files:
+Core files:
 
 | File | What | Who it's for |
 |------|------|-------------|
 | [mycelium.sh](mycelium.sh) | The CLI — read, write, navigate notes | Agents and humans |
+| [install.sh](install.sh) | Curl-to-bash installer for `mycelium.sh` | Humans |
 | [SKILL.md](SKILL.md) | Agent skill — teaches the convention | AI agents |
 
-Everything else in this repo is how we develop the tool: [tests](test/test.sh), example hooks, and mycelium notes on the repo itself. You don't need any of it. Copy `mycelium.sh`, optionally load `SKILL.md`, and start writing notes.
+At runtime, you only need `mycelium.sh`. Everything else in this repo is support machinery: [install.sh](install.sh), [tests](test/test.sh), example hooks, and mycelium notes on the repo itself. Optionally load `SKILL.md`, and start writing notes.
 
 ### Design history
 

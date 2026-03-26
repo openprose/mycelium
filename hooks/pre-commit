@@ -5,8 +5,8 @@ set -euo pipefail
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
 
-# Run tests if mycelium.sh or anything under test/ is staged
-if git diff --cached --name-only | grep -qE '^(mycelium\.sh|test/)' 2>/dev/null; then
+# Run tests if install.sh, mycelium.sh, or anything under test/ is staged
+if git diff --cached --name-only | grep -qE '^(install\.sh|mycelium\.sh|test/)' 2>/dev/null; then
   if [[ -x "$REPO_ROOT/test/test.sh" ]]; then
     echo "running tests..."
     # Hooks inherit git-local env vars (GIT_DIR, GIT_WORK_TREE, etc.).

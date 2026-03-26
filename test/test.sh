@@ -5,6 +5,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MYCELIUM="$REPO_ROOT/mycelium.sh"
+INSTALLER="$REPO_ROOT/install.sh"
 TMPDIR=$(mktemp -d)
 PASS=0
 FAIL=0
@@ -224,6 +225,43 @@ out=$($MYCELIUM sync-init testremote)
 assert "sync-init message" "Refspecs added" "$out"
 out=$(git config --get-all remote.testremote.fetch)
 assert "fetch refspec configured" "refs/notes/mycelium" "$out"
+
+echo ""
+echo "=== Installer ==="
+
+INSTALL_PREFIX="$TMPDIR/install-prefix"
+out=$(PREFIX="$INSTALL_PREFIX" bash "$INSTALLER" 2>&1)
+assert "installer: reports success" "installed successfully" "$out"
+assert "installer: reports target path" "$INSTALL_PREFIX/bin/mycelium.sh" "$out"
+
+if [[ -x "$INSTALL_PREFIX/bin/mycelium.sh" ]]; then
+  echo "  ✓ installer: binary exists"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ installer: binary exists"
+  FAIL=$((FAIL + 1))
+fi
+
+out=$("$INSTALL_PREFIX/bin/mycelium.sh" help 2>&1)
+assert "installer: installed binary runs" "mycelium note" "$out"
+
+PIPE_PREFIX="$TMPDIR/install-pipe-prefix"
+out=$(PREFIX="$PIPE_PREFIX" REPO_BASE="file://$REPO_ROOT" bash < "$INSTALLER" 2>&1)
+assert "installer: stdin mode succeeds" "installed successfully" "$out"
+
+if [[ -x "$PIPE_PREFIX/bin/mycelium.sh" ]]; then
+  echo "  ✓ installer: stdin mode binary exists"
+  PASS=$((PASS + 1))
+else
+  echo "  ✗ installer: stdin mode binary exists"
+  FAIL=$((FAIL + 1))
+fi
+
+out=$("$PIPE_PREFIX/bin/mycelium.sh" help 2>&1)
+assert "installer: stdin mode binary runs" "mycelium note" "$out"
+
+out=$(PREFIX="$INSTALL_PREFIX" bash "$INSTALLER" 2>&1)
+assert "installer: idempotent" "installed successfully" "$out"
 
 echo ""
 echo "=== Body from stdin ==="
