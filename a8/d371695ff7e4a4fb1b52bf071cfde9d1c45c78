@@ -1,0 +1,9 @@
+kind decision
+title Hooks must clear git-local env before nested git tests
+status active
+edge applies-to blob:a8d371695ff7e4a4fb1b52bf071cfde9d1c45c78
+edge targets-path path:hooks/pre-commit
+
+Git hooks inherit repo-local environment variables like GIT_DIR and GIT_WORK_TREE. If the pre-commit hook launches the test suite without clearing them, the inner temporary repos in test/test.sh can accidentally target the outer checkout.
+
+Use `git rev-parse --local-env-vars` and unset those vars before running nested git-based tests from hooks.
