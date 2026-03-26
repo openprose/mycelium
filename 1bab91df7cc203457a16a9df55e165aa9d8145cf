@@ -1,0 +1,8 @@
+kind todo
+title jj migrate command
+edge explains commit:1bab91df7cc203457a16a9df55e165aa9d8145cf
+edge targets-change change:kwpxryoquuptrsppkoqutrulpxnzvwwl
+
+Copy notes from old commit OIDs to new ones using jj predecessor info.
+jj log -r 'all()' exposes predecessor→successor pairs.
+Needed for repos where jj rewrites are frequent.
