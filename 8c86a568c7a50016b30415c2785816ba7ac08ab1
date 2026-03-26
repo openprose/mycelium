@@ -1,0 +1,12 @@
+kind value
+title Project values
+status active
+edge applies-to tree:8c86a568c7a50016b30415c2785816ba7ac08ab1
+edge targets-treepath treepath:.
+edge depends-on note:f51775a6d6964755f9a093d92e6cd85a5014f9cb
+edge depends-on note:bee7f2042f5d9066ff8c116cb21f294fb520d25a
+edge depends-on note:018392ce07f2052861c38f370745cbb898e5a57a
+edge depends-on note:dd57a22f1bb5375a891cbbc59ff2c8941868440a
+edge depends-on note:436ceb68e0df86bf31266e6b48e7f9c89fec9dc9
+
+Underground by default. Organic yet deterministic. Pave the desire path. Git-native. Dogfood. Open vocabulary over schema lock-in.
