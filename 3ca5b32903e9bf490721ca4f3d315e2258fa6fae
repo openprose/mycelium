@@ -1,0 +1,11 @@
+kind context
+title Planned: add private key + GitHub PAT test patterns
+edge applies-to blob:3ca5b32903e9bf490721ca4f3d315e2258fa6fae
+edge targets-path path:test-gitleaks.sh
+
+Current suite only tests slack bot token pattern. gitleaks does not
+detect short/stub RSA keys (the test fixture was too short). Need to
+find the minimum viable private key and GitHub PAT that gitleaks
+actually catches, then add test cases.
+
+Depends on the mycelium.sh inline scan working (same gitleaks dir path).
