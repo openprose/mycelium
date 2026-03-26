@@ -1,0 +1,6 @@
+kind context
+title Add installer and separate public canary
+edge explains commit:e16e6c88672e9f868fe474733eda2ff828d0f9b8
+edge targets-change change:wuptmxzqrlyuwukxmvtkkxrrnxktsuur
+
+Adds install.sh as the public-ready curl-to-bash bootstrap for mycelium.sh. The main test suite now covers both local execution and stdin/curl-style execution via a REPO_BASE=file:// override, so core coverage stays green while the repo is private. The external URL check lives in test/test-install-public.sh and is intentionally separate from test/test.sh so it can stay red until the GitHub repo is flipped public.
