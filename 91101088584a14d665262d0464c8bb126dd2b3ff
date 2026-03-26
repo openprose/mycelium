@@ -1,0 +1,5 @@
+kind summary
+edge applies-to blob:91101088584a14d665262d0464c8bb126dd2b3ff
+edge targets-path path:renameme.ts
+
+Important module.
