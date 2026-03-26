@@ -1,0 +1,11 @@
+kind context
+edge explains commit:ae5395cd9d27cbdf8f44b3989987521b61d4ea6e
+edge targets-change change:lqxwxzrqwotksrnlprzrlzkmozkywnru
+
+Implements the migrate command that was planned since the initial jj colocation work. Resolves the last missing piece: notes on rewritten commits can now be bulk-reattached via change_id edges. The jj fallback read (single-note lookup) was already working; this adds the batch operation.
+
+Design choices:
+- --map file as escape hatch for non-jj use or scripted pipelines
+- Move semantics (not copy) — old note is removed after reattach
+- Conflict = skip, not error — safe for concurrent note-writers
+- Idempotent — safe to run repeatedly after rebases
