@@ -1,0 +1,19 @@
+kind warning
+title Hooks are in .git/hooks, not portable
+edge applies-to blob:f2fef6abf44eda5bd5094026ae5959868d2c103c
+edge targets-path path:mycelium.sh
+edge warns-about blob:f2fef6abf44eda5bd5094026ae5959868d2c103c
+
+The pre-commit and pre-push gitleaks hooks live in .git/hooks/
+which is not tracked or cloned. New clones don't get them. This is
+actually correct for the underground principle — hooks are local
+setup, not imposed on other users. But it means the gitleaks
+protection requires per-clone setup.
+
+Options for portability without violating underground:
+- activate command could install hooks (opt-in)
+- document in SKILL.md 'On arrival' section
+- a future 'mycelium.sh setup' command
+
+Do NOT put hooks in a tracked .githooks/ directory — that would
+make mycelium visible in the working tree.
