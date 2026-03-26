@@ -1,0 +1,12 @@
+kind warning
+title git notes remove does NOT erase history
+edge applies-to tree:af60d1f32d1ccdb3dff2025eea5a2e49ea8819c8
+edge targets-treepath treepath:.
+
+Removing a note creates a new commit on the notes ref that deletes it,
+but the old commit that ADDED it stays in git log --all. A secret once
+written to any notes ref is permanent in the history. gitleaks will find
+it on every subsequent scan.
+
+This is git's design, not a mycelium bug. But it means: never write
+secrets to notes, even temporarily. There is no undo.
