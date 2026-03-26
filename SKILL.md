@@ -16,6 +16,26 @@ Structured notes attached to git objects via `refs/notes/mycelium`.
 That's the whole contract. How you work, what you build, how you talk to your user —
 that's your business. Mycelium just asks you to read the breadcrumbs and leave new ones.
 
+## On arrival
+
+Start every session with:
+
+```bash
+mycelium.sh find constraint            # project principles & rules
+mycelium.sh find warning               # known fragile things
+mycelium.sh context <file-you-will-touch>  # everything known about it
+```
+
+Before leaving:
+
+```bash
+mycelium.sh note HEAD -k context -m "What I did and why."
+mycelium.sh note <changed-file> -k <kind> -m "What future agents should know."
+```
+
+If you made a decision, use `kind decision` and add a `tested-by` edge to the test
+that validates it. If you found something fragile, use `kind warning`.
+
 ## Patterns
 
 Three patterns cover most usage. Learn these before the commands.
