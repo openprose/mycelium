@@ -1,11 +1,8 @@
 kind todo
-title Add curl one-liner when remote exists
-supersedes c6c373d83d292654e2f88d59d02f8552db164351
+title GitHub remote + push + LICENSE
+supersedes 61ebd13ce1c360f3ad715a5a1830bd25430f2722
 edge applies-to blob:03da3a46ebc10ef75bca67180dbf4d9e351edb10
 edge targets-path path:README.md
 
-curl -fsSL https://raw.githubusercontent.com/<org>/mycelium/main/mycelium.sh \
-  -o ~/.local/bin/mycelium.sh && chmod +x ~/.local/bin/mycelium.sh
-
-~/.local/bin works on Linux (XDG), macOS, and Git Bash on Windows.
-Org is likely openprose (see ../platform remote).
+Create repo (likely openprose org), add LICENSE (MIT), push code + notes.
+Notes need sync-init + git push origin refs/notes/mycelium.
