@@ -1,0 +1,9 @@
+kind summary
+title The minimal spec
+edge applies-to blob:b34ab1befec93a834ee08346ff6882bffc1fe628
+edge targets-path path:mycelium.md
+
+The final spec. ~170 lines. Header+body format, one notes ref,
+five edge types, open vocabulary for kinds. Distilled from an 882-line
+v1 spec by applying one test: can an agent with only git (no CLI)
+read and write useful notes? Everything that failed that test was cut.
