@@ -1,0 +1,8 @@
+kind todo
+title Test CLI with real agents in tmux
+edge applies-to blob:002f366dace132cce007fb1bac6b164f42d24ee8
+edge targets-path path:SKILL.md
+
+Principle 5: test with real agents. We dogfooded this session but
+haven't run a separate agent session that arrives cold and follows
+the skill instructions. Need tmux + pi/claude-code session.
