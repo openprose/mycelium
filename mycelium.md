@@ -98,6 +98,8 @@ Open vocabulary. Use whatever makes sense. Some conventions:
 | `warning` | Something fragile, dangerous, or surprising |
 | `constraint` | A rule that should be maintained |
 | `context` | Background reasoning for a change |
+| `value` | A cultural principle with a story |
+| `todo` | Something that should happen later |
 
 Agents and humans can invent new kinds freely.
 

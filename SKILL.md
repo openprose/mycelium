@@ -204,7 +204,7 @@ Free-form body. Markdown encouraged.
 ```
 
 **Headers**: `kind` (required), `edge`, `title`, `status`, `supersedes`.
-**Kinds**: `decision` · `context` · `summary` · `warning` · `constraint` · `observation` — or invent your own.
+**Kinds**: `decision` · `context` · `summary` · `warning` · `constraint` · `observation` · `value` · `todo` — or invent your own.
 **Edge types**: `explains` · `applies-to` · `depends-on` · `warns-about` · `targets-path` — or invent your own.
 **Targets**: `commit:<oid>` · `blob:<oid>` · `tree:<oid>` · `path:<filepath>` · `note:<oid>`
 
