@@ -1,4 +1,7 @@
-kind context
+kind decision
+title Use exponential backoff
+status active
+supersedes a8667ef3f871e88ce771e323605c717f7faca01f
 edge explains commit:3eed7b968488a7633437b8f7601deec7881a5ac3
 
-Default target test
+Decision body
