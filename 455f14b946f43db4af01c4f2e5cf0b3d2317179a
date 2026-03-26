@@ -1,7 +1,8 @@
 kind decision
 title Canonical design lives in code, README, SKILL, tests, and notes
 status active
+supersedes e8a46b65498b9899036dcc5440919e1060b09f78
 edge applies-to blob:455f14b946f43db4af01c4f2e5cf0b3d2317179a
 edge targets-path path:README.md
 
-We intentionally do not keep a second always-current spec document. The living design is the combination of mycelium.sh, README.md, SKILL.md, the test suite, and the repo's own mycelium notes so the project dogfoods the tool.
+We intentionally do not keep a second always-current spec document. The living design is the combination of mycelium.sh, README.md, SKILL.md, the test suite, and the repo's own mycelium notes so the project dogfoods the tool.\n\nFresh-agent onboarding:\n1. Read README.md for the public contract.\n2. Read SKILL.md for agent workflow and conventions.\n3. Run 'mycelium.sh find decision', 'mycelium.sh find constraint', and 'mycelium.sh find warning' to load the durable reasoning layer.\n4. Run 'mycelium.sh context <file>' before touching any file.\n5. Treat archived historical design notes as lineage, not as the current contract.\n\nThe current contract should live in the visible layer (code, README, SKILL, tests) plus the invisible mycelium layer (live notes), not in a parallel markdown spec.
