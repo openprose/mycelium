@@ -1,0 +1,9 @@
+kind context
+title README written
+edge explains commit:945afe2a79fb61c85440a9071e32ba503be8d68d
+
+Audience: humans discovering the repo. Not agents (they get SKILL.md).
+Covers: what it is, quick start, practical notes (sync, no GitHub UI,
+branch scoping), security (gitleaks, public repos, notes remove),
+the two-file tool, commands, roadmap (jj), spiritual predecessors
+(git-appraise). Deliberately separates 'the tool' from 'this project.'
