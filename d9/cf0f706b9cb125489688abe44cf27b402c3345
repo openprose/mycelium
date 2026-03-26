@@ -1,0 +1,18 @@
+kind decision
+title Canonical design lives in code, README, SKILL, tests, and notes
+status active
+edge applies-to blob:d9cf0f706b9cb125489688abe44cf27b402c3345
+edge targets-path path:README.md
+
+We intentionally do not keep a second always-current spec document. The living design is mycelium.sh, README.md, SKILL.md, the test suite, and the repo's live mycelium notes.
+
+Fresh-agent onboarding:
+1. Read README.md for the public contract.
+2. Read SKILL.md for agent workflow and conventions.
+3. Read the root slots:
+   - ./mycelium.sh read . --slot principles
+   - ./mycelium.sh read . --slot values
+   - ./mycelium.sh read . --slot safety
+   - ./mycelium.sh read . --slot history   # lineage only
+4. Run ./mycelium.sh context <file> before touching any file.
+5. Treat archived/history notes as lineage, not contract.
