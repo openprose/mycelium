@@ -1,0 +1,15 @@
+kind warning
+title Safety and security for the invisible layer
+status active
+edge applies-to tree:7a7f7dc5c6f099205a9580b5f619c9753dfcf901
+edge targets-treepath treepath:.
+
+Safety and security for this repo:
+
+- NEVER write secrets to mycelium notes. `git notes remove` does not erase old note history.
+- Notes in public repos are public data even if GitHub does not render them in the UI.
+- Most tooling ignores `refs/notes/*` unless configured. Use gitleaks and explicit notes-aware scans.
+- Notes do not travel with normal clone/fetch/push unless `mycelium.sh sync-init` (or equivalent refspec setup) is done.
+- Before changing files, read their note context. Before leaving, add or update the notes future agents will depend on.
+
+Treat the invisible layer as durable project memory, not scratch space.
