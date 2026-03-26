@@ -1,0 +1,8 @@
+kind context
+title Cleanup: visible layer simplified, onboarding moved to root slots
+status active
+edge explains commit:f7435b55f27d89d939cde012e3a7e1c2551d42f2
+
+This cleanup intentionally removed parallel tracked design docs from the visible layer. Current contract: code, README.md, SKILL.md, test/, and live notes.
+
+Tradeoff: onboarding in the invisible layer now uses current root slots (principles, values, safety, history) rather than a pile of stale default-slot root notes. Historical design notes are preserved as archived lineage, not promoted as the current contract.
