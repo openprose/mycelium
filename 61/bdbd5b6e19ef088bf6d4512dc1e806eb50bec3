@@ -1,0 +1,6 @@
+kind constraint
+title Dir constraint
+edge applies-to tree:61bdbd5b6e19ef088bf6d4512dc1e806eb50bec3
+edge targets-treepath treepath:treedir/
+
+Rule.
