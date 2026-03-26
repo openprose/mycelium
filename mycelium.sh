@@ -30,7 +30,7 @@ obj_label() {
 }
 
 note_header() {
-  echo "$1" | grep "^$2 " | head -1 | sed "s/^$2 //"
+  echo "$1" | grep "^$2 " | head -1 | sed "s/^$2 //" || true
 }
 
 # Resolve a target to (oid, type, path-if-any).
@@ -87,8 +87,10 @@ mycelium — structured notes on git objects
   mycelium list                                   List all annotated objects
   mycelium log [n]                                Recent commits with notes
   mycelium dump                                   All notes, greppable
+  mycelium compost [path|.] [--dry-run|--report|--compost|--renew]  Triage stale notes
   mycelium doctor                                 Check consistency
   mycelium branch [use|merge] [name]              Branch-scoped notes
+  mycelium prime                                   Output skill + live repo context
   mycelium activate                               Show notes in git log
   mycelium sync-init [remote]                     Configure fetch/push
 
@@ -180,6 +182,12 @@ cmd_note() {
     existing_blob=$(git notes --ref="$REF" list "$oid" 2>/dev/null | cut -d' ' -f1 || true)
     if [[ -n "$existing_blob" ]]; then
       supersedes="$existing_blob"
+      # Show what's being overwritten — backpressure against accidental clobber
+      local existing_content
+      existing_content=$(git cat-file -p "$existing_blob")
+      local existing_kind=$(note_header "$existing_content" "kind")
+      local existing_title=$(note_header "$existing_content" "title")
+      echo "⚠ overwriting [$existing_kind] \"${existing_title:-(untitled)}\" on ${type}:${oid:0:12}" >&2
     fi
   fi
 
@@ -314,8 +322,16 @@ cmd_read() {
 }
 
 cmd_context() {
-  local filepath="$1"
-  local at="${2:-HEAD}"
+  local filepath="" at="HEAD" show_all=false
+
+  # Parse args
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --all) show_all=true; shift ;;
+      *)     if [[ -z "$filepath" ]]; then filepath="$1"; else at="$1"; fi; shift ;;
+    esac
+  done
+  [[ -z "$filepath" ]] && { echo "Usage: mycelium context <path> [ref] [--all]" >&2; exit 1; }
 
   echo "=== context: $filepath @ $at ==="
   echo ""
@@ -329,14 +345,20 @@ cmd_context() {
     if [[ -n "$note" ]]; then
       local kind=$(note_header "$note" "kind")
       local title=$(note_header "$note" "title")
-      echo "[exact] ${title:-$filepath} ($kind)"
-      echo "$note"
-      echo ""
+      local note_status=$(note_header "$note" "status")
+      if [[ "$note_status" == "composted" && "$show_all" == "false" ]]; then
+        : # skip
+      else
+        echo "[exact] ${title:-$filepath} ($kind)"
+        echo "$note"
+        echo ""
+      fi
     fi
   fi
 
   # 2. Stale/contextual: notes that target this path but are on a different blob
   local path_target="path:$filepath"
+  local stale_count=0
   local seen_objs="${blob:-},"
   git notes --ref="$REF" list 2>/dev/null | while read noteblob obj; do
     [[ "$obj" == "${blob:-}" ]] && continue
@@ -346,9 +368,21 @@ cmd_context() {
       seen_objs+="$obj,"
       local kind=$(note_header "$content" "kind")
       local title=$(note_header "$content" "title")
-      echo "[stale] ${title:-$filepath} ($kind) — blob changed since note was written"
-      echo "$content"
-      echo ""
+      local note_status=$(note_header "$content" "status")
+
+      # Hide composted unless --all
+      if [[ "$note_status" == "composted" && "$show_all" == "false" ]]; then
+        continue
+      fi
+
+      # Stale notes: one-liner summary (full content with --all)
+      if [[ "$show_all" == "true" ]]; then
+        echo "[stale] ${title:-$filepath} ($kind) — blob changed since note was written"
+        echo "$content"
+        echo ""
+      else
+        echo "[stale] ${title:-$filepath} ($kind) — use 'read ${obj:0:12}' for full note"
+      fi
     fi
   done
 
@@ -372,9 +406,14 @@ cmd_context() {
       if [[ -n "$note" ]]; then
         local kind=$(note_header "$note" "kind")
         local title=$(note_header "$note" "title")
-        echo "[tree] ${title:-$dir_label} ($kind) — inherited"
-        echo "$note"
-        echo ""
+        local note_status=$(note_header "$note" "status")
+        if [[ "$note_status" == "composted" && "$show_all" == "false" ]]; then
+          : # skip
+        else
+          echo "[tree] ${title:-$dir_label} ($kind) — inherited"
+          echo "$note"
+          echo ""
+        fi
       fi
     fi
 
@@ -388,16 +427,26 @@ cmd_context() {
       if echo "$content" | grep -q "targets-treepath $treepath_target\$"; then
         local kind=$(note_header "$content" "kind")
         local title=$(note_header "$content" "title")
-        echo "[stale-tree] ${title:-$dir_label} ($kind) — tree changed since note was written"
-        echo "$content"
-        echo ""
+        local note_status=$(note_header "$content" "status")
+
+        if [[ "$note_status" == "composted" && "$show_all" == "false" ]]; then
+          continue
+        fi
+
+        if [[ "$show_all" == "true" ]]; then
+          echo "[stale-tree] ${title:-$dir_label} ($kind) — tree changed since note was written"
+          echo "$content"
+          echo ""
+        else
+          echo "[stale-tree] ${title:-$dir_label} ($kind) — use 'read ${obj:0:12}' for full note"
+        fi
       fi
     done
 
     [[ "$dir" == "." || "$dir" == "/" ]] && break
   done
 
-  # 3. Note on the commit
+  # 4. Note on the commit
   local commit
   commit=$(git rev-parse "$at" 2>/dev/null || true)
   if [[ -n "$commit" ]]; then
@@ -690,10 +739,19 @@ cmd_doctor() {
   [[ -z "$notelist" ]] && { echo "notes  0"; rm -f "$tmp"; return; }
 
   while read noteblob obj; do
-    local content kind status target_path target_treepath n_edges
+    local content kind status note_status target_path target_treepath n_edges
     content=$(git cat-file -p "$noteblob")
     kind=$(echo "$content" | awk '/^kind /{print $2; exit}')
+    note_status=$(echo "$content" | awk '/^status /{print $2; exit}')
     status="current"
+
+    # Composted notes are composted regardless of staleness
+    if [[ "$note_status" == "composted" ]]; then
+      status="composted"
+      n_edges=$(echo "$content" | awk '/^edge /{n++} END{print n+0}')
+      echo "$kind $status $n_edges"
+      continue
+    fi
 
     target_path=$(echo "$content" | awk '/^edge targets-path /{sub(/^edge targets-path path:/,""); print; exit}')
     target_treepath=$(echo "$content" | awk '/^edge targets-treepath /{sub(/^edge targets-treepath treepath:/,""); print; exit}')
@@ -725,17 +783,18 @@ cmd_doctor() {
   done <<< "$notelist" > "$tmp"
 
   # Summarize
-  read total n_current n_stale n_orphaned n_edges < <(
+  read total n_current n_stale n_orphaned n_composted n_edges < <(
     awk '
       { total++; edges+=$3 }
-      $2=="current"  { current++ }
-      $2=="stale"    { stale++ }
-      $2=="orphaned" { orphaned++ }
-      END { print total+0, current+0, stale+0, orphaned+0, edges+0 }
+      $2=="current"   { current++ }
+      $2=="stale"     { stale++ }
+      $2=="orphaned"  { orphaned++ }
+      $2=="composted" { composted++ }
+      END { print total+0, current+0, stale+0, orphaned+0, composted+0, edges+0 }
     ' "$tmp"
   )
 
-  echo "notes  $total  (current:$n_current stale:$n_stale orphaned:$n_orphaned)"
+  echo "notes  $total  (current:$n_current stale:$n_stale composted:$n_composted orphaned:$n_orphaned)"
   echo "edges  $n_edges"
   printf "kinds  "
   awk '{print $1}' "$tmp" | sort | uniq -c | sort -rn | \
@@ -752,6 +811,283 @@ cmd_doctor() {
   rm -f "$tmp"
 }
 
+# --- compost helpers (shared by direct + interactive paths) ---
+
+# Mark a note as composted by OID
+_compost_note() {
+  local obj="$1"
+  local content
+  content=$(git notes --ref="$REF" show "$obj" 2>/dev/null || true)
+  [[ -z "$content" ]] && { echo "Error: no note on $obj" >&2; return 1; }
+
+  local new_content
+  if echo "$content" | grep -q '^status '; then
+    new_content=$(echo "$content" | sed 's/^status .*/status composted/')
+  else
+    new_content=$(echo "$content" | awk '/^kind /{print; print "status composted"; next} {print}')
+  fi
+  git notes --ref="$REF" add -f -m "$new_content" "$obj"
+}
+
+# Re-attach a note to the current blob/tree at its path
+_renew_note() {
+  local obj="$1"
+  local content
+  content=$(git notes --ref="$REF" show "$obj" 2>/dev/null || true)
+  [[ -z "$content" ]] && { echo "Error: no note on $obj" >&2; return 1; }
+
+  # Find the path this note targets
+  local note_path
+  note_path=$(echo "$content" | awk '/^edge targets-path /{sub(/^edge targets-path path:/,""); print; exit}')
+  [[ -z "$note_path" ]] && note_path=$(echo "$content" | awk '/^edge targets-treepath /{sub(/^edge targets-treepath treepath:/,""); print; exit}')
+  [[ -z "$note_path" ]] && { echo "Error: note has no path edge, cannot renew" >&2; return 1; }
+
+  local current_oid
+  current_oid=$(git rev-parse "HEAD:$note_path" 2>/dev/null || true)
+  [[ -z "$current_oid" ]] && { echo "Error: path no longer exists: $note_path" >&2; return 1; }
+
+  local current_type
+  current_type=$(git cat-file -t "$current_oid" 2>/dev/null)
+
+  # Check if new object already has a note
+  local existing_on_new
+  existing_on_new=$(git notes --ref="$REF" list "$current_oid" 2>/dev/null | cut -d' ' -f1 || true)
+  if [[ -n "$existing_on_new" ]]; then
+    echo "Error: current version already has a note" >&2
+    return 1
+  fi
+
+  # Update applies-to edge and write on new object
+  local new_content
+  new_content=$(echo "$content" | sed "s|^edge applies-to [a-z]*:.*|edge applies-to $current_type:$current_oid|")
+  git notes --ref="$REF" add -f -m "$new_content" "$current_oid"
+
+  # Compost the old one
+  _compost_note "$obj"
+  echo "$current_oid"
+}
+
+# Collect stale notes, optionally filtered by path
+_collect_stale() {
+  local target="${1:-.}"
+  local notelist
+  notelist=$(git notes --ref="$REF" list 2>/dev/null || true)
+  [[ -z "$notelist" ]] && return
+
+  while read noteblob obj; do
+    local content
+    content=$(git cat-file -p "$noteblob")
+
+    local note_status
+    note_status=$(note_header "$content" "status")
+    [[ "$note_status" == "composted" ]] && continue
+
+    local target_path target_treepath
+    target_path=$(echo "$content" | awk '/^edge targets-path /{sub(/^edge targets-path path:/,""); print; exit}')
+    target_treepath=$(echo "$content" | awk '/^edge targets-treepath /{sub(/^edge targets-treepath treepath:/,""); print; exit}')
+
+    local is_stale=false note_target=""
+
+    if [[ -n "$target_path" ]]; then
+      note_target="$target_path"
+      local current_blob
+      current_blob=$(git rev-parse "HEAD:$target_path" 2>/dev/null || true)
+      if [[ -z "$current_blob" ]]; then
+        is_stale=true
+      elif [[ "$current_blob" != "$obj" ]]; then
+        is_stale=true
+      fi
+    elif [[ -n "$target_treepath" && "$target_treepath" != "." ]]; then
+      note_target="$target_treepath"
+      local current_tree
+      current_tree=$(git rev-parse "HEAD:$target_treepath" 2>/dev/null || true)
+      if [[ -z "$current_tree" ]]; then
+        is_stale=true
+      elif [[ "$current_tree" != "$obj" ]]; then
+        is_stale=true
+      fi
+    fi
+
+    if [[ "$is_stale" == "true" ]]; then
+      if [[ "$target" != "." ]]; then
+        case "$note_target" in
+          "$target"|"$target"/*) ;;
+          *) continue ;;
+        esac
+      fi
+      local kind=$(note_header "$content" "kind")
+      local title=$(note_header "$content" "title")
+      # Output: obj\tpath\tkind\ttitle
+      printf '%s\t%s\t%s\t%s\n' "$obj" "$note_target" "$kind" "${title:-(untitled)}"
+    fi
+  done <<< "$notelist"
+}
+
+cmd_compost() {
+  local target="" action="" dry_run=false
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --dry-run)   dry_run=true; shift ;;
+      --report)    action="report"; shift ;;
+      --compost)   action="compost"; shift ;;
+      --renew)     action="renew"; shift ;;
+      -*)          echo "Unknown option: $1" >&2; exit 1 ;;
+      *)           target="$1"; shift ;;
+    esac
+  done
+  target="${target:-.}"
+
+  # Direct action (agent-native)
+  if [[ "$action" == "compost" && "$target" != "." ]]; then
+    # Is target an OID? (hex string, 6+ chars)
+    if [[ "$target" =~ ^[0-9a-f]{6,}$ ]]; then
+      # Resolve short OID to full — check if it's a noted object
+      local full_oid
+      full_oid=$(git notes --ref="$REF" list 2>/dev/null | awk -v t="$target" '$2 ~ "^"t {print $2; exit}')
+      [[ -z "$full_oid" ]] && { echo "Error: no note on object matching $target" >&2; exit 1; }
+      _compost_note "$full_oid"
+      local content title kind
+      content=$(git notes --ref="$REF" show "$full_oid" 2>/dev/null || true)
+      kind=$(note_header "$content" "kind")
+      title=$(note_header "$content" "title")
+      echo "✓ composted [$kind] ${title:-(untitled)}"
+      return
+    fi
+    # Path: batch compost all stale notes on this path
+    local found=false
+    while IFS=$'\t' read -r obj note_path kind title; do
+      _compost_note "$obj"
+      echo "✓ composted [$kind] $title — $note_path"
+      found=true
+    done < <(_collect_stale "$target")
+    if [[ "$found" == "false" ]]; then
+      echo "No stale notes under $target"
+    fi
+    return
+  fi
+
+  if [[ "$action" == "renew" && "$target" != "." ]]; then
+    # Is target an OID?
+    if [[ "$target" =~ ^[0-9a-f]{6,}$ ]]; then
+      local full_oid
+      full_oid=$(git notes --ref="$REF" list 2>/dev/null | awk -v t="$target" '$2 ~ "^"t {print $2; exit}')
+      [[ -z "$full_oid" ]] && { echo "Error: no note on object matching $target" >&2; exit 1; }
+      local new_oid
+      new_oid=$(_renew_note "$full_oid") || exit 1
+      local content title kind
+      content=$(git notes --ref="$REF" show "$new_oid" 2>/dev/null || true)
+      kind=$(note_header "$content" "kind")
+      title=$(note_header "$content" "title")
+      echo "✓ renewed [$kind] ${title:-(untitled)} → ${new_oid:0:12}"
+      return
+    fi
+    # Path: batch renew all stale notes on this path
+    local found=false
+    while IFS=$'\t' read -r obj note_path kind title; do
+      local new_oid
+      new_oid=$(_renew_note "$obj") && {
+        echo "✓ renewed [$kind] $title — $note_path → ${new_oid:0:12}"
+        found=true
+      }
+    done < <(_collect_stale "$target")
+    if [[ "$found" == "false" ]]; then
+      echo "No stale notes under $target"
+    fi
+    return
+  fi
+
+  # Report mode
+  if [[ "$action" == "report" ]]; then
+    local stale_count=0 composted_count=0
+    local notelist
+    notelist=$(git notes --ref="$REF" list 2>/dev/null || true)
+    [[ -z "$notelist" ]] && { echo "mycelium: 0 stale, 0 composted"; return; }
+    while read noteblob obj; do
+      local content
+      content=$(git cat-file -p "$noteblob")
+      local ns
+      ns=$(note_header "$content" "status")
+      if [[ "$ns" == "composted" ]]; then
+        composted_count=$((composted_count + 1))
+      else
+        # Check if stale
+        local tp
+        tp=$(echo "$content" | awk '/^edge targets-path /{sub(/^edge targets-path path:/,""); print; exit}')
+        if [[ -n "$tp" ]]; then
+          local cb
+          cb=$(git rev-parse "HEAD:$tp" 2>/dev/null || true)
+          if [[ -n "$cb" && "$cb" != "$obj" ]] || [[ -z "$cb" ]]; then
+            stale_count=$((stale_count + 1))
+          fi
+        fi
+      fi
+    done <<< "$notelist"
+    echo "mycelium: $stale_count stale, $composted_count composted"
+    return
+  fi
+
+  # List / interactive mode
+  local stale_lines
+  stale_lines=$(_collect_stale "$target")
+  local stale_count
+  if [[ -z "$stale_lines" ]]; then
+    echo "No stale notes${target:+ under $target}."
+    return
+  fi
+  stale_count=$(echo "$stale_lines" | wc -l)
+
+  echo "$stale_count stale note(s)${target:+ under $target}:"
+  echo ""
+
+  while IFS=$'\t' read -r obj note_path kind title; do
+    echo "  [$kind] ${title} — $note_path (${obj:0:12})"
+
+    [[ "$dry_run" == "true" ]] && continue
+
+    # Interactive: show note and ask
+    local content
+    content=$(git notes --ref="$REF" show "$obj" 2>/dev/null)
+    echo ""
+    echo "$content" | sed 's/^/    /'
+    echo ""
+    echo "  (c)ompost  — mark as composted, hide from context"
+    echo "  (r)enew    — re-attach to current version"
+    echo "  (s)kip     — leave as-is"
+    echo "  (q)uit     — stop composting"
+
+    local choice
+    while true; do
+      if [[ -t 0 ]]; then
+        read -r -p "  [c/r/s/q] " choice </dev/tty
+      else
+        read -r choice || choice="q"
+      fi
+      case "$choice" in
+        c|compost)
+          _compost_note "$obj"
+          echo "  ✓ composted"
+          echo ""
+          break ;;
+        r|renew)
+          local new_oid
+          new_oid=$(_renew_note "$obj") && echo "  ✓ renewed → ${new_oid:0:12}" || true
+          echo ""
+          break ;;
+        s|skip)
+          echo "  — skipped"
+          echo ""
+          break ;;
+        q|quit)
+          echo "  — stopping"
+          return ;;
+        *)
+          echo "  ? c/r/s/q" ;;
+      esac
+    done
+  done <<< "$stale_lines"
+}
+
 cmd_dump() {
   git notes --ref="$REF" list 2>/dev/null | while read blob obj; do
     local label=$(obj_label "$obj")
@@ -759,6 +1095,94 @@ cmd_dump() {
     git cat-file -p "$blob"
     echo
   done
+}
+
+cmd_prime() {
+  # Find SKILL.md: same directory as this script, or repo root
+  local script_dir
+  script_dir=$(cd "$(dirname "$0")" && pwd)
+  local skill=""
+  if [[ -f "$script_dir/SKILL.md" ]]; then
+    skill="$script_dir/SKILL.md"
+  else
+    local repo_root
+    repo_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
+    [[ -n "$repo_root" && -f "$repo_root/SKILL.md" ]] && skill="$repo_root/SKILL.md"
+  fi
+
+  # 1. Skill content (strip YAML frontmatter)
+  if [[ -n "$skill" ]]; then
+    awk 'BEGIN{fm=0} /^---$/{fm++; next} fm>=2||fm==0{print}' "$skill"
+  else
+    # No SKILL.md — emit minimal inline skill
+    cat <<'SKILL'
+# Mycelium
+
+Structured notes attached to git objects via `refs/notes/mycelium`.
+
+**Before working on a file, check for its note. After meaningful work, leave a note.**
+
+```bash
+mycelium.sh context <path>       # all notes relevant to a file
+mycelium.sh read [target]        # read a single note
+mycelium.sh note <target> -k <kind> -m <body>  # write a note
+mycelium.sh find <kind>          # find all notes of a kind
+mycelium.sh compost [path|.]     # triage stale notes
+mycelium.sh doctor               # graph state
+```
+SKILL
+  fi
+
+  # 2. Live repo state
+  local notelist
+  notelist=$(git notes --ref="$REF" list 2>/dev/null || true)
+  if [[ -z "$notelist" ]]; then
+    echo ""
+    echo "---"
+    echo "No mycelium notes in this repo yet."
+    return
+  fi
+
+  echo ""
+  echo "---"
+  echo "## This repo"
+  echo ""
+  echo '```'
+  cmd_doctor
+  cmd_compost --report
+  echo '```'
+
+  # 3. Root tree notes (project-level constraints, values, warnings)
+  local root_tree
+  root_tree=$(git rev-parse "HEAD^{tree}" 2>/dev/null || true)
+  if [[ -n "$root_tree" ]]; then
+    local root_note
+    root_note=$(git notes --ref="$REF" show "$root_tree" 2>/dev/null || true)
+    if [[ -n "$root_note" ]]; then
+      echo ""
+      echo "### Project notes"
+      echo ""
+      echo "$root_note"
+    fi
+  fi
+
+  # Stale root tree notes (values, constraints from earlier commits)
+  while read noteblob obj; do
+    [[ "$obj" == "${root_tree:-}" ]] && continue
+    local content
+    content=$(git cat-file -p "$noteblob")
+    local note_status
+    note_status=$(note_header "$content" "status")
+    [[ "$note_status" == "composted" ]] && continue
+    if echo "$content" | grep -q "^edge targets-treepath treepath:\.\$"; then
+      local kind=$(note_header "$content" "kind")
+      local title=$(note_header "$content" "title")
+      echo ""
+      echo "### ${title:-(untitled)} ($kind)"
+      echo ""
+      echo "$content"
+    fi
+  done <<< "$notelist"
 }
 
 # Route
@@ -776,7 +1200,9 @@ case "${1:-help}" in
   branch)     shift; cmd_branch "$@" ;;
   activate)   cmd_activate ;;
   sync-init)  shift; cmd_sync_init "$@" ;;
+  compost)    shift; cmd_compost "$@" ;;
   doctor)     cmd_doctor ;;
   dump)       cmd_dump ;;
+  prime)      cmd_prime ;;
   help|*)     usage ;;
 esac

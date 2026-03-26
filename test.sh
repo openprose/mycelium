@@ -280,7 +280,7 @@ assert "stale: shows original note content" "Fragile parsing" "$out"
 # context should show it as [stale]
 out=$($MYCELIUM context stalefile.ts)
 assert "stale context: shows [stale]" "[stale]" "$out"
-assert "stale context: blob changed message" "blob changed" "$out"
+assert "stale context: compressed one-liner" "for full note" "$out"
 
 echo ""
 echo "=== Rename (same content) ==="
@@ -573,6 +573,133 @@ assert "jj: note succeeds" "$(git rev-parse HEAD)" "$out"
 
 # Clean up
 rm -rf .jj
+
+echo ""
+echo "=== Compost ==="
+
+# Setup: create a file, note it, change the file so note goes stale
+echo "original content" > compost-target.ts
+git add compost-target.ts && git commit -m "compost target" --quiet
+$MYCELIUM note compost-target.ts -k summary -t "Compost test note" -m "This is the original." >/dev/null 2>&1
+
+echo "changed content" > compost-target.ts
+git add compost-target.ts && git commit -m "change compost target" --quiet
+
+# Verify it's stale
+out=$($MYCELIUM doctor 2>&1)
+assert "compost: doctor shows stale" "stale:" "$out"
+
+# --dry-run: lists stale notes without acting
+out=$($MYCELIUM compost . --dry-run 2>&1)
+assert "compost dry-run: lists stale" "Compost test note" "$out"
+assert "compost dry-run: shows kind" "summary" "$out"
+
+# --report: just counts
+out=$($MYCELIUM compost . --report 2>&1)
+assert "compost report: shows count" "stale" "$out"
+
+# Compost via agent-native flag (no stdin piping)
+BLOB_BEFORE=$(git rev-parse HEAD~1:compost-target.ts)
+$MYCELIUM compost compost-target.ts --compost >/dev/null 2>&1
+out=$(git notes --ref=mycelium show "$BLOB_BEFORE" 2>/dev/null)
+assert "compost: note has status composted" "status composted" "$out"
+assert "compost: note retains kind" "kind summary" "$out"
+assert "compost: note retains title" "Compost test note" "$out"
+
+# Context hides composted notes by default
+out=$($MYCELIUM context compost-target.ts 2>&1)
+assert_not "compost: context hides composted" "Compost test note" "$out"
+
+# Context --all shows composted notes
+out=$($MYCELIUM context compost-target.ts --all 2>&1)
+assert "compost: context --all shows composted" "Compost test note" "$out"
+
+# Doctor reports composted count
+out=$($MYCELIUM doctor 2>&1)
+assert "compost: doctor shows composted" "composted:" "$out"
+
+echo ""
+echo "=== Compost Renew ==="
+
+# Setup: create file, note it, change file
+echo "renew original" > renew-target.ts
+git add renew-target.ts && git commit -m "renew target" --quiet
+$MYCELIUM note renew-target.ts -k warning -t "Renew test note" -m "This warning still applies." >/dev/null 2>&1
+OLD_BLOB=$(git rev-parse HEAD:renew-target.ts)
+
+echo "renew changed" > renew-target.ts
+git add renew-target.ts && git commit -m "change renew target" --quiet
+NEW_BLOB=$(git rev-parse HEAD:renew-target.ts)
+
+# Renew via agent-native flag (no stdin piping)
+$MYCELIUM compost renew-target.ts --renew >/dev/null 2>&1
+
+# New blob should have the note
+out=$(git notes --ref=mycelium show "$NEW_BLOB" 2>/dev/null)
+assert "renew: note on new blob" "Renew test note" "$out"
+assert "renew: updated applies-to" "applies-to blob:$NEW_BLOB" "$out"
+
+# Old blob should be composted
+out=$(git notes --ref=mycelium show "$OLD_BLOB" 2>/dev/null)
+assert "renew: old blob composted" "status composted" "$out"
+
+echo ""
+echo "=== Compost OID Targeting ==="
+
+# Setup: create file, note it, change file
+echo "oid-target original" > oid-target.ts
+git add oid-target.ts && git commit -m "oid target" --quiet
+$MYCELIUM note oid-target.ts -k observation -t "OID target test" -m "Target by OID." >/dev/null 2>&1
+OID_BLOB=$(git rev-parse HEAD:oid-target.ts)
+
+echo "oid-target changed" > oid-target.ts
+git add oid-target.ts && git commit -m "change oid target" --quiet
+
+# Dry-run shows OID
+out=$($MYCELIUM compost oid-target.ts --dry-run 2>&1)
+assert "oid: dry-run shows OID" "${OID_BLOB:0:12}" "$out"
+
+# Compost by OID (agent-native: no interactive prompt, no path batch)
+out=$($MYCELIUM compost "${OID_BLOB:0:12}" --compost 2>&1)
+assert "oid: compost by OID succeeds" "composted" "$out"
+assert "oid: compost output shows kind" "observation" "$out"
+
+# Verify the note is composted
+out=$(git notes --ref=mycelium show "$OID_BLOB" 2>/dev/null)
+assert "oid: note has status composted" "status composted" "$out"
+
+# Setup for renew by OID
+echo "oid-renew original" > oid-renew.ts
+git add oid-renew.ts && git commit -m "oid renew" --quiet
+$MYCELIUM note oid-renew.ts -k decision -t "OID renew test" -m "Renew by OID." >/dev/null 2>&1
+OID_RENEW_OLD=$(git rev-parse HEAD:oid-renew.ts)
+
+echo "oid-renew changed" > oid-renew.ts
+git add oid-renew.ts && git commit -m "change oid renew" --quiet
+OID_RENEW_NEW=$(git rev-parse HEAD:oid-renew.ts)
+
+# Renew by OID
+out=$($MYCELIUM compost "${OID_RENEW_OLD:0:12}" --renew 2>&1)
+assert "oid: renew by OID succeeds" "renewed" "$out"
+
+# New blob has the note
+out=$(git notes --ref=mycelium show "$OID_RENEW_NEW" 2>/dev/null)
+assert "oid: renewed note on new blob" "OID renew test" "$out"
+
+# Old blob composted
+out=$(git notes --ref=mycelium show "$OID_RENEW_OLD" 2>/dev/null)
+assert "oid: old blob composted after renew" "status composted" "$out"
+
+echo ""
+echo "=== Overwrite Warning ==="
+
+# Write a note then overwrite — should warn on stderr
+echo "owtest" > owtest.ts
+git add owtest.ts && git commit -m "overwrite test" --quiet
+$MYCELIUM note owtest.ts -k context -t "First note" -m "first" >/dev/null 2>&1
+out=$($MYCELIUM note owtest.ts -k context -t "Second note" -m "second" 2>&1)
+assert "overwrite: shows warning" "overwriting" "$out"
+assert "overwrite: shows old title" "First note" "$out"
 
 echo ""
 echo "================================"

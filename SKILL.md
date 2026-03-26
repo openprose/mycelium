@@ -222,6 +222,43 @@ mycelium.sh activate        # notes visible in git log
 mycelium.sh sync-init       # notes travel with fetch/push
 ```
 
+## Composting
+
+Notes go stale when the file they describe changes. Stale notes aren't wrong —
+they're about an older version. Composting triages them.
+
+**After meaningful work, compost the files you touched:**
+
+```bash
+# 1. See what's stale
+mycelium.sh compost src/auth.ts --dry-run
+#   [value] Pave the desire path — src/auth.ts (0b2e12db5f02)
+#   [summary] Auth module overview — src/auth.ts (921ef648f987)
+
+# 2. Read the ones you're unsure about
+mycelium.sh read 921ef648f987
+
+# 3. Act on individuals by OID
+mycelium.sh compost 921ef648f987 --compost   # insight absorbed, compost it
+mycelium.sh compost 0b2e12db5f02 --renew     # still true, re-attach to current
+
+# Or batch: act on all stale notes for a path
+mycelium.sh compost src/auth.ts --compost    # compost all stale on this path
+mycelium.sh compost src/auth.ts --renew      # renew all stale on this path
+
+# Counts only (for hooks)
+mycelium.sh compost --report
+```
+
+Composted notes aren't deleted. They're still in `read`, `dump`, and
+`context --all`. They just stop cluttering the topsoil.
+
+`context` shows stale notes as one-line summaries — run `read <oid>` for
+the full body. Composted notes are hidden unless you pass `--all`.
+
+The interactive mode (`mycelium.sh compost src/auth.ts` with no action flag)
+prompts per-note for humans. Agents should use `--dry-run` + `--compost`/`--renew`.
+
 ## All commands
 
 ```
@@ -229,14 +266,16 @@ mycelium.sh note [target] -k <kind> -m <body>   Write (default: HEAD)
 mycelium.sh read [target]                        Read (default: HEAD)
 mycelium.sh follow [target]                      Read + resolve all edges
 mycelium.sh refs [target]                        All notes pointing at target
-mycelium.sh context <path>                       All notes for a path
+mycelium.sh context <path> [--all]               All notes for a path
 mycelium.sh find <kind>                          Find by kind
 mycelium.sh kinds                                List all kinds in use
+mycelium.sh compost [path|.] [--dry-run|--report] Triage stale notes
 mycelium.sh edges [type]                         List edges
 mycelium.sh list                                 All annotated objects
 mycelium.sh log [n]                              Recent commits with notes
 mycelium.sh dump                                 Everything, greppable
 mycelium.sh doctor                               Graph health (facts only)
+mycelium.sh prime                                Skill + live repo context for agents
 mycelium.sh branch [use|merge] [name]            Branch-scoped notes
 mycelium.sh activate                             Show in git log
 mycelium.sh sync-init [remote]                   Configure fetch/push

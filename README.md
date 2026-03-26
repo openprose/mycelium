@@ -93,12 +93,29 @@ mycelium.sh edges [type]                         List all edges
 mycelium.sh list                                 All annotated objects
 mycelium.sh log [n]                              Recent commits with notes
 mycelium.sh dump                                 Everything, greppable
+mycelium.sh compost [path|.] [--dry-run|--report] Triage stale notes
 mycelium.sh doctor                               Graph state (facts only)
+mycelium.sh prime                                Skill + live repo context for agents
 mycelium.sh activate                             Show notes in git log
 mycelium.sh sync-init [remote]                   Configure fetch/push
 ```
 
 Kinds and edge types are open vocabulary — use whatever strings make sense. `mycelium.sh kinds` shows what's in use.
+
+### Composting
+
+Notes go stale when the file they describe changes. Stale notes aren't wrong — they're just about an older version. Composting triages them:
+
+```bash
+mycelium.sh compost src/auth.ts --dry-run      # list stale notes with OIDs
+mycelium.sh compost <oid> --compost            # compost a specific note
+mycelium.sh compost <oid> --renew              # re-attach to current version
+mycelium.sh compost src/auth.ts --compost      # batch: compost all stale on path
+mycelium.sh compost src/auth.ts                # interactive mode (humans)
+mycelium.sh compost --report                   # counts only (for hooks)
+```
+
+Composted notes aren't deleted — they're still accessible via `read` and `dump`, just no longer surfaced by `context`.
 
 ## Platform support
 
@@ -108,7 +125,7 @@ Dependencies: `bash` (3.2+), `git`, and POSIX coreutils (`awk`, `grep`, `sed`, `
 
 ## Roadmap
 
-- **jj + git colocated repos** — mycelium already works in colocated mode (same `.git/` directory), but commit notes orphan when jj rewrites history. Change-id edges and a `migrate` command are planned.
+- **jj `migrate` command** — jj colocation works (auto change-id edges, fallback lookup), but notes on rewritten commits still need manual recovery. A `migrate` command to bulk-reattach orphaned notes via change-id edges is planned.
 
 ## Spiritual predecessors
 

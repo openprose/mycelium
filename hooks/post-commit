@@ -5,9 +5,16 @@
 # Non-blocking. Just prints doctor output so you see the graph
 # state every time you commit. Builds the habit of noticing.
 
-command -v mycelium.sh &>/dev/null || exit 0
+REPO_ROOT=$(git rev-parse --show-toplevel)
+MYCELIUM="${REPO_ROOT}/mycelium.sh"
+
+# Fall back to PATH if not in repo root
+[[ -x "$MYCELIUM" ]] || MYCELIUM="$(command -v mycelium.sh 2>/dev/null || true)"
+[[ -x "$MYCELIUM" ]] || exit 0
+
 git notes --ref=mycelium list &>/dev/null 2>&1 || exit 0
 
 echo ""
-mycelium.sh doctor
+"$MYCELIUM" doctor
+"$MYCELIUM" compost --report
 echo ""
