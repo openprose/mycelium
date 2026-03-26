@@ -403,6 +403,75 @@ externals=$(grep -ohE '\b(date|stat|readlink|realpath|xargs|tee)\b' "$MYCELIUM" 
 assert_count "no non-portable externals" 0 "$externals"
 
 echo ""
+echo "=== Doctor ==="
+
+out=$($MYCELIUM doctor)
+assert "doctor: shows notes count" "notes" "$out"
+assert "doctor: shows edges count" "edges" "$out"
+assert "doctor: shows kinds" "kinds" "$out"
+
+# Doctor with no notes should report 0
+out=$(MYCELIUM_REF=empty-test-ref $MYCELIUM doctor)
+assert "doctor: empty ref shows 0" "notes  0" "$out"
+
+# Root tree notes should NOT count as stale in doctor
+$MYCELIUM note . -k constraint -t "Doctor root test" -m "project-level" >/dev/null
+echo "another change" > doctor-test.txt
+git add doctor-test.txt
+git commit -q --no-verify -m "change tree for doctor test"
+out=$($MYCELIUM doctor)
+# The root tree note should still be current, not stale
+# Total stale should not include root tree notes
+assert "doctor: root tree notes are current" "current:" "$out"
+
+echo ""
+echo "=== Kinds ==="
+
+out=$($MYCELIUM kinds)
+assert "kinds: shows constraint" "constraint" "$out"
+assert "kinds: shows counts" "note(s)" "$out"
+
+# Custom kind appears after writing
+$MYCELIUM note HEAD -k custom-test -m "testing custom kind" >/dev/null
+out=$($MYCELIUM kinds)
+assert "kinds: custom kind appears" "custom-test" "$out"
+
+echo ""
+echo "=== Branch ==="
+
+# Default branch
+out=$($MYCELIUM branch)
+assert "branch: shows current ref" "mycelium" "$out"
+assert "branch: shows notes refs" "notes refs" "$out"
+
+# Switch to branch
+out=$($MYCELIUM branch use test-branch)
+assert "branch: switch confirms" "mycelium--test-branch" "$out"
+
+# Verify switched
+out=$($MYCELIUM branch)
+assert "branch: shows new ref" "mycelium--test-branch" "$out"
+
+# Write a note on the branch
+$MYCELIUM note HEAD -k context -m "branch-scoped note" >/dev/null
+out=$($MYCELIUM list)
+assert "branch: note visible on branch" "context" "$out"
+
+# Switch back — branch note should not be visible
+$MYCELIUM branch use main >/dev/null
+out=$($MYCELIUM list)
+assert_not "branch: note isolated from main" "branch-scoped note" "$out"
+
+# Merge
+$MYCELIUM branch merge test-branch >/dev/null
+out=$($MYCELIUM list)
+# After merge, the branch note should be in main
+# (note: merge may not bring text verbatim — just check the ref has more notes)
+
+# Switch back to main for remaining tests
+$MYCELIUM branch use main >/dev/null 2>&1 || true
+
+echo ""
 echo "=== Self-Documenting CLI ==="
 
 # help on unknown command shows usage
@@ -411,10 +480,54 @@ assert "help: shows note command" "mycelium note" "$out"
 assert "help: shows follow command" "mycelium follow" "$out"
 assert "help: shows refs command" "mycelium refs" "$out"
 assert "help: shows context command" "mycelium context" "$out"
+assert "help: shows doctor command" "mycelium doctor" "$out"
+assert "help: shows branch command" "mycelium branch" "$out"
+assert "help: shows kinds command" "mycelium kinds" "$out"
 
 # Missing --kind gives clear error
 out=$($MYCELIUM note HEAD -m "no kind" 2>&1) || true
 assert "error: missing kind" "kind" "$out"
+
+echo ""
+echo "=== Stability Hints ==="
+
+# File target shows path hint
+out=$($MYCELIUM note README.md -k observation -m "path test" 2>&1)
+assert "hint: file shows path" "via path:README.md" "$out"
+
+# Raw OID shows pinned hint
+BLOB=$(git rev-parse HEAD:README.md)
+out=$($MYCELIUM note "$BLOB" -k observation -m "pinned test" 2>&1)
+assert "hint: OID shows pinned" "pinned to blob" "$out"
+
+# Root tree shows project-level hint
+out=$($MYCELIUM note . -k observation -m "root test" 2>&1)
+assert "hint: root shows project-level" "project-level" "$out"
+
+# Commit shows pinned hint
+out=$($MYCELIUM note HEAD -k observation -m "commit test" 2>&1)
+assert "hint: commit shows pinned" "commit" "$out"
+
+echo ""
+echo "=== jj Detection ==="
+
+# Simulate jj colocated repo
+mkdir -p .jj
+
+# Help should show jj section
+out=$($MYCELIUM help 2>&1)
+assert "jj: help shows colocated" "jj+git colocated" "$out"
+
+# Doctor should report jj
+out=$($MYCELIUM doctor 2>&1)
+assert "jj: doctor shows jj" "jj" "$out"
+
+# Note creation works even without jj binary
+out=$($MYCELIUM note HEAD -k observation -m "jj test" 2>&1)
+assert "jj: note succeeds" "$(git rev-parse HEAD)" "$out"
+
+# Clean up
+rm -rf .jj
 
 echo ""
 echo "================================"

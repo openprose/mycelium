@@ -214,7 +214,28 @@ cmd_note() {
   fi
 
   git notes --ref="$REF" add -f -m "$content" "$oid"
+
+  # Show what was written and its stability
   echo "$oid"
+  if [[ "$type" == "blob" && -n "$filepath" ]]; then
+    echo "  (via path:$filepath — findable if file changes)" >&2
+  elif [[ "$type" == "blob" ]]; then
+    echo "  (pinned to blob:${oid:0:12} — specific to this version)" >&2
+  elif [[ "$type" == "tree" && "${filepath:-}" == "." ]]; then
+    echo "  (project-level — always findable via context)" >&2
+  elif [[ "$type" == "tree" && -n "$filepath" ]]; then
+    echo "  (via treepath:$filepath — findable if dir changes)" >&2
+  elif [[ "$type" == "commit" ]]; then
+    local _has_change=""
+    for e in "${auto_edges[@]}" "${edges[@]}"; do
+      case "$e" in targets-change*) _has_change=yes ;; esac
+    done
+    if [[ -n "$_has_change" ]]; then
+      echo "  (commit + change_id — survives jj rewrites)" >&2
+    else
+      echo "  (commit — pinned to this OID)" >&2
+    fi
+  fi
 }
 
 cmd_read() {
@@ -669,14 +690,16 @@ cmd_doctor() {
       elif [[ "$current_blob" != "$obj" ]]; then status="stale"
       fi
     elif [[ -n "$target_treepath" ]]; then
-      local current_tree
       if [[ "$target_treepath" == "." ]]; then
-        current_tree=$(git rev-parse "HEAD^{tree}" 2>/dev/null || true)
+        # Root tree notes are project-level — always "current" in meaning.
+        # The tree OID changes every commit but the note's intent doesn't.
+        status="current"
       else
+        local current_tree
         current_tree=$(git rev-parse "HEAD:$target_treepath" 2>/dev/null || true)
-      fi
-      if [[ -z "$current_tree" ]]; then status="orphaned"
-      elif [[ "$current_tree" != "$obj" ]]; then status="stale"
+        if [[ -z "$current_tree" ]]; then status="orphaned"
+        elif [[ "$current_tree" != "$obj" ]]; then status="stale"
+        fi
       fi
     else
       git cat-file -t "$obj" &>/dev/null || status="orphaned"

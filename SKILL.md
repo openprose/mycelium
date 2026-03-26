@@ -154,8 +154,24 @@ git notes --ref=mycelium show HEAD 2>/dev/null
 mycelium.sh note -k context -m "Why I did this."                     # HEAD
 mycelium.sh note path/to/file.ts -k summary -m "What this does."     # file
 mycelium.sh note src/auth/ -k constraint -m "Must be retryable."     # directory
+mycelium.sh note . -k value -m "Project-level principle."            # project
 mycelium.sh note -k decision -t "Use YAML" -m "Needs comments."     # decision
 ```
+
+### Target stability
+
+Every target has different stability. The tool tells you on write:
+
+| Target | Stable? | Use when |
+|--------|---------|----------|
+| `path/to/file` | ✓ findable by path even if file changes | Note is about the file |
+| `$(git rev-parse HEAD:file)` | pinned to this exact blob OID | Note is about this specific version |
+| `.` | ✓ project-level, always findable | Note applies to the whole repo |
+| `HEAD` | pinned to commit OID (jj: survives via change_id) | Note is about this change |
+| `src/dir/` | ✓ findable by path | Note is about the module |
+
+**Default: use paths.** Most notes are about files, not specific versions. The path
+edge keeps them findable. Use raw OIDs only when you mean "this exact content."
 
 Extra edges beyond the auto-generated ones:
 
