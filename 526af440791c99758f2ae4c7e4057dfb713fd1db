@@ -1,0 +1,6 @@
+kind observation
+title merge test note
+edge explains commit:526af440791c99758f2ae4c7e4057dfb713fd1db
+edge targets-change change:moroknrlmkolpzxslwxsuvkyplqqwrql
+
+should appear in main after merge
