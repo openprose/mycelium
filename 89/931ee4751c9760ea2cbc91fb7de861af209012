@@ -1,6 +1,5 @@
 kind observation
-supersedes 5ddaca11646f2f0e158a05fe2e543a420d6da624
+supersedes f8b338092a250695516047f1e54193e7d207ffd1
 edge applies-to blob:89931ee4751c9760ea2cbc91fb7de861af209012
-edge targets-path path:README.md
 
-path test
+pinned test
