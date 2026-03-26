@@ -1,0 +1,8 @@
+kind context
+edge explains commit:cc63a1146f2cdb8ce5246971cd581c2966c5c816
+
+Added 44-test suite. Runs in a disposable git repo (mktemp).
+Tests every command and every desire path: HEAD default, file path
+resolution, directory path resolution, auto-edges, context tree-walk,
+find, edges, list, dump, supersession, activate, sync-init, stdin body.
+Found and fixed one bug in assert_count (empty string quoting).
