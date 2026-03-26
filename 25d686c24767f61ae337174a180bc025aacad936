@@ -1,0 +1,7 @@
+kind context
+title jj test: note with change_id edge
+edge explains commit:25d686c24767f61ae337174a180bc025aacad936
+edge targets-change change:ttmpquypskrnxyuutwrtpoxzzqsokqns
+
+This note has a stable change_id edge. When jj rewrites the
+commit, the edge string survives even though the note orphans.
