@@ -1,0 +1,7 @@
+kind decision
+title Canonical design lives in code, README, SKILL, tests, and notes
+status active
+edge applies-to blob:455f14b946f43db4af01c4f2e5cf0b3d2317179a
+edge targets-path path:README.md
+
+We intentionally do not keep a second always-current spec document. The living design is the combination of mycelium.sh, README.md, SKILL.md, the test suite, and the repo's own mycelium notes so the project dogfoods the tool.
