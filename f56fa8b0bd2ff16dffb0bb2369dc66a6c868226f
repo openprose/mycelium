@@ -1,0 +1,11 @@
+kind decision
+title Auto-supersede on overwrite
+edge explains commit:f56fa8b0bd2ff16dffb0bb2369dc66a6c868226f
+
+Discovered by dogfooding: I accidentally overwrote the 'Enforcement
+via hooks' decision note with a 'Session complete' context note on the
+same commit. The old note was lost from the notes ref (recoverable only
+via reflog). Fix: before git notes add -f, capture the existing note's
+blob OID and inject it as a supersedes header. Now the chain is always
+preserved. Old blobs stay in git's object store and are retrievable
+via git cat-file -p <supersedes-oid>.
