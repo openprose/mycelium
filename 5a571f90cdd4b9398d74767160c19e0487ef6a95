@@ -1,12 +1,8 @@
-kind context
-title Decision log
+kind decision
+title Why the design was reduced to substrate
+supersedes 6df0105a13ebb3a225dff6c732031e98e1b447f4
+status archived
 edge applies-to blob:5a571f90cdd4b9398d74767160c19e0487ef6a95
 edge targets-path path:mycelium-decisions.md
-edge depends-on blob:b34ab1befec93a834ee08346ff6882bffc1fe628
 
-Records 10 hard questions asked before finalizing the spec,
-what was considered for each, and why we chose what we chose.
-Preserves the 882-line v1 thinking so future agents understand
-what was intentionally cut vs never considered. Key decisions:
-header+body over JSON (#3), no catalog (#2), no manifests (#1),
-identity = blob OID (#5), must work without CLI (#6).
+The durable choices: header+body over JSON, raw git must suffice without a custom CLI, no separate catalog or indices until proven necessary, and a deliberate boundary between protocol and tooling. This note preserves the decision log after the markdown file is removed.
