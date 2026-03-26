@@ -1,4 +1,5 @@
 kind value
+status composted
 title Underground by default
 edge applies-to tree:2ae6bf4db9cedbc9cbe773d824cd01ae1a615616
 edge targets-treepath treepath:.
