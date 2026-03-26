@@ -1,25 +1,7 @@
-kind context
-title Session departure: what's left
+kind observation
+title stability test commit
+supersedes 317dd381b677dfe75d691e4cb78ea2313ba5c346
 edge explains commit:1ddae7ffb74970bbfaf7af337794a3aca994c372
 edge targets-change change:vlnwxqquwunuxqllnnkulkukmmzlqxlm
 
-Working: doctor, follow, refs, kinds, branch, jj auto-edges,
-jj fallback in read, 99 tests, 39 notes, adaptive help.
-
-Broken: hooks don't fire (global core.hooksPath override on this
-machine). Examples exist in hooks/ but need manual install.
-
-Incomplete: jj change_id fallback only in read (not follow/context).
-branch merge untested. No tests for doctor/kinds/branch/jj. 5/9
-decisions lack tested-by edges.
-
-Not started: jj migrate command. CI. GitHub remote. More spiritual
-predecessors in README.
-
-Design debt: 18 stale notes from root tree churn. One-object-one-note
-means values compete for the root tree. The grep -qF bug is warned
-but not fixed.
-
-Next session priorities: push to GitHub, test coverage for new
-commands, fix the hooks situation, decide on the stale-notes-on-
-root-tree problem.
+testing
