@@ -1,17 +1,14 @@
-kind context
-title Principles pattern established
+kind decision
+title Root tree = project scope
+supersedes 9d057fbdb554112605abd7ee989a513dc3e983d7
 edge explains commit:3099940429a90fcdd2714922e62758a14db5c082
+edge tested-by blob:38596bf1085058af7585b7258d17fcdcff5d3cd8
 
-Root tree constraints are the answer to 'how do agents find project principles?'
+Root tree constraints are the namespace for project-wide principles.
+context walks parent dirs to root, so every file inherits them. After
+commits the tree OID changes — stale-tree scanning finds them via
+targets-treepath edge.
 
-Pattern: write constraints on '.' (root tree). context walks parent dirs
-up to root, so every file inherits them. After commits, the root tree OID
-changes and the note becomes stale — but stale-tree scanning (new in this
-commit) finds it via targets-treepath edge. find constraint also works.
-
-This commit also fixed resolve_target for '.' — it was broken because
-git rev-parse HEAD:. fails (need HEAD^{tree} instead).
-
-The 7 principles are now a living note. They'll go stale after the next
-commit but stay visible. When we want to update them, we write a new
-note on the new root tree and the old one auto-supersedes.
+Tested by: test.sh 'Root Tree Resolution' (7 assertions) + 'Stale Root Tree'
+(3 assertions). Validates: resolve '.', treepath auto-edge, context inheritance
+for root and nested files, stale-tree detection after new commits.
