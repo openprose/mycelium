@@ -1,0 +1,9 @@
+kind todo
+title Implement jj migrate for rewritten commit notes
+status active
+edge applies-to blob:c502d18ef1d5d6fe8e56152b0478686fd5f247bf
+edge targets-path path:mycelium.sh
+
+Not implemented yet. Current jj support already adds `targets-change` edges to commit notes and `read`/`follow` can fall back by change_id after rewrites. What is still missing is a bulk `migrate` command that scans commit notes, resolves the current commit for each change_id, and reattaches or copies notes when rewritten commit OIDs diverge.
+
+An MVP should probably do: --dry-run, apply on the current notes ref, and skip conflicts.
