@@ -1,8 +1,12 @@
-kind context
+kind decision
+title Enforcement via hooks, not skill prompting
 edge explains commit:62dc2561b993d28b0d93605c6ea4ac6bf74aca9c
 
-Added stale detection using the edge design from the original sessions.
-When read gets a path with no note on the current blob, it scans all notes
-for matching targets-path edges. Context does the same, labeled [stale].
-Removed redundant [edge] scan from context (was duplicating [stale] results).
-Tests: 52 total, added stale detection, rename-follows-blob, deep inheritance.
+Skills are soft nudges — agents forget (proven by dogfooding this session).
+Hard enforcement needs hooks/extensions:
+- pi: TypeScript extensions with tool_call/tool_result hooks (~/.pi/agent/extensions/*.ts)
+- claude code: custom slash commands or hooks
+- git: post-commit hook that prompts for note
+
+The skill teaches the convention. The extension enforces it.
+These are different layers. Don't try to make the skill a guardrail.
