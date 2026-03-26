@@ -1,0 +1,9 @@
+kind summary
+title Bash helper
+edge applies-to blob:921ef648f9878d33884cc14cf49b75a2abc931af
+edge targets-path path:mycelium.sh
+
+~130 lines wrapping git notes. Commands: note, read, read-path,
+find, edges, log, list, dump, activate, sync-init. Every command is
+a one-liner git operation underneath. The helper is convenience, not
+requirement — the spec works with raw git commands alone.
