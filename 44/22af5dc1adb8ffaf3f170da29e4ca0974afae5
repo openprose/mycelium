@@ -1,0 +1,6 @@
+kind observation
+title from branch
+edge applies-to blob:4422af5dc1adb8ffaf3f170da29e4ca0974afae5
+edge targets-path path:merge-target.txt
+
+branch note
