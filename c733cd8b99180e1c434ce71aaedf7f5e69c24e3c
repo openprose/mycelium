@@ -1,6 +1,6 @@
 kind warning
 title Safety / footguns
-status active
+status composted
 supersedes d770971506272b1702027ab9db2d958a03afc481
 edge applies-to tree:c733cd8b99180e1c434ce71aaedf7f5e69c24e3c
 edge targets-treepath treepath:.
