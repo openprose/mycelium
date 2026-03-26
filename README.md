@@ -65,7 +65,7 @@ mycelium.sh branch merge my-feature # merge when ready
 - Notes are **public for public repos** — anyone can `git fetch` them
 - `git notes remove` does **not erase history** — the old content persists in the notes ref log
 
-**We strongly recommend [gitleaks](https://github.com/gitleaks/gitleaks).** It scans notes by default (via `git log --all` which includes `refs/notes/*`). See our [example hooks](hooks/) for pre-commit and post-checkout integration.
+**We strongly recommend [gitleaks](https://github.com/gitleaks/gitleaks).** It scans notes by default (via `git log --all` which includes `refs/notes/*`). See our [example hooks](hooks/) for pre-commit, pre-push, and post-checkout integration.
 
 ## The tool
 

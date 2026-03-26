@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Example pre-push hook — full secret scan, including notes refs.
+# Active in this repo because core.hooksPath=hooks/.
+set -euo pipefail
+
+if command -v gitleaks &>/dev/null; then
+  gitleaks git --no-banner --redact -l warn
+fi
