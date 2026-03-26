@@ -132,6 +132,15 @@ cmd_note() {
       ;;
   esac
 
+  # Auto-supersede: if this object already has a note, capture its blob OID
+  if [[ -z "$supersedes" ]]; then
+    local existing_blob
+    existing_blob=$(git notes --ref="$REF" list "$oid" 2>/dev/null | cut -d' ' -f1 || true)
+    if [[ -n "$existing_blob" ]]; then
+      supersedes="$existing_blob"
+    fi
+  fi
+
   # Build note content
   local content="kind $kind"
   [[ -n "$title" ]]      && content+=$'\n'"title $title"
