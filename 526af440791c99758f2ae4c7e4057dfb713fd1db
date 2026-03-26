@@ -1,20 +1,20 @@
-kind context
-title Session complete
+- 153 tests (137 core + 16 gitleaks), all passing
+- 43 notes (30 current, 13 stale, 0 orphaned), 79 edges
+- 7 values with stories, 9 decisions with rationale
+- README, SKILL.md, example hooks
+- doctor (facts only), kinds, branch, follow, refs
+- jj colocated, auto change_id edges, fallback lookup
+- stability hints on write, docs-drift in test suite
+Built mycelium from gitleaks question to 153-test, jj-colocated,
+Design debt: grep -qF helper, hooks need core.hooksPath workaround.
+Final state:
+Not shipped: no GitHub remote, no LICENSE.
+Root tree one-note issue is actually fine (each commit = new tree OID).
+culture-carrying tool in one session.
 edge explains commit:526af440791c99758f2ae4c7e4057dfb713fd1db
 edge targets-change change:moroknrlmkolpzxslwxsuvkyplqqwrql
-
-Built mycelium from gitleaks question to 153-test, jj-colocated,
-culture-carrying tool in one session.
-
-Final state:
-- 43 notes (30 current, 13 stale, 0 orphaned), 79 edges
-- 153 tests (137 core + 16 gitleaks), all passing
-- jj colocated, auto change_id edges, fallback lookup
-- 7 values with stories, 9 decisions with rationale
-- doctor (facts only), kinds, branch, follow, refs
-- stability hints on write, docs-drift in test suite
-- README, SKILL.md, example hooks
-
-Not shipped: no GitHub remote, no LICENSE.
-Design debt: grep -qF helper, hooks need core.hooksPath workaround.
-Root tree one-note issue is actually fine (each commit = new tree OID).
+kind context
+kind observation
+should appear in main after merge
+title Session complete
+title merge test note
