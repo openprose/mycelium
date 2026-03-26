@@ -1,0 +1,17 @@
+kind context
+title Principles pattern established
+edge explains commit:3099940429a90fcdd2714922e62758a14db5c082
+
+Root tree constraints are the answer to 'how do agents find project principles?'
+
+Pattern: write constraints on '.' (root tree). context walks parent dirs
+up to root, so every file inherits them. After commits, the root tree OID
+changes and the note becomes stale — but stale-tree scanning (new in this
+commit) finds it via targets-treepath edge. find constraint also works.
+
+This commit also fixed resolve_target for '.' — it was broken because
+git rev-parse HEAD:. fails (need HEAD^{tree} instead).
+
+The 7 principles are now a living note. They'll go stale after the next
+commit but stay visible. When we want to update them, we write a new
+note on the new root tree and the old one auto-supersedes.
