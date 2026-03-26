@@ -1,4 +1,5 @@
 kind observation
+status composted
 title OID target test
 edge applies-to blob:b5fc63a739c09508a90ce6f691a0b38e3c7cc093
 edge targets-path path:oid-target.ts
