@@ -1,0 +1,6 @@
+kind observation
+title stability test
+edge applies-to blob:584387e3b0309ed00434a3984698989cacd4adc0
+edge targets-path path:test.sh
+
+testing
