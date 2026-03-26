@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Example post-commit hook — show note graph state after every commit.
+# Copy to .git/hooks/post-commit and chmod +x.
+#
+# Non-blocking. Just prints doctor output so you see the graph
+# state every time you commit. Builds the habit of noticing.
+
+command -v mycelium.sh &>/dev/null || exit 0
+git notes --ref=mycelium list &>/dev/null 2>&1 || exit 0
+
+echo ""
+mycelium.sh doctor
+echo ""

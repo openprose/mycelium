@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
-# Example pre-commit hook — scan staged changes for secrets.
+# Example pre-commit hook — tests + secret scan.
 # Copy to .git/hooks/pre-commit and chmod +x.
 set -euo pipefail
 
-if ! command -v gitleaks &>/dev/null; then
-  exit 0
+REPO_ROOT=$(git rev-parse --show-toplevel)
+
+# Run tests if test.sh exists and mycelium.sh is staged
+if git diff --cached --name-only | grep -q "mycelium.sh\|test.sh" 2>/dev/null; then
+  if [[ -x "$REPO_ROOT/test.sh" ]]; then
+    echo "running tests..."
+    "$REPO_ROOT/test.sh" >/dev/null || { echo "tests failed"; exit 1; }
+    echo "tests passed"
+  fi
 fi
 
-gitleaks git --staged --no-banner --redact -l warn
+# Secret scan
+if command -v gitleaks &>/dev/null; then
+  gitleaks git --staged --no-banner --redact -l warn
+fi
