@@ -71,9 +71,9 @@ relationships — a decision that affects two files, a constraint that depends o
 a spec, a plan that ties together several changes.
 
 ```bash
-# A decision note on SKILL.md that also depends on the spec
+# A decision note on SKILL.md that also depends on the README
 mycelium.sh note SKILL.md -k decision -t "Packaged as an agent skill" \
-  -e "depends-on blob:$(git rev-parse HEAD:mycelium.md)" \
+  -e "depends-on blob:$(git rev-parse HEAD:README.md)" \
   -m "The skill teaches agents the convention on-demand."
 
 # Read the note and see where all edges lead

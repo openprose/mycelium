@@ -76,7 +76,17 @@ Two files:
 | [mycelium.sh](mycelium.sh) | The CLI — read, write, navigate notes | Agents and humans |
 | [SKILL.md](SKILL.md) | Agent skill — teaches the convention | AI agents |
 
-Everything else in this repo is how we develop the tool: [the spec](mycelium.md), [tests](test.sh), [decision log](mycelium-decisions.md), and 30+ mycelium notes on our own objects. You don't need any of it. Copy `mycelium.sh`, optionally load `SKILL.md`, and start writing notes.
+Everything else in this repo is how we develop the tool: [tests](test/test.sh), example hooks, and mycelium notes on the repo itself. You don't need any of it. Copy `mycelium.sh`, optionally load `SKILL.md`, and start writing notes.
+
+### Design history
+
+The historical design docs have been distilled into mycelium notes instead of tracked markdown files. Browse them with:
+
+```bash
+mycelium.sh find decision
+mycelium.sh find context
+mycelium.sh find summary
+```
 
 ## Commands
 

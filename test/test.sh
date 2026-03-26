@@ -3,7 +3,8 @@
 # Runs in a temporary git repo. Tests the actual tool against real git objects.
 set -euo pipefail
 
-MYCELIUM="$(cd "$(dirname "$0")" && pwd)/mycelium.sh"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+MYCELIUM="$REPO_ROOT/mycelium.sh"
 TMPDIR=$(mktemp -d)
 PASS=0
 FAIL=0

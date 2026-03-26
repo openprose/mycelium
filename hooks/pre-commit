@@ -5,11 +5,14 @@ set -euo pipefail
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
 
-# Run tests if test.sh exists and mycelium.sh is staged
-if git diff --cached --name-only | grep -q "mycelium.sh\|test.sh" 2>/dev/null; then
-  if [[ -x "$REPO_ROOT/test.sh" ]]; then
+# Run tests if mycelium.sh or anything under test/ is staged
+if git diff --cached --name-only | grep -qE '^(mycelium\.sh|test/)' 2>/dev/null; then
+  if [[ -x "$REPO_ROOT/test/test.sh" ]]; then
     echo "running tests..."
-    "$REPO_ROOT/test.sh" >/dev/null || { echo "tests failed"; exit 1; }
+    # Hooks inherit git-local env vars (GIT_DIR, GIT_WORK_TREE, etc.).
+    # Clear them before running the inner temp repos created by the test suite.
+    while read -r var; do unset "$var"; done < <(git rev-parse --local-env-vars)
+    "$REPO_ROOT/test/test.sh" >/dev/null || { echo "tests failed"; exit 1; }
     echo "tests passed"
   fi
 fi
