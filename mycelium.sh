@@ -156,6 +156,21 @@ cmd_note() {
     content+=$'\n\n'"$body"
   fi
 
+  # Scan note body for secrets before writing
+  if command -v gitleaks &>/dev/null; then
+    local _gl_dir
+    _gl_dir=$(mktemp -d)
+    printf '%s' "$content" > "$_gl_dir/note.txt"
+    if gitleaks dir --no-banner "$_gl_dir" 2>/dev/null; then
+      : # clean
+    else
+      rm -r "$_gl_dir"
+      echo "Error: gitleaks detected a secret in this note. Aborting." >&2
+      return 1
+    fi
+    rm -r "$_gl_dir"
+  fi
+
   git notes --ref="$REF" add -f -m "$content" "$oid"
   echo "$oid"
 }

@@ -1,0 +1,24 @@
+# Gitleaks config for mycelium
+# https://github.com/gitleaks/gitleaks
+#
+# NOTE: gitleaks already scans git notes by default.
+# It runs `git log -p --all` which includes refs/notes/*.
+# Notes content appears with blob OIDs as the "file path".
+# No extra config is needed to cover mycelium's note store.
+
+title = "mycelium gitleaks config"
+
+# Use the full default ruleset — we just extend with repo-specific paths/allowlists.
+# See: https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml
+
+[extend]
+# Inherit all default rules (empty = use built-in defaults)
+
+[allowlist]
+description = "mycelium repo allowlist"
+
+# Test fixtures and documentation may contain example tokens/keys
+paths = [
+    '''test\.sh''',
+    '''\.shoulder/''',
+]
