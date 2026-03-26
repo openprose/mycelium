@@ -1,5 +1,5 @@
 kind observation
-supersedes 248e1f188e9a3c751ee285cd971ac4078eaa067c
+supersedes ce3cc56cf7f1bf3f3857e3c5a4d9d870a29980cb
 edge applies-to blob:584387e3b0309ed00434a3984698989cacd4adc0
 
-about this version
+pinned test
