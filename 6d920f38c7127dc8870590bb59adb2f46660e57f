@@ -1,0 +1,17 @@
+kind constraint
+title Project principles
+status active
+edge applies-to tree:6d920f38c7127dc8870590bb59adb2f46660e57f
+edge targets-treepath treepath:.
+edge depends-on note:626d85330703fde4dcbbb83470074cb835b476c6
+edge depends-on note:149e78ff0dfde607580fc7aff72c711240e8d6d2
+edge depends-on note:dfd085817f6223731b212c332a0067c4929d04cd
+
+1. Git-native first.
+2. Bash + git only.
+3. Self-documenting CLI.
+4. Docs, code, tests, and skill stay in sync.
+5. Test with real agents.
+6. Branch for features.
+7. Agent-native by default.
+8. Dogfood the tool while building it.
