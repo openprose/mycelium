@@ -1,8 +1,6 @@
-kind decision
-title Multi-edge test
-supersedes d6b52037d3d6df2fb09880102e8d578e97c47a49
+kind observation
+supersedes 5ddaca11646f2f0e158a05fe2e543a420d6da624
 edge applies-to blob:89931ee4751c9760ea2cbc91fb7de861af209012
 edge targets-path path:README.md
-edge depends-on blob:da9bdad13b6b324daf473c25bb11decce9c6a63f
 
-A note pointing at multiple objects.
+path test
