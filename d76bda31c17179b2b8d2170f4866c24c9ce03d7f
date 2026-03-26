@@ -1,0 +1,20 @@
+kind context
+title Session: values, branch scoping, open vocabulary
+edge explains commit:d76bda31c17179b2b8d2170f4866c24c9ce03d7f
+
+Three things happened:
+
+1. Wrote 4 value notes — pave the desire path, types are suggestions,
+   dogfood, git-native. Each has a story from this session showing the
+   value in action. Values differ from constraints: constraints are
+   testable rules, values guide judgment and are transmitted through
+   examples.
+
+2. Built branch command for scoped notes. Hit three desire-path
+   failures: eval broke on multi-line output, env var died between
+   invocations, git ref namespace collision. Each failure improved
+   the design. Final: file-persisted branch selection, dash separator.
+
+3. Added kinds command. Types are just strings — no validation,
+   no enum. kinds shows what's in use. This is the only registry
+   and it's descriptive not prescriptive.
