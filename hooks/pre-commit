@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Example pre-commit hook — scan staged changes for secrets.
+# Copy to .git/hooks/pre-commit and chmod +x.
+set -euo pipefail
+
+if ! command -v gitleaks &>/dev/null; then
+  exit 0
+fi
+
+gitleaks git --staged --no-banner --redact -l warn
