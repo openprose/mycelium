@@ -1,6 +1,5 @@
 kind observation
-supersedes 6053e3cdd6fc6a1fe5501e06b976778bc29d5b3b
+supersedes 248e1f188e9a3c751ee285cd971ac4078eaa067c
 edge applies-to blob:584387e3b0309ed00434a3984698989cacd4adc0
-edge targets-path path:test.sh
 
-about the file
+about this version
