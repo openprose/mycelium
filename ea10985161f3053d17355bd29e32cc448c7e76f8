@@ -1,5 +1,5 @@
 kind observation
-supersedes 5f9e6a91c234dc2dff64711bf5f5a8df81507784
+supersedes d611ce5b3886eeeb14a1d58e4f7421a25edb0f45
 edge explains commit:ea10985161f3053d17355bd29e32cc448c7e76f8
 
-token: xoxb-1234567890123-1234567890123-AbCdEfGhIjKlMnOpQrStUvWx
+gitleaks integration added: inline scan in note command, pre-commit and pre-push hooks, test suite.
