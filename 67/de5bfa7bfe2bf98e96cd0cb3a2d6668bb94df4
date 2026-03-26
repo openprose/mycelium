@@ -1,0 +1,9 @@
+kind context
+title Normalization: /mycelium restored as canonical jj+git checkout on main
+status active
+edge explains commit:67de5bfa7bfe2bf98e96cd0cb3a2d6668bb94df4
+edge targets-change change:xkoxqmmytttovunmwzowtqsyqkmvskml
+
+Normalization complete. /home/raw/Documents/OpenProse-GitHub/mycelium is again the obvious working path, git is non-bare there, the working copy is on main, and the temporary git worktree was retired.
+
+The repo is still jj+git colocated; the problem was not jj itself but a split local setup. Future parallel local work should prefer jj workspaces over git worktrees here.
