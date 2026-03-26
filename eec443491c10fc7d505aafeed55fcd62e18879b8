@@ -1,0 +1,10 @@
+kind decision
+title Supersession chain is the delta substrate
+edge applies-to blob:eec443491c10fc7d505aafeed55fcd62e18879b8
+edge targets-path path:mycelium.md
+
+Reframed from 'no data destruction' to 'append-only, chain is the delta.'
+The supersession chain isn't a safety mechanism — it's the history that
+makes delta extraction possible. Each update is a fruiting body: a moment
+where understanding surfaced or was revised. Downstream tools will walk
+these chains to answer 'what changed while I was away.'
