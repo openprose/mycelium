@@ -201,8 +201,9 @@ HOOK
 chmod +x .git/hooks/pre-push
 
 echo "clean" > c.txt && $GIT add c.txt && $GIT commit -q --no-verify -m "clean"
+CURRENT_BRANCH=$($GIT branch --show-current)
 assert_ok "allows clean push" \
-  $GIT push -q test-remote master
+  $GIT push -q test-remote "$CURRENT_BRANCH"
 
 # --- poisoned note push ---
 pushdir2=$(mktemp -d)
@@ -225,8 +226,9 @@ HOOK
 chmod +x .git/hooks/pre-push
 
 $GIT notes --ref=push-test add -f -m "$SLACK_TOKEN" HEAD
+CURRENT_BRANCH=$($GIT branch --show-current)
 assert_fail "blocks push with secret in note" \
-  $GIT push -q test-remote master
+  $GIT push -q test-remote "$CURRENT_BRANCH"
 
 cd "$TMPDIR"
 
