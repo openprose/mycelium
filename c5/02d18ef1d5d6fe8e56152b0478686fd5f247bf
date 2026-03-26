@@ -1,6 +1,6 @@
 kind todo
 title Implement jj migrate for rewritten commit notes
-status active
+status composted
 edge applies-to blob:c502d18ef1d5d6fe8e56152b0478686fd5f247bf
 edge targets-path path:mycelium.sh
 
