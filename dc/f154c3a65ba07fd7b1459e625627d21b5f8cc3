@@ -1,0 +1,8 @@
+kind context
+title Session: add tracked pre-push gitleaks scan
+status active
+edge explains commit:dcf154c3a65ba07fd7b1459e625627d21b5f8cc3
+
+Added a tracked `hooks/pre-push` hook because this repo already uses `core.hooksPath=hooks/`, so adding the file installs the scan for all local worktrees.
+
+Reasoning: pre-commit is useful, but notes can still enter history via other paths. A pre-push `gitleaks git` scan gives a last line of defense that includes refs/notes/*.
