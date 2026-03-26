@@ -1,0 +1,16 @@
+kind context
+title Stability + test coverage session
+edge explains commit:d0a27caf4f0aefc90bb86af225b5bbb7173f4712
+edge targets-change change:vrlxknlrlmmmpmpvvkutymmzqwksuzkx
+
+Fixed two open issues:
+
+1. Root tree stale problem: doctor now treats treepath:. notes as
+   current (project-level). Stale count dropped from 18 to 13.
+   The 13 remaining are real — file blobs that changed.
+
+2. Test coverage: 107 tests now covering doctor, kinds, branch,
+   jj detection, stability hints, self-documenting CLI. Up from 83.
+
+Also added stability hints on note write — the tool now tells you
+what kind of target you attached to and whether it's stable.
