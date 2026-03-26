@@ -1,4 +1,5 @@
 kind todo
+status composted
 title GitHub remote + push + LICENSE
 supersedes 61ebd13ce1c360f3ad715a5a1830bd25430f2722
 edge applies-to blob:03da3a46ebc10ef75bca67180dbf4d9e351edb10
