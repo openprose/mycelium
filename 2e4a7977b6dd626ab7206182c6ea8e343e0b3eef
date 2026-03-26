@@ -1,0 +1,11 @@
+kind decision
+title Packaged as an agent skill
+edge applies-to blob:2e4a7977b6dd626ab7206182c6ea8e343e0b3eef
+edge targets-path path:SKILL.md
+edge depends-on blob:b34ab1befec93a834ee08346ff6882bffc1fe628
+
+Mycelium is an agent skill, not a standalone tool. The skill
+teaches any agent the convention on-demand: read notes on arrival,
+write notes on departure. The description triggers on 'working in
+a git repo' which is nearly always. This means adoption is zero-cost —
+no install, no setup, just load the skill and start using git notes.
