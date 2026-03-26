@@ -1,0 +1,11 @@
+kind context
+title Planned: gitleaks stdin workaround
+edge applies-to blob:20b72394a7be3b033ffb83c2dc9643eca655f0b8
+edge targets-path path:mycelium.sh
+
+gitleaks stdin mode does not load detection rules (confirmed v8.30).
+The inline scan in cmd_note works around this by writing to a tmpfile
+and scanning with gitleaks dir. This adds ~5ms latency per note write.
+
+If a future gitleaks version fixes stdin, simplify back to pipe mode.
+Track: https://github.com/gitleaks/gitleaks/issues
