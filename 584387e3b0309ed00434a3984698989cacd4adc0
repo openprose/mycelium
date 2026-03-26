@@ -1,6 +1,7 @@
 kind observation
-title stability test
+title test stdout
+supersedes 6dace77348acd52181151e96a499010388493f43
 edge applies-to blob:584387e3b0309ed00434a3984698989cacd4adc0
 edge targets-path path:test.sh
 
-testing
+x
