@@ -60,6 +60,8 @@ mycelium — structured notes on git objects
 
   mycelium note [target] -k <kind> [-m <body>]   Write a note (default: HEAD)
   mycelium read [target]                          Read note (default: HEAD)
+  mycelium follow [target]                        Read note + resolve all edges
+  mycelium refs [target]                          Find all notes pointing at target
   mycelium context <path> [ref]                   All notes relevant to a path
   mycelium find <kind>                            Find all notes of a kind
   mycelium edges [type]                           List all edges
@@ -301,6 +303,133 @@ cmd_context() {
 
 }
 
+cmd_follow() {
+  local target="${1:-HEAD}"
+  local resolved
+  resolved=$(resolve_target "$target") || exit 1
+  local oid type filepath
+  oid=$(echo "$resolved" | cut -d' ' -f1)
+  type=$(echo "$resolved" | cut -d' ' -f2)
+  filepath=$(echo "$resolved" | cut -d' ' -f3-)
+
+  # Read the note on this object
+  local note
+  note=$(git notes --ref="$REF" show "$oid" 2>/dev/null || true)
+  if [[ -z "$note" ]]; then
+    echo "(no mycelium note on $type:${oid:0:12})"
+    return
+  fi
+
+  local kind=$(note_header "$note" "kind")
+  local title=$(note_header "$note" "title")
+  if [[ -n "$filepath" ]]; then
+    echo "=== $type:${oid:0:12} ($filepath) [$kind] ${title:-} ==="
+  else
+    echo "=== $type:${oid:0:12} [$kind] ${title:-} ==="
+  fi
+  echo "$note"
+  echo ""
+
+  # Extract and resolve each edge target
+  local edge_lines
+  edge_lines=$(echo "$note" | grep '^edge ' || true)
+  [[ -z "$edge_lines" ]] && return
+
+  echo "--- edges ---"
+  echo "$edge_lines" | while IFS= read -r edge_line; do
+    local edge_type edge_target
+    edge_type=$(echo "$edge_line" | awk '{print $2}')
+    edge_target=$(echo "$edge_line" | awk '{print $3}')
+    local target_type target_ref
+    target_type=${edge_target%%:*}
+    target_ref=${edge_target#*:}
+
+    # Resolve: is there a note on the target?
+    case "$target_type" in
+      path|treepath)
+        # Resolve path to current blob/tree
+        local resolved_oid
+        resolved_oid=$(git rev-parse "HEAD:$target_ref" 2>/dev/null || true)
+        if [[ -n "$resolved_oid" ]]; then
+          local target_note
+          target_note=$(git notes --ref="$REF" show "$resolved_oid" 2>/dev/null || true)
+          if [[ -n "$target_note" ]]; then
+            local t_kind=$(note_header "$target_note" "kind")
+            local t_title=$(note_header "$target_note" "title")
+            echo "  $edge_type → $edge_target [$t_kind] ${t_title:-}"
+          else
+            echo "  $edge_type → $edge_target (no note)"
+          fi
+        else
+          echo "  $edge_type → $edge_target (cannot resolve)"
+        fi
+        ;;
+      blob|tree|commit|tag|note)
+        local target_note
+        target_note=$(git notes --ref="$REF" show "$target_ref" 2>/dev/null || true)
+        if [[ -n "$target_note" ]]; then
+          local t_kind=$(note_header "$target_note" "kind")
+          local t_title=$(note_header "$target_note" "title")
+          echo "  $edge_type → $target_type:${target_ref:0:12} [$t_kind] ${t_title:-}"
+        else
+          echo "  $edge_type → $target_type:${target_ref:0:12} (no note)"
+        fi
+        ;;
+      *)
+        echo "  $edge_type → $edge_target"
+        ;;
+    esac
+  done
+}
+
+cmd_refs() {
+  local target="${1:-HEAD}"
+  local resolved
+  resolved=$(resolve_target "$target") || exit 1
+  local oid type filepath
+  oid=$(echo "$resolved" | cut -d' ' -f1)
+  type=$(echo "$resolved" | cut -d' ' -f2)
+  filepath=$(echo "$resolved" | cut -d' ' -f3-)
+
+  if [[ -n "$filepath" ]]; then
+    echo "=== notes referencing: $filepath ($type:${oid:0:12}) ==="
+  else
+    echo "=== notes referencing: $type:${oid:0:12} ==="
+  fi
+  echo ""
+
+  local found=false
+  git notes --ref="$REF" list 2>/dev/null | while read noteblob obj; do
+    local content
+    content=$(git cat-file -p "$noteblob")
+    local match=false
+
+    # Match by OID (exact or prefix in edge targets)
+    if echo "$content" | grep -q "^edge .* .*:$oid"; then
+      match=true
+    fi
+
+    # Match by path if target is a file/dir
+    if [[ -n "$filepath" ]] && echo "$content" | grep -q "^edge .* path:$filepath\$"; then
+      match=true
+    fi
+    if [[ -n "$filepath" ]] && echo "$content" | grep -q "^edge .* treepath:$filepath\$"; then
+      match=true
+    fi
+
+    if [[ "$match" == "true" ]]; then
+      local label=$(obj_label "$obj")
+      local kind=$(note_header "$content" "kind")
+      local title=$(note_header "$content" "title")
+      local edges
+      edges=$(echo "$content" | grep "^edge .* .*:$oid\|^edge .* path:${filepath:-__NOMATCH__}\|^edge .* treepath:${filepath:-__NOMATCH__}" || true)
+      echo "$label [$kind] ${title:-}"
+      echo "$edges" | sed 's/^/  /'
+      echo ""
+    fi
+  done
+}
+
 cmd_edges() {
   local filter="${1:-}"
   git notes --ref="$REF" list 2>/dev/null | while read blob obj; do
@@ -377,6 +506,8 @@ cmd_dump() {
 case "${1:-help}" in
   note)       shift; cmd_note "$@" ;;
   read)       shift; cmd_read "$@" ;;
+  follow)     shift; cmd_follow "$@" ;;
+  refs)       shift; cmd_refs "$@" ;;
   context)    shift; cmd_context "$@" ;;
   edges)      shift; cmd_edges "$@" ;;
   find)       shift; cmd_find "$@" ;;
