@@ -175,6 +175,25 @@ mycelium.sh compost src/auth.ts --slot skeleton --compost  # compost per-slot
 
 `context`, `doctor`, `find`, `kinds`, `prime` aggregate across all slots. `read` and `follow` use the default slot unless `--slot` is specified. Supersedes is intra-slot only — writing to one slot never affects another.
 
+### Kinds
+
+Kinds are just strings — there is no schema, no enum, no validation. You can write `kind celebration` or `kind tech-debt` and it works immediately. `mycelium.sh kinds` shows what's in use across your repo.
+
+We ship with these defaults because they cover most agent and human workflows:
+
+| Kind | Purpose |
+|------|---------|
+| `decision` | Why something was chosen — rationale that outlives the commit message |
+| `context` | Background an agent or human needs before touching this code |
+| `summary` | What a file or module does — the note a new reader wishes existed |
+| `warning` | Fragile areas, footguns, things that break in non-obvious ways |
+| `constraint` | Hard rules — must be retryable, must not depend on X, etc. |
+| `observation` | Something noticed but not yet acted on — a seed for future work |
+| `value` | Cultural principles — guides judgment rather than enforcing rules |
+| `todo` | Planned work — compost when done |
+
+Add your own, rename these, or ignore the ones you don't need. The vocabulary is yours.
+
 ## Platform support
 
 Works on **Linux**, **macOS**, and **Windows** (via Git Bash).
