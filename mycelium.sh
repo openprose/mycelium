@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # mycelium — git-native note graph
 # No dependencies beyond git and bash.
+MYCELIUM_VERSION="0.1.0"
 set -euo pipefail
 
 # Branch selection: env var > .git/mycelium-branch file > default
@@ -1663,5 +1664,6 @@ case "${1:-help}" in
   doctor)     cmd_doctor ;;
   dump)       cmd_dump ;;
   prime)      cmd_prime ;;
+  version|--version|-V) echo "mycelium $MYCELIUM_VERSION" ;;
   help|*)     usage ;;
 esac

@@ -6,15 +6,19 @@ set -euo pipefail
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/openprose/mycelium/main/install.sh | bash
 #   curl -fsSL https://raw.githubusercontent.com/openprose/mycelium/main/install.sh | PREFIX=/usr/local bash
+#   VERSION=0.1.0 curl -fsSL https://raw.githubusercontent.com/openprose/mycelium/main/install.sh | bash
 #   PREFIX=$HOME/.local ./install.sh
 #
 # Installs mycelium.sh to $PREFIX/bin/mycelium.sh.
 # Default PREFIX is $HOME/.local so the installer works without sudo.
+# Set VERSION to install a specific tagged release (e.g. VERSION=0.1.0).
 
 PREFIX="${PREFIX:-$HOME/.local}"
 INSTALL_DIR="$PREFIX/bin"
 TARGET="$INSTALL_DIR/mycelium.sh"
-REPO_BASE="${REPO_BASE:-https://raw.githubusercontent.com/openprose/mycelium/main}"
+MYCELIUM_REF="${VERSION:+v$VERSION}"
+MYCELIUM_REF="${MYCELIUM_REF:-main}"
+REPO_BASE="${REPO_BASE:-https://raw.githubusercontent.com/openprose/mycelium/$MYCELIUM_REF}"
 
 info() { printf '  %s\n' "$@"; }
 error() { printf 'Error: %s\n' "$@" >&2; exit 1; }
@@ -82,7 +86,8 @@ if ! "$TARGET" help >/dev/null 2>&1; then
 fi
 
 echo ""
-echo "mycelium installed successfully!"
+INSTALLED_VERSION=$( "$TARGET" --version 2>/dev/null || echo "unknown" )
+echo "mycelium installed successfully! ($INSTALLED_VERSION)"
 info "Location: $TARGET"
 
 if ! echo ":$PATH:" | grep -q ":$INSTALL_DIR:"; then
