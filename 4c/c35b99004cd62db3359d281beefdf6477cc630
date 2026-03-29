@@ -1,37 +1,30 @@
 kind constraint
 title Versioning rules
+supersedes 210064f33961584ffaf72a85a9b28f9b670d1e7b
 edge applies-to tree:4cc35b99004cd62db3359d281beefdf6477cc630
 edge targets-treepath treepath:.
 
-## Version scheme: semver with pre-release suffixes
+## Version: git tags are the single source of truth
 
-MYCELIUM_VERSION in mycelium.sh line 4 is the single source of truth.
-mycelium.sh --version reads it. The installer prints it after install.
+mycelium.sh derives its version from git describe --tags --always at runtime.
+No hardcoded version string to keep in sync. The git tag IS the version.
 
-### Format
-  MAJOR.MINOR.PATCH            — stable release on main (tagged)
-  MAJOR.MINOR.PATCH-rc.N       — release candidate on a feature branch
-  MAJOR.MINOR.PATCH-<branch>.N — experimental pre-release
+  v0.1.0                      — exactly on the tag
+  v0.1.0-3-g68e38da           — 3 commits past v0.1.0, at commit 68e38da
+  0.1.0+unknown               — non-git install (curl-copied), installer stamps real version
 
 ### Rules
-1. main always has a clean semver (no suffix). Example: 0.1.0
-2. Feature branches bump MINOR and add a suffix. Example: 0.2.0-rc.1
-3. Every push to main must have a matching git tag: v0.1.0, v0.2.0, etc.
-4. Tags are immutable. Never delete or move a tag.
-5. The version string in mycelium.sh must match the git tag at that commit.
-6. When a feature branch merges to main, the suffix is removed: 0.2.0-rc.1 → 0.2.0
-7. Bump rc.N on the feature branch when making significant changes during testing.
+1. Release = git tag. Create with: git tag -a vX.Y.Z -m 'description'
+2. Tags are immutable. Never delete or move a tag.
+3. Tags follow semver: vMAJOR.MINOR.PATCH
+4. Feature branches need no tags — git describe auto-generates v0.1.0-N-gHASH
+5. The installer stamps the version into copied (non-symlinked) installs.
 
 ### Enforcement
-- The pre-commit hook should verify MYCELIUM_VERSION is present and well-formed.
-- CI should verify the version string matches the git tag (on tagged commits).
-- Agents: always check mycelium.sh --version before starting work. If it says -rc or
-  -branch, you are NOT on stable main.
+- CI runs mycelium.sh --version and verifies it resolves to a tag-based string
+- Pre-commit hook warns if git describe fails (no tags in repo)
 
-### Current versions
-  v0.1.0       — core single-repo (main, tagged, pushed)
-  0.2.0-rc.1   — multi-repo export/import (multi-repo branch, local)
-
-### Install pinning
-  VERSION=0.1.0 curl -fsSL .../install.sh | bash   # specific version
-  curl -fsSL .../install.sh | bash                   # latest main
+### How agents should check
+  mycelium.sh --version
+If output contains a commit hash (v0.1.0-3-gabcdef), you are past the latest release.
+If output says unknown, the install is detached from git.
