@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# reference-transaction hook — gates writes to public export refs.
+# Reads .mycelium/export-policy from HEAD to validate notes before they land.
+# Only checks refs matching *--export--public*. All other refs pass through.
+
+# Only act on "prepared" — this is before the transaction commits.
+[[ "${1:-}" == "prepared" ]] || exit 0
+
+while IFS=' ' read -r old new ref; do
+  # Only gate public export refs
+  [[ "$ref" == *--export--public* ]] || continue
+
+  # If deleting, allow
+  [[ "$new" =~ ^0+$ ]] && continue
+
+  # Read policy from committed tree (HEAD)
+  POLICY=$(git show HEAD:.mycelium/export-policy 2>/dev/null || echo "")
+  [[ -z "$POLICY" ]] && continue  # no policy = permissive
+
+  # Find new/changed note blobs by diffing the notes tree
+  if [[ "$old" =~ ^0+$ ]]; then
+    # New ref — all entries are new
+    BLOBS=$(git ls-tree -r "$new" 2>/dev/null | awk '{print $3}')
+  else
+    # Existing ref — diff old vs new tree
+    BLOBS=$(git diff-tree -r "$old" "$new" 2>/dev/null | awk '{print $4}' | grep -v '^0\{40\}$' | sort -u)
+  fi
+
+  for noteblob in $BLOBS; do
+    [[ -z "$noteblob" ]] && continue
+    CONTENT=$(git cat-file -p "$noteblob" 2>/dev/null) || continue
+
+    # Check allowed_kinds
+    ALLOWED=$(echo "$POLICY" | grep '^allowed_kinds' | sed 's/^allowed_kinds *= *//' | tr ',' '\n' | sed 's/^ *//;s/ *$//')
+    if [[ -n "$ALLOWED" ]]; then
+      KIND=$(echo "$CONTENT" | awk '/^kind /{print $2; exit}')
+      if ! echo "$ALLOWED" | grep -qxF "$KIND"; then
+        echo "BLOCKED: kind '$KIND' not in allowed_kinds for public export" >&2
+        exit 1
+      fi
+    fi
+
+    # Check deny_patterns
+    DENY=$(echo "$POLICY" | grep '^deny_patterns' | sed 's/^deny_patterns *= *//' | tr ',' '\n' | sed 's/^ *//;s/ *$//')
+    if [[ -n "$DENY" ]]; then
+      while IFS= read -r pattern; do
+        [[ -z "$pattern" ]] && continue
+        grep_pat=$(echo "$pattern" | sed 's/[.[\^$()+?{|]/\\&/g; s/\*/.*/g')
+        if echo "$CONTENT" | grep -q "$grep_pat"; then
+          echo "BLOCKED: matches deny_pattern '$pattern'" >&2
+          exit 1
+        fi
+      done <<< "$DENY"
+    fi
+
+    # Check taint
+    FORBID_TAINT=$(echo "$POLICY" | grep '^forbid_imported_taint' | sed 's/^forbid_imported_taint *= *//' | tr -d ' ')
+    if [[ "$FORBID_TAINT" == "true" ]]; then
+      if echo "$CONTENT" | grep -q '^taint '; then
+        echo "BLOCKED: tainted note" >&2
+        exit 1
+      fi
+    fi
+  done
+done
+
+exit 0

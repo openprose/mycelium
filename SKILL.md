@@ -220,6 +220,10 @@ downstream tools walk it to extract what changed.
 ```bash
 mycelium.sh activate        # notes visible in git log
 mycelium.sh sync-init       # notes travel with fetch/push
+mycelium.sh repo-id init    # durable repo identity
+mycelium.sh zone init       # confidentiality zone
+mycelium.sh export f -a internal  # export note to audience ref
+mycelium.sh import remote --as lib  # import notes from remote
 ```
 
 ## Composting
@@ -310,6 +314,10 @@ mycelium.sh migrate [--dry-run] [--map <file>]    Reattach notes after jj rewrit
 mycelium.sh branch [use|merge] [name]            Branch-scoped notes
 mycelium.sh activate                             Show in git log
 mycelium.sh sync-init [remote]                   Configure fetch/push
+mycelium.sh repo-id [init]                       Durable repository identity
+mycelium.sh zone [init [level]]                  Confidentiality zone
+mycelium.sh export <target> --audience <a>        Export note to audience ref
+mycelium.sh import <remote> [--as <name>]         Import notes from remote
 ```
 
 ## jj+git colocated repos

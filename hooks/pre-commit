@@ -5,15 +5,29 @@ set -euo pipefail
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
 
-# Run tests if install.sh, mycelium.sh, or anything under test/ is staged
-if git diff --cached --name-only | grep -qE '^(install\.sh|mycelium\.sh|test/)' 2>/dev/null; then
+# Run tests if install.sh, mycelium.sh, hooks/, or anything under test/ is staged
+if git diff --cached --name-only | grep -qE '^(install\.sh|mycelium\.sh|hooks/|test/)' 2>/dev/null; then
+  echo "running tests..."
+  # Hooks inherit git-local env vars (GIT_DIR, GIT_WORK_TREE, etc.).
+  # Clear them before running the inner temp repos created by the test suite.
+  while read -r var; do unset "$var"; done < <(git rev-parse --local-env-vars)
+
   if [[ -x "$REPO_ROOT/test/test.sh" ]]; then
-    echo "running tests..."
-    # Hooks inherit git-local env vars (GIT_DIR, GIT_WORK_TREE, etc.).
-    # Clear them before running the inner temp repos created by the test suite.
-    while read -r var; do unset "$var"; done < <(git rev-parse --local-env-vars)
-    "$REPO_ROOT/test/test.sh" >/dev/null || { echo "tests failed"; exit 1; }
-    echo "tests passed"
+    "$REPO_ROOT/test/test.sh" >/dev/null || { echo "test/test.sh failed"; exit 1; }
+  fi
+  for suite in "$REPO_ROOT"/test/test-multi-repo-*.sh; do
+    [[ -x "$suite" ]] || continue
+    "$suite" >/dev/null || { echo "$(basename "$suite") failed"; exit 1; }
+  done
+
+  echo "tests passed"
+fi
+
+# Version: verify git describe works (catches detached HEAD with no tags)
+if git diff --cached --name-only | grep -q '^mycelium\.sh$' 2>/dev/null; then
+  VERSION=$(git describe --tags --always 2>/dev/null || echo "")
+  if [[ -z "$VERSION" ]]; then
+    echo "Warning: git describe failed — no tags? Run: git tag -a v0.1.0 -m 'release'" >&2
   fi
 fi
 

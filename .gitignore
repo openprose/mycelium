@@ -2,3 +2,4 @@
 .shoulder/
 # Local Pi extension scratch file; keep untracked unless promoted into a real extension.
 mycelium-hook.ts
+demo/

@@ -128,6 +128,11 @@ mycelium.sh doctor                               Graph state (facts only)
 mycelium.sh prime                                Skill + live repo context for agents
 mycelium.sh activate                             Show notes in git log
 mycelium.sh sync-init [remote]                   Configure fetch/push
+mycelium.sh sync-init --export-only [remote]     Configure export ref sync only
+mycelium.sh repo-id [init]                       Durable repository identity
+mycelium.sh zone [init [level]]                  Confidentiality zone (default: 80)
+mycelium.sh export <target> --audience <a>        Export note to audience ref
+mycelium.sh import <remote> [--as <name>]         Import notes from remote
 ```
 
 Kinds and edge types are open vocabulary — use whatever strings make sense. `mycelium.sh kinds` shows what's in use.

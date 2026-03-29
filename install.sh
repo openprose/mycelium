@@ -77,6 +77,21 @@ fi
 
 chmod +x "$TARGET"
 
+# Stamp the version into the installed copy so non-git installs report correctly.
+# The script uses git describe at runtime via a sentinel fallback.
+if [ -n "$SCRIPT_DIR" ]; then
+  INSTALL_VERSION="${VERSION:-$(git -C "$SCRIPT_DIR" describe --tags --always 2>/dev/null || echo "unknown")}"
+else
+  INSTALL_VERSION="${VERSION:-unknown}"
+fi
+sed "s/__MYCELIUM_UNSTAMPED__/${INSTALL_VERSION}/" "$TARGET" > "${TARGET}.tmp" && mv "${TARGET}.tmp" "$TARGET"
+chmod +x "$TARGET"
+
+if [[ "$INSTALL_VERSION" == *-* && "$INSTALL_VERSION" != *unknown* ]]; then
+  info "⚠ Installing pre-release version: $INSTALL_VERSION"
+  info "  For stable releases, use VERSION=X.Y.Z or install from the main branch."
+fi
+
 if [ ! -x "$TARGET" ]; then
   error "Installation failed — $TARGET is not executable."
 fi

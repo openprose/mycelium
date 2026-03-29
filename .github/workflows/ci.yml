@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Core test suite
+        run: bash test/test.sh
+
+      - name: Multi-repo Phase 0 tests
+        run: bash test/test-multi-repo-phase0.sh
+
+      - name: Multi-repo Phase 1 tests
+        run: bash test/test-multi-repo-phase1.sh
+
+      - name: Version resolves
+        run: |
+          bash mycelium.sh --version
+          bash mycelium.sh --version | grep -qE '^mycelium v[0-9]'

@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 # mycelium — git-native note graph
 # No dependencies beyond git and bash.
-MYCELIUM_VERSION="0.1.0"
+# Version: derived from git tags at runtime. Installer stamps non-git copies.
+# Resolve symlinks with POSIX-only tools (portable to Linux, macOS, Git Bash).
+_mycelium_f="$0"
+while [ -L "$_mycelium_f" ]; do
+  _mycelium_d="$(cd "$(dirname "$_mycelium_f")" && pwd)"
+  _mycelium_f="$(ls -l "$_mycelium_f" | awk '{print $NF}')"
+  case "$_mycelium_f" in /*) ;; *) _mycelium_f="$_mycelium_d/$_mycelium_f" ;; esac
+done
+MYCELIUM_VERSION=$(git -C "$(dirname "$_mycelium_f")" describe --tags --always 2>/dev/null || echo "__MYCELIUM_UNSTAMPED__")
+unset _mycelium_f _mycelium_d
 set -euo pipefail
 
 # Branch selection: env var > .git/mycelium-branch file > default
@@ -48,10 +57,33 @@ _validate_slot() {
 
 _validate_branch_name() {
   local name="$1"
-  if echo "$name" | grep -q -- '--slot--'; then
-    echo "Error: branch name cannot contain '--slot--' (reserved for slot refs)" >&2
+  # After prepending "mycelium--", names like "import--foo" become "mycelium--import--foo"
+  # which collides with the import/export/slot ref namespaces.
+  if echo "$name" | grep -qE -- '--(slot|import|export)--|^(slot|import|export)--'; then
+    echo "Error: branch name cannot contain reserved namespace separators (--slot--, --import--, --export--)" >&2
     return 1
   fi
+}
+
+_assert_writable_ref() {
+  local ref="$1"
+  if [[ "$ref" == *"--import--"* ]]; then
+    echo "Error: import refs are read-only. These are snapshots from a foreign repo." >&2
+    return 1
+  fi
+  if [[ "$ref" == *"--export--"* ]]; then
+    echo "Error: export refs are read-only. Use 'mycelium.sh export' to publish notes." >&2
+    return 1
+  fi
+}
+
+_import_refs() {
+  git for-each-ref --format='%(refname:short)' "refs/notes/${REF}--import--*" 2>/dev/null | \
+    grep -v -- '--import--_discovering$' | sed 's|^notes/||' | sort -u
+}
+
+_import_name_from_ref() {
+  echo "$1" | sed 's/.*--import--//'
 }
 
 _all_slot_refs() {
@@ -189,7 +221,12 @@ mycelium — structured notes on git objects
   mycelium prime                                  Skill + live repo context
   mycelium branch [use|merge] [name]              Branch-scoped notes
   mycelium activate                               Show notes in git log
-  mycelium sync-init [remote]                     Configure fetch/push
+  mycelium repo-id [init]                          Durable repository identity
+  mycelium zone [init [level]]                     Confidentiality zone (default: 80)
+  mycelium export <target> --audience <a>           Export note to audience ref
+  mycelium import <remote> [--as <name>] [--refresh] Import notes from remote
+  mycelium sync-init [remote]                      Configure fetch/push
+  mycelium sync-init --export-only [remote]        Configure export ref sync only
 
 Targets: HEAD (default), commit ref, file path, directory path, OID.
 Auto-edges: commit→explains, blob→applies-to+targets-path, tree→applies-to+targets-treepath.
@@ -252,6 +289,10 @@ cmd_note() {
   _validate_slot "$slot" || exit 1
   local WRITE_REF
   WRITE_REF=$(_slot_ref "$slot")
+  _assert_writable_ref "$WRITE_REF" || exit 1
+
+  # Also check the base REF (set via MYCELIUM_REF env or branch file)
+  _assert_writable_ref "$REF" || exit 1
 
   # Read body from stdin if not provided
   if [[ -z "$body" ]] && [[ ! -t 0 ]]; then
@@ -597,6 +638,72 @@ cmd_context() {
       echo ""
     done < <(_each_ref aggregate "$slot")
   fi
+
+  # --- imported notes (read-only, foreign) ---
+  while read -r iref; do
+    [[ -z "$iref" ]] && continue
+    local iname
+    iname=$(_import_name_from_ref "$iref")
+
+    # Check exact blob match
+    if [[ -n "$blob" ]]; then
+      local inote
+      inote=$(git notes --ref="$iref" show "$blob" 2>/dev/null || true)
+      if [[ -n "$inote" ]]; then
+        local ikind ititle note_status
+        ikind=$(note_header "$inote" "kind")
+        ititle=$(note_header "$inote" "title")
+        note_status=$(note_header "$inote" "status")
+        [[ "$note_status" == "composted" && "$show_all" == "false" ]] && continue
+        echo "[import:$iname] ${ititle:-$filepath} ($ikind)"
+        echo "$inote"
+        echo ""
+      fi
+    fi
+
+    # Check stale notes via path edge
+    local inotelist
+    inotelist=$(git notes --ref="$iref" list 2>/dev/null || true)
+    while read -r inoteblob iobj; do
+      [[ -z "$inoteblob" ]] && continue
+      [[ "$iobj" == "${blob:-}" ]] && continue
+      local icontent
+      icontent=$(git cat-file -p "$inoteblob")
+      if echo "$icontent" | grep -q "targets-path $path_target"; then
+        local ikind ititle note_status
+        ikind=$(note_header "$icontent" "kind")
+        ititle=$(note_header "$icontent" "title")
+        note_status=$(note_header "$icontent" "status")
+        [[ "$note_status" == "composted" && "$show_all" == "false" ]] && continue
+        echo "[import:$iname] [stale] ${ititle:-$filepath} ($ikind)"
+      fi
+    done <<< "$inotelist"
+
+    # Check for imported project-level (treepath:.) notes
+    local iroot_note
+    iroot_note=$(git notes --ref="$iref" show "$tree" 2>/dev/null || true) 2>/dev/null
+    # Try root tree of current repo
+    local local_root
+    local_root=$(git rev-parse "$at^{tree}" 2>/dev/null || true)
+    if [[ -n "$local_root" ]]; then
+      # Scan import ref for treepath:. notes (project-level)
+      while read -r inoteblob iobj; do
+        [[ -z "$inoteblob" ]] && continue
+        local icontent
+        icontent=$(git cat-file -p "$inoteblob")
+        if echo "$icontent" | grep -q "^edge targets-treepath treepath:\.\$"; then
+          local ikind ititle note_status
+          ikind=$(note_header "$icontent" "kind")
+          ititle=$(note_header "$icontent" "title")
+          note_status=$(note_header "$icontent" "status")
+          [[ "$note_status" == "composted" && "$show_all" == "false" ]] && continue
+          echo "[import:$iname] ${ititle:-(untitled)} ($ikind) — imported project-level"
+          echo "$icontent"
+          echo ""
+        fi
+      done <<< "$inotelist"
+    fi
+  done < <(_import_refs)
 }
 
 cmd_follow() {
@@ -789,12 +896,22 @@ cmd_kinds() {
   _validate_slot "$slot" || exit 1
 
   echo "Kinds in use:"
-  while read -r sref; do
-    git notes --ref="$sref" list 2>/dev/null | while read -r blob obj; do
-      [[ -z "$blob" ]] && continue
-      git cat-file -p "$blob" | grep "^kind " | cut -d' ' -f2
-    done
-  done < <(_each_ref aggregate "$slot") | sort | uniq -c | sort -rn | while read -r count kind; do
+  {
+    while read -r sref; do
+      git notes --ref="$sref" list 2>/dev/null | while read -r blob obj; do
+        [[ -z "$blob" ]] && continue
+        git cat-file -p "$blob" | grep "^kind " | cut -d' ' -f2
+      done
+    done < <(_each_ref aggregate "$slot")
+    # Include imported note kinds
+    while read -r iref; do
+      [[ -z "$iref" ]] && continue
+      git notes --ref="$iref" list 2>/dev/null | while read -r blob obj; do
+        [[ -z "$blob" ]] && continue
+        git cat-file -p "$blob" | grep "^kind " | cut -d' ' -f2
+      done
+    done < <(_import_refs)
+  } | sort | uniq -c | sort -rn | while read -r count kind; do
     printf "  %-20s %s note(s)\n" "$kind" "$count"
   done
 }
@@ -860,6 +977,30 @@ cmd_find() {
       fi
     done
   done < <(_each_ref aggregate "$slot")
+
+  # --- imported notes ---
+  while read -r iref; do
+    [[ -z "$iref" ]] && continue
+    local iname
+    iname=$(_import_name_from_ref "$iref")
+    git notes --ref="$iref" list 2>/dev/null | while read -r blob obj; do
+      [[ -z "$blob" ]] && continue
+      local content
+      content=$(git cat-file -p "$blob")
+      if echo "$content" | grep -q "^kind $kind\$"; then
+        local label title
+        label=$(obj_label "$obj")
+        title=$(note_header "$content" "title")
+        if [[ -n "$title" ]]; then
+          echo "$label  [import:$iname] $title"
+        else
+          local body
+          body=$(echo "$content" | sed -n '/^$/,$ p' | sed '/^$/d' | head -1)
+          echo "$label  [import:$iname] ${body:-(no title)}"
+        fi
+      fi
+    done
+  done < <(_import_refs)
 }
 
 cmd_log() {
@@ -898,12 +1039,364 @@ cmd_activate() {
 }
 
 cmd_sync_init() {
-  local remote="${1:-origin}"
-  git config --add "remote.$remote.fetch" "+$NOTES_REF:$NOTES_REF"
-  git config --add "remote.$remote.push" "$NOTES_REF:$NOTES_REF"
-  git config --add "remote.$remote.fetch" "+refs/notes/${REF}--slot--*:refs/notes/${REF}--slot--*"
-  git config --add "remote.$remote.push" "refs/notes/${REF}--slot--*:refs/notes/${REF}--slot--*"
-  echo "Refspecs added for $remote. Run: git fetch $remote && git push $remote"
+  local remote="" export_only=false
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --export-only) export_only=true; shift ;;
+      -*)            echo "Unknown option: $1" >&2; exit 1 ;;
+      *)             remote="$1"; shift ;;
+    esac
+  done
+  remote="${remote:-origin}"
+
+  if [[ "$export_only" == "true" ]]; then
+    # Only configure export refs — working ref, slots, and imports stay local
+    git config --add "remote.$remote.fetch" "+refs/notes/${REF}--export--internal:refs/notes/${REF}--export--internal"
+    git config --add "remote.$remote.push" "refs/notes/${REF}--export--internal:refs/notes/${REF}--export--internal"
+    git config --add "remote.$remote.fetch" "+refs/notes/${REF}--export--public:refs/notes/${REF}--export--public"
+    git config --add "remote.$remote.push" "refs/notes/${REF}--export--public:refs/notes/${REF}--export--public"
+    echo "Export-only refspecs added for $remote. Run: git fetch $remote && git push $remote"
+  else
+    # Backward compatible: push working ref + slots (existing behavior)
+    git config --add "remote.$remote.fetch" "+$NOTES_REF:$NOTES_REF"
+    git config --add "remote.$remote.push" "$NOTES_REF:$NOTES_REF"
+    git config --add "remote.$remote.fetch" "+refs/notes/${REF}--slot--*:refs/notes/${REF}--slot--*"
+    git config --add "remote.$remote.push" "refs/notes/${REF}--slot--*:refs/notes/${REF}--slot--*"
+    echo "Refspecs added for $remote. Run: git fetch $remote && git push $remote"
+  fi
+}
+
+# --- multi-repo: identity, zone, export ---
+
+cmd_repo_id() {
+  local subcmd="${1:-}"
+  case "$subcmd" in
+    init)
+      if [[ -f .mycelium/repo-id ]]; then
+        cat .mycelium/repo-id
+        return
+      fi
+      mkdir -p .mycelium
+      # Generate a random hex id (16 bytes = 32 hex chars)
+      local id
+      id=$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')
+      echo "$id" > .mycelium/repo-id
+      echo "$id"
+      ;;
+    "")
+      if [[ -f .mycelium/repo-id ]]; then
+        cat .mycelium/repo-id
+      else
+        echo "Error: no repo-id. Run: mycelium.sh repo-id init && git add .mycelium/repo-id && git commit -m 'add repo identity'" >&2
+        return 1
+      fi
+      ;;
+    *)
+      echo "Usage: mycelium.sh repo-id [init]" >&2
+      return 1
+      ;;
+  esac
+}
+
+cmd_zone() {
+  local subcmd="${1:-}"
+  case "$subcmd" in
+    init)
+      local level="${2:-80}"
+      if ! [[ "$level" =~ ^[0-9]+$ ]]; then
+        echo "Error: zone level must be a non-negative integer (got: $level)" >&2
+        return 1
+      fi
+      mkdir -p .mycelium
+      echo "$level" > .mycelium/zone
+      echo "$level"
+      ;;
+    "")
+      if [[ -f .mycelium/zone ]]; then
+        cat .mycelium/zone
+      else
+        echo "Error: no zone. Run: mycelium.sh zone init [level]" >&2
+        return 1
+      fi
+      ;;
+    *)
+      # Bare number = show, anything else = error
+      echo "Usage: mycelium.sh zone [init [level]]" >&2
+      return 1
+      ;;
+  esac
+}
+
+_validate_audience() {
+  local audience="$1"
+  if [[ -z "$audience" ]]; then
+    echo "Error: --audience is required (internal or public)" >&2
+    return 1
+  fi
+  if echo "$audience" | grep -q -- '--slot--\|--export--'; then
+    echo "Error: audience name cannot contain '--slot--' or '--export--'" >&2
+    return 1
+  fi
+  case "$audience" in
+    internal|public) return 0 ;;
+    *) echo "Error: audience must be 'internal' or 'public'" >&2; return 1 ;;
+  esac
+}
+
+_check_export_policy() {
+  # Validate note content against export-policy for public exports.
+  # Reads policy from committed state (HEAD), not working tree.
+  # Returns 0 if allowed, 1 if denied (with message on stderr).
+  local content="$1"
+
+  local policy
+  policy=$(git show HEAD:.mycelium/export-policy 2>/dev/null || echo "")
+  [[ -z "$policy" ]] && return 0  # no policy = permissive
+
+  # Parse allowed_kinds
+  local allowed_kinds
+  allowed_kinds=$(echo "$policy" | grep '^allowed_kinds' | sed 's/^allowed_kinds *= *//' | tr ',' '\n' | sed 's/^ *//;s/ *$//')
+  if [[ -n "$allowed_kinds" ]]; then
+    local note_kind
+    note_kind=$(echo "$content" | awk '/^kind /{print $2; exit}')
+    if ! echo "$allowed_kinds" | grep -qxF "$note_kind"; then
+      echo "Error: kind '$note_kind' not in allowed_kinds for public export" >&2
+      return 1
+    fi
+  fi
+
+  # Parse deny_patterns
+  local deny_patterns
+  deny_patterns=$(echo "$policy" | grep '^deny_patterns' | sed 's/^deny_patterns *= *//' | tr ',' '\n' | sed 's/^ *//;s/ *$//')
+  if [[ -n "$deny_patterns" ]]; then
+    while IFS= read -r pattern; do
+      [[ -z "$pattern" ]] && continue
+      # Convert glob-style pattern to grep pattern (only * wildcard)
+      local grep_pattern
+      grep_pattern=$(echo "$pattern" | sed 's/[.[\\^$()+?{|]/\\&/g; s/\*/.*/g')
+      if echo "$content" | grep -q "$grep_pattern"; then
+        echo "Error: note body matches deny_pattern '$pattern'" >&2
+        return 1
+      fi
+    done <<< "$deny_patterns"
+  fi
+
+  # Check forbid_imported_taint
+  local forbid_taint
+  forbid_taint=$(echo "$policy" | grep '^forbid_imported_taint' | sed 's/^forbid_imported_taint *= *//')
+  if [[ "$forbid_taint" == "true" ]]; then
+    if echo "$content" | grep -q '^taint '; then
+      echo "Error: note has taint header; public export forbidden by policy (forbid_imported_taint=true)" >&2
+      return 1
+    fi
+  fi
+
+  return 0
+}
+
+cmd_export() {
+  local target="" audience="" slot=""
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --audience)  audience="$2"; shift 2 ;;
+      --slot)      slot="$2"; shift 2 ;;
+      -*)          echo "Unknown option: $1" >&2; exit 1 ;;
+      *)           target="$1"; shift ;;
+    esac
+  done
+
+  # --audience is required
+  _validate_audience "${audience:-}" || exit 1
+
+  [[ -z "$target" ]] && { echo "Usage: mycelium.sh export <target> --audience <internal|public> [--slot <name>]" >&2; exit 1; }
+
+  # repo-id must exist
+  if [[ ! -f .mycelium/repo-id ]]; then
+    echo "Error: .mycelium/repo-id not found" >&2
+    echo "  Run: mycelium.sh repo-id init && git add .mycelium/repo-id && git commit -m 'add repo identity'" >&2
+    exit 1
+  fi
+  local repo_id
+  repo_id=$(cat .mycelium/repo-id)
+
+  # Resolve target
+  local resolved
+  resolved=$(resolve_target "$target") || exit 1
+  local oid type filepath
+  oid=$(echo "$resolved" | cut -d' ' -f1)
+  type=$(echo "$resolved" | cut -d' ' -f2)
+  filepath=$(echo "$resolved" | cut -d' ' -f3-)
+
+  # Determine source ref (default or slot)
+  _validate_slot "$slot" || exit 1
+  local SOURCE_REF
+  SOURCE_REF=$(_slot_ref "$slot")
+
+  # Read the note from source ref
+  local content
+  content=$(git notes --ref="$SOURCE_REF" show "$oid" 2>/dev/null || true)
+  if [[ -z "$content" ]]; then
+    echo "Error: no note on ${type}:${oid:0:12} in $SOURCE_REF" >&2
+    exit 1
+  fi
+
+  # Policy check for public audience
+  if [[ "$audience" == "public" ]]; then
+    _check_export_policy "$content" || exit 1
+  fi
+
+  # Build export ref name
+  local EXPORT_REF="${REF}--export--${audience}"
+
+  # Add exported-from edge if not already present
+  local export_content="$content"
+  if ! echo "$content" | grep -q "^edge exported-from "; then
+    # Insert the edge after the last existing edge line, or after headers
+    export_content=$(echo "$content" | awk -v edge="edge exported-from repo:$repo_id" '
+      /^edge / { last_edge=NR }
+      { lines[NR]=$0 }
+      END {
+        if (last_edge) {
+          for (i=1; i<=NR; i++) {
+            print lines[i]
+            if (i==last_edge) print edge
+          }
+        } else {
+          # No existing edges — insert before blank line (body separator)
+          done=0
+          for (i=1; i<=NR; i++) {
+            if (!done && lines[i]=="") { print edge; done=1 }
+            print lines[i]
+          }
+          if (!done) print edge
+        }
+      }
+    ')
+  fi
+
+  # Write to export ref
+  git notes --ref="$EXPORT_REF" add -f -m "$export_content" "$oid" 2>/dev/null
+
+  echo "$oid"
+  if [[ -n "$filepath" ]]; then
+    echo "  exported to $audience (path:$filepath)" >&2
+  else
+    echo "  exported to $audience (${type}:${oid:0:12})" >&2
+  fi
+}
+
+cmd_import() {
+  local remote="" alias="" audience="internal" refresh=false
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --as)        alias="$2"; shift 2 ;;
+      --audience)  audience="$2"; shift 2 ;;
+      --refresh)   refresh=true; shift ;;
+      -*)          echo "Unknown option: $1" >&2; exit 1 ;;
+      *)           remote="$1"; shift ;;
+    esac
+  done
+
+  [[ -z "$remote" ]] && { echo "Usage: mycelium.sh import <remote> [--as <name>] [--audience internal|public] [--refresh]" >&2; exit 1; }
+
+  local remote_ref="refs/notes/${REF}--export--${audience}"
+  local temp_ref="${REF}--import--_discovering-$$"
+
+  # If --refresh with known alias, skip discovery — fetch directly
+  if [[ "$refresh" == "true" && -n "$alias" ]]; then
+    local target_ref="${REF}--import--${alias}"
+    if ! git rev-parse --verify "refs/notes/$target_ref" &>/dev/null; then
+      echo "Error: no existing import '$alias' to refresh" >&2
+      exit 1
+    fi
+    git fetch "$remote" "+${remote_ref}:refs/notes/$target_ref" 2>/dev/null || {
+      echo "Error: could not fetch $remote_ref from $remote" >&2
+      exit 1
+    }
+    # Wrapper commit for freshness tracking
+    _import_wrapper_commit "$target_ref" "$remote"
+    local count
+    count=$(git notes --ref="$target_ref" list 2>/dev/null | wc -l)
+    echo "Refreshed import '$alias' from $remote ($count notes)" >&2
+    echo "$alias"
+    return
+  fi
+
+  # If --refresh without alias, try to auto-discover existing import
+  if [[ "$refresh" == "true" && -z "$alias" ]]; then
+    # Find existing import ref for this remote by checking all imports
+    # For simplicity, require --as on refresh without alias
+    echo "Error: --refresh requires --as <name> to identify which import to refresh" >&2
+    exit 1
+  fi
+
+  # Determine identifier: alias or auto-discover from exported-from edge
+  local identifier=""
+  if [[ -n "$alias" ]]; then
+    identifier="$alias"
+    local target_ref="${REF}--import--${identifier}"
+    # Direct fetch into target ref
+    git fetch "$remote" "+${remote_ref}:refs/notes/$target_ref" 2>/dev/null || {
+      echo "Error: could not fetch $remote_ref from $remote (does the remote have exported notes?)" >&2
+      exit 1
+    }
+  else
+    # Fetch into temp ref, discover repo-id from exported-from edge
+    git fetch "$remote" "+${remote_ref}:refs/notes/$temp_ref" 2>/dev/null || {
+      echo "Error: could not fetch $remote_ref from $remote (does the remote have exported notes?)" >&2
+      exit 1
+    }
+
+    # Read repo-id from first note's exported-from edge
+    local first_blob
+    first_blob=$(git notes --ref="$temp_ref" list 2>/dev/null | head -1 | awk '{print $1}')
+    if [[ -z "$first_blob" ]]; then
+      git update-ref -d "refs/notes/$temp_ref" 2>/dev/null || true
+      echo "Error: export ref from $remote is empty" >&2
+      exit 1
+    fi
+
+    local repo_id
+    repo_id=$(git cat-file -p "$first_blob" 2>/dev/null | grep '^edge exported-from repo:' | head -1 | sed 's/^edge exported-from repo://')
+    if [[ -z "$repo_id" ]]; then
+      git update-ref -d "refs/notes/$temp_ref" 2>/dev/null || true
+      echo "Error: could not discover repo-id from exported notes. Use --as <name> to specify manually." >&2
+      exit 1
+    fi
+
+    identifier="$repo_id"
+    local target_ref="${REF}--import--${identifier}"
+
+    # Rename temp ref to permanent
+    local tip
+    tip=$(git rev-parse "refs/notes/$temp_ref")
+    git update-ref "refs/notes/$target_ref" "$tip"
+    git update-ref -d "refs/notes/$temp_ref" 2>/dev/null || true
+  fi
+
+  # Wrapper commit for freshness tracking
+  local target_ref="${REF}--import--${identifier}"
+  _import_wrapper_commit "$target_ref" "$remote"
+
+  local count
+  count=$(git notes --ref="$target_ref" list 2>/dev/null | wc -l)
+  echo "Imported $count notes from $remote as '$identifier'" >&2
+  echo "$identifier"
+}
+
+_import_wrapper_commit() {
+  # Add a wrapper commit on the import ref for freshness tracking.
+  # The commit message records when and from where the import happened.
+  local ref="$1" remote="$2"
+  local tree parent new_commit
+  tree=$(git rev-parse "refs/notes/$ref^{tree}" 2>/dev/null) || return 0
+  parent=$(git rev-parse "refs/notes/$ref" 2>/dev/null) || return 0
+  # Use git's own timestamp (GIT_COMMITTER_DATE is set automatically by git commit-tree)
+  new_commit=$(git commit-tree "$tree" -p "$parent" -m "mycelium import from $remote" 2>/dev/null) || return 0
+  git update-ref "refs/notes/$ref" "$new_commit"
 }
 
 cmd_branch() {
@@ -1001,7 +1494,9 @@ cmd_doctor() {
   # Classify each note across all slots
   local notelist
   notelist=$(_all_notes)
-  [[ -z "$notelist" ]] && { echo "notes  0"; rm -f "$tmp"; return; }
+  if [[ -z "$notelist" ]]; then
+    echo "notes  0"
+  else
 
   while read sref noteblob obj; do
     local content kind status note_status target_path target_treepath n_edges
@@ -1077,12 +1572,26 @@ cmd_doctor() {
     echo "slots  $slot_count"
   fi
 
+  fi  # end of [[ -z "$notelist" ]] else block
+
   # jj: report colocated status
   if [[ -d "$_git_dir/../.jj" ]] || [[ -d ".jj" ]]; then
     local jj_ver
     jj_ver=$(jj version 2>/dev/null | head -1 || echo "unknown")
     echo "jj     colocated ($jj_ver)"
   fi
+
+  # Imports: report each imported ref with note count and freshness
+  local has_imports=false
+  while read -r iref; do
+    [[ -z "$iref" ]] && continue
+    has_imports=true
+    local iname icount ifresh
+    iname=$(_import_name_from_ref "$iref")
+    icount=$(git notes --ref="$iref" list 2>/dev/null | wc -l || echo "0")
+    ifresh=$(git log -1 --format='%ci' "refs/notes/$iref" 2>/dev/null | cut -d' ' -f1 || echo "unknown")
+    echo "import $iname  $icount note(s)  fetched:$ifresh"
+  done < <(_import_refs)
 
   rm -f "$tmp"
 }
@@ -1234,6 +1743,9 @@ cmd_compost() {
     esac
   done
   target="${target:-.}"
+
+  # Guard against writes to import/export refs
+  _assert_writable_ref "$REF" || exit 1
 
   # --- Resolve OID for direct actions ---
   # Helper: find full OID and its ref(s) from a short OID prefix
@@ -1658,6 +2170,10 @@ case "${1:-help}" in
   list)       cmd_list ;;
   branch)     shift; cmd_branch "$@" ;;
   activate)   cmd_activate ;;
+  repo-id)    shift; cmd_repo_id "$@" ;;
+  zone)       shift; cmd_zone "$@" ;;
+  export)     shift; cmd_export "$@" ;;
+  import)     shift; cmd_import "$@" ;;
   sync-init)  shift; cmd_sync_init "$@" ;;
   compost)    shift; cmd_compost "$@" ;;
   migrate)    shift; cmd_migrate "$@" ;;
