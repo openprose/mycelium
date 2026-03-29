@@ -201,6 +201,7 @@ Options for 'note':
   -s, --status <status>     active (default)|superseded|archived
   --slot <name>             Write to a named slot (default: shared lane)
   --supersedes <oid>        OID of note this replaces
+  -f, --force               Overwrite existing note (required if target already has one)
   -m, --message <body>      Note body (reads stdin if omitted and not a tty)
 
 Slots:
@@ -224,7 +225,7 @@ EOF
 }
 
 cmd_note() {
-  local target="" kind="" title="" status="" body="" supersedes="" slot=""
+  local target="" kind="" title="" status="" body="" supersedes="" slot="" force=false
   local -a edges=()
 
   # Parse args — target is the first non-flag argument, or HEAD
@@ -236,6 +237,7 @@ cmd_note() {
       -s|--status)     status="$2"; shift 2 ;;
       --supersedes)    supersedes="$2"; shift 2 ;;
       --slot)          slot="$2"; shift 2 ;;
+      -f|--force)      force=true; shift ;;
       -m|--message)    body="$2"; shift 2 ;;
       -*)              echo "Unknown option: $1" >&2; exit 1 ;;
       *)               target="$1"; shift ;;
@@ -291,13 +293,17 @@ cmd_note() {
     local existing_blob
     existing_blob=$(git notes --ref="$WRITE_REF" list "$oid" 2>/dev/null | cut -d' ' -f1 || true)
     if [[ -n "$existing_blob" ]]; then
-      supersedes="$existing_blob"
-      # Show what's being overwritten — backpressure against accidental clobber
       local existing_content
       existing_content=$(git cat-file -p "$existing_blob")
       local existing_kind=$(note_header "$existing_content" "kind")
       local existing_title=$(note_header "$existing_content" "title")
       local slot_label="${slot:+[slot:$slot] }"
+      if [[ "$force" != "true" ]]; then
+        echo "Error: ${slot_label}[$existing_kind] \"${existing_title:-(untitled)}\" already exists on ${type}:${oid:0:12}" >&2
+        echo "  Use -f to overwrite, or choose a different target." >&2
+        exit 1
+      fi
+      supersedes="$existing_blob"
       echo "⚠ ${slot_label}overwriting [$existing_kind] \"${existing_title:-(untitled)}\" on ${type}:${oid:0:12}" >&2
     fi
   fi

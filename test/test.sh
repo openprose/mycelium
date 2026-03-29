@@ -82,7 +82,7 @@ echo ""
 echo "=== Note Creation ==="
 
 # Default target is HEAD
-out=$($MYCELIUM note -k context -m "Default target test")
+out=$($MYCELIUM note -f -k context -m "Default target test")
 assert "note defaults to HEAD" "$COMMIT" "$out"
 
 # Auto-edge: commit gets 'explains'
@@ -91,7 +91,7 @@ assert "auto-edge explains on commit" "edge explains commit:$COMMIT" "$out"
 assert "kind header present" "kind context" "$out"
 
 # File path as target
-out=$($MYCELIUM note src/auth/retry.ts -k summary -m "Retry module summary")
+out=$($MYCELIUM note -f src/auth/retry.ts -k summary -m "Retry module summary")
 assert "file path resolves to blob" "$BLOB_RETRY" "$out"
 
 # Auto-edges on blob: applies-to + targets-path
@@ -100,7 +100,7 @@ assert "auto-edge applies-to on blob" "edge applies-to blob:$BLOB_RETRY" "$out"
 assert "auto-edge targets-path on blob" "edge targets-path path:src/auth/retry.ts" "$out"
 
 # Directory path as target
-out=$($MYCELIUM note src/auth -k constraint -m "All calls must be retryable")
+out=$($MYCELIUM note -f src/auth -k constraint -m "All calls must be retryable")
 assert "dir path resolves to tree" "$TREE_AUTH" "$out"
 
 # Auto-edges on tree: applies-to + targets-treepath
@@ -109,13 +109,13 @@ assert "auto-edge applies-to on tree" "edge applies-to tree:$TREE_AUTH" "$out"
 assert "auto-edge targets-treepath on tree" "edge targets-treepath treepath:src/auth" "$out"
 
 # Explicit edge alongside auto-edges
-out=$($MYCELIUM note README.md -k summary -e "depends-on blob:$BLOB_RETRY" -m "Readme note")
+out=$($MYCELIUM note -f README.md -k summary -e "depends-on blob:$BLOB_RETRY" -m "Readme note")
 out=$($MYCELIUM read README.md)
 assert "explicit edge preserved" "edge depends-on blob:$BLOB_RETRY" "$out"
 assert "auto-edge still present" "edge applies-to blob:$BLOB_README" "$out"
 
 # Title and status
-$MYCELIUM note HEAD -k decision -t "Use exponential backoff" -s active -m "Decision body" >/dev/null
+$MYCELIUM note -f HEAD -k decision -t "Use exponential backoff" -s active -m "Decision body" >/dev/null
 out=$($MYCELIUM read)
 assert "title header" "title Use exponential backoff" "$out"
 assert "status header" "status active" "$out"
@@ -143,7 +143,7 @@ echo ""
 echo "=== Context ==="
 
 # Context walks blob → tree → commit
-$MYCELIUM note -k context -m "Commit context for context test" >/dev/null
+$MYCELIUM note -f -k context -m "Commit context for context test" >/dev/null
 out=$($MYCELIUM context src/auth/retry.ts)
 assert "context shows exact blob note" "[exact]" "$out"
 assert "context shows inherited tree" "[tree]" "$out"
@@ -204,7 +204,7 @@ echo "=== Supersession ==="
 
 # Get the current note blob OID on retry.ts
 old_blob=$(git notes --ref=mycelium list "$BLOB_RETRY" | cut -d' ' -f1)
-$MYCELIUM note src/auth/retry.ts -k summary --supersedes "$old_blob" -m "Updated summary" >/dev/null
+$MYCELIUM note -f src/auth/retry.ts -k summary --supersedes "$old_blob" -m "Updated summary" >/dev/null
 out=$($MYCELIUM read src/auth/retry.ts)
 assert "supersedes header present" "supersedes $old_blob" "$out"
 assert "new body present" "Updated summary" "$out"
@@ -266,7 +266,7 @@ assert "installer: idempotent" "installed successfully" "$out"
 echo ""
 echo "=== Body from stdin ==="
 
-echo "Stdin body content" | $MYCELIUM note HEAD -k observation >/dev/null
+echo "Stdin body content" | $MYCELIUM note -f HEAD -k observation >/dev/null
 out=$($MYCELIUM read)
 assert "stdin body captured" "Stdin body content" "$out"
 
@@ -274,10 +274,10 @@ echo ""
 echo "=== Auto-Supersede Invariant ==="
 
 # Write a note, overwrite it, verify the old one is preserved
-$MYCELIUM note README.md -k observation -m "First version." >/dev/null
+$MYCELIUM note -f README.md -k observation -m "First version." >/dev/null
 FIRST_BLOB=$(git notes --ref=mycelium list "$BLOB_README" | cut -d' ' -f1)
 
-$MYCELIUM note README.md -k observation -m "Second version." >/dev/null
+$MYCELIUM note -f README.md -k observation -m "Second version." >/dev/null
 out=$($MYCELIUM read README.md)
 assert "auto-supersede: new note has supersedes header" "supersedes $FIRST_BLOB" "$out"
 
@@ -287,7 +287,7 @@ assert "auto-supersede: old blob retrievable" "First version." "$out"
 
 # Chain: overwrite again, verify it points to second, which points to first
 SECOND_BLOB=$(git notes --ref=mycelium list "$BLOB_README" | cut -d' ' -f1)
-$MYCELIUM note README.md -k observation -m "Third version." >/dev/null
+$MYCELIUM note -f README.md -k observation -m "Third version." >/dev/null
 out=$($MYCELIUM read README.md)
 assert "auto-supersede: chain depth 2" "supersedes $SECOND_BLOB" "$out"
 out=$(git cat-file -p "$SECOND_BLOB")
@@ -304,7 +304,7 @@ echo "=== Stale Detection ==="
 echo "version 1" > stalefile.ts
 git add stalefile.ts
 git commit -q --no-verify -m "add stalefile"
-$MYCELIUM note stalefile.ts -k warning -t "Fragile parsing" -m "Do not touch without tests." >/dev/null
+$MYCELIUM note -f stalefile.ts -k warning -t "Fragile parsing" -m "Do not touch without tests." >/dev/null
 
 echo "version 2" > stalefile.ts
 git add stalefile.ts
@@ -328,7 +328,7 @@ echo "=== Rename (same content) ==="
 echo "rename target" > renameme.ts
 git add renameme.ts
 git commit -q --no-verify -m "add renameme"
-$MYCELIUM note renameme.ts -k summary -m "Important module." >/dev/null
+$MYCELIUM note -f renameme.ts -k summary -m "Important module." >/dev/null
 
 git mv renameme.ts renamed.ts
 git commit -q --no-verify -m "rename"
@@ -346,7 +346,7 @@ echo "leaf" > deep/a/b/c/leaf.ts
 git add deep
 git commit -q --no-verify -m "deep nesting"
 DEEP_TREE=$(git rev-parse HEAD:deep)
-$MYCELIUM note deep -k constraint -m "Everything here is experimental." >/dev/null
+$MYCELIUM note -f deep -k constraint -m "Everything here is experimental." >/dev/null
 
 out=$($MYCELIUM context deep/a/b/c/leaf.ts)
 assert "deep inheritance: surfaces parent tree note" "[tree]" "$out"
@@ -360,7 +360,7 @@ out=$($MYCELIUM read .)
 assert "root tree: resolves" "tree:" "$out"
 
 # Write a constraint on root tree
-$MYCELIUM note . -k constraint -t "Test root principle" -m "Applies to everything." >/dev/null
+$MYCELIUM note -f . -k constraint -t "Test root principle" -m "Applies to everything." >/dev/null
 
 # Should be readable
 out=$($MYCELIUM read .)
@@ -400,7 +400,7 @@ echo ""
 echo "=== Follow Command ==="
 
 # Setup: note with multiple edges
-$MYCELIUM note README.md -k decision -t "Multi-edge test" \
+$MYCELIUM note -f README.md -k decision -t "Multi-edge test" \
   -e "depends-on blob:$(git rev-parse HEAD:src/auth/retry.ts)" \
   -m "A note pointing at multiple objects." >/dev/null
 
@@ -454,7 +454,7 @@ out=$(MYCELIUM_REF=empty-test-ref $MYCELIUM doctor)
 assert "doctor: empty ref shows 0" "notes  0" "$out"
 
 # Root tree notes should NOT count as stale in doctor
-$MYCELIUM note . -k constraint -t "Doctor root test" -m "project-level" >/dev/null
+$MYCELIUM note -f . -k constraint -t "Doctor root test" -m "project-level" >/dev/null
 echo "another change" > doctor-test.txt
 git add doctor-test.txt
 git commit -q --no-verify -m "change tree for doctor test"
@@ -471,7 +471,7 @@ assert "kinds: shows constraint" "constraint" "$out"
 assert "kinds: shows counts" "note(s)" "$out"
 
 # Custom kind appears after writing
-$MYCELIUM note HEAD -k custom-test -m "testing custom kind" >/dev/null
+$MYCELIUM note -f HEAD -k custom-test -m "testing custom kind" >/dev/null
 out=$($MYCELIUM kinds)
 assert "kinds: custom kind appears" "custom-test" "$out"
 
@@ -492,7 +492,7 @@ out=$($MYCELIUM branch)
 assert "branch: shows new ref" "mycelium--test-branch" "$out"
 
 # Write a note on the branch
-$MYCELIUM note HEAD -k context -m "branch-scoped note" >/dev/null
+$MYCELIUM note -f HEAD -k context -m "branch-scoped note" >/dev/null
 out=$($MYCELIUM list)
 assert "branch: note visible on branch" "context" "$out"
 
@@ -506,7 +506,7 @@ echo "branch-merge-target" > merge-target.txt
 git add merge-target.txt
 git commit -q --no-verify -m "merge target file"
 $MYCELIUM branch use merge-branch >/dev/null
-$MYCELIUM note merge-target.txt -k observation -t "from branch" -m "branch note" >/dev/null
+$MYCELIUM note -f merge-target.txt -k observation -t "from branch" -m "branch note" >/dev/null
 $MYCELIUM branch use main >/dev/null
 
 out=$($MYCELIUM branch merge merge-branch)
@@ -516,9 +516,9 @@ out=$($MYCELIUM read merge-target.txt)
 assert "branch merge: note appears in main" "from branch" "$out"
 
 # Merge — conflicting (both refs have note on same object)
-$MYCELIUM note merge-target.txt -k summary -t "main version" -m "from main" >/dev/null
+$MYCELIUM note -f merge-target.txt -k summary -t "main version" -m "from main" >/dev/null
 $MYCELIUM branch use merge-branch2 >/dev/null
-$MYCELIUM note merge-target.txt -k warning -t "branch version" -m "from branch" >/dev/null
+$MYCELIUM note -f merge-target.txt -k warning -t "branch version" -m "from branch" >/dev/null
 $MYCELIUM branch use main >/dev/null
 
 $MYCELIUM branch merge merge-branch2 >/dev/null
@@ -576,20 +576,20 @@ echo ""
 echo "=== Stability Hints ==="
 
 # File target shows path hint
-out=$($MYCELIUM note README.md -k observation -m "path test" 2>&1)
+out=$($MYCELIUM note -f README.md -k observation -m "path test" 2>&1)
 assert "hint: file shows path" "via path:README.md" "$out"
 
 # Raw OID shows pinned hint
 BLOB=$(git rev-parse HEAD:README.md)
-out=$($MYCELIUM note "$BLOB" -k observation -m "pinned test" 2>&1)
+out=$($MYCELIUM note -f "$BLOB" -k observation -m "pinned test" 2>&1)
 assert "hint: OID shows pinned" "pinned to blob" "$out"
 
 # Root tree shows project-level hint
-out=$($MYCELIUM note . -k observation -m "root test" 2>&1)
+out=$($MYCELIUM note -f . -k observation -m "root test" 2>&1)
 assert "hint: root shows project-level" "project-level" "$out"
 
 # Commit shows pinned hint
-out=$($MYCELIUM note HEAD -k observation -m "commit test" 2>&1)
+out=$($MYCELIUM note -f HEAD -k observation -m "commit test" 2>&1)
 assert "hint: commit shows pinned" "commit" "$out"
 
 echo ""
@@ -607,7 +607,7 @@ out=$($MYCELIUM doctor 2>&1)
 assert "jj: doctor shows jj" "jj" "$out"
 
 # Note creation works even without jj binary
-out=$($MYCELIUM note HEAD -k observation -m "jj test" 2>&1)
+out=$($MYCELIUM note -f HEAD -k observation -m "jj test" 2>&1)
 assert "jj: note succeeds" "$(git rev-parse HEAD)" "$out"
 
 # Clean up
@@ -619,7 +619,7 @@ echo "=== Compost ==="
 # Setup: create a file, note it, change the file so note goes stale
 echo "original content" > compost-target.ts
 git add compost-target.ts && git commit -m "compost target" --quiet
-$MYCELIUM note compost-target.ts -k summary -t "Compost test note" -m "This is the original." >/dev/null 2>&1
+$MYCELIUM note -f compost-target.ts -k summary -t "Compost test note" -m "This is the original." >/dev/null 2>&1
 
 echo "changed content" > compost-target.ts
 git add compost-target.ts && git commit -m "change compost target" --quiet
@@ -663,7 +663,7 @@ echo "=== Compost Renew ==="
 # Setup: create file, note it, change file
 echo "renew original" > renew-target.ts
 git add renew-target.ts && git commit -m "renew target" --quiet
-$MYCELIUM note renew-target.ts -k warning -t "Renew test note" -m "This warning still applies." >/dev/null 2>&1
+$MYCELIUM note -f renew-target.ts -k warning -t "Renew test note" -m "This warning still applies." >/dev/null 2>&1
 OLD_BLOB=$(git rev-parse HEAD:renew-target.ts)
 
 echo "renew changed" > renew-target.ts
@@ -688,7 +688,7 @@ echo "=== Compost OID Targeting ==="
 # Setup: create file, note it, change file
 echo "oid-target original" > oid-target.ts
 git add oid-target.ts && git commit -m "oid target" --quiet
-$MYCELIUM note oid-target.ts -k observation -t "OID target test" -m "Target by OID." >/dev/null 2>&1
+$MYCELIUM note -f oid-target.ts -k observation -t "OID target test" -m "Target by OID." >/dev/null 2>&1
 OID_BLOB=$(git rev-parse HEAD:oid-target.ts)
 
 echo "oid-target changed" > oid-target.ts
@@ -710,7 +710,7 @@ assert "oid: note has status composted" "status composted" "$out"
 # Setup for renew by OID
 echo "oid-renew original" > oid-renew.ts
 git add oid-renew.ts && git commit -m "oid renew" --quiet
-$MYCELIUM note oid-renew.ts -k decision -t "OID renew test" -m "Renew by OID." >/dev/null 2>&1
+$MYCELIUM note -f oid-renew.ts -k decision -t "OID renew test" -m "Renew by OID." >/dev/null 2>&1
 OID_RENEW_OLD=$(git rev-parse HEAD:oid-renew.ts)
 
 echo "oid-renew changed" > oid-renew.ts
@@ -730,15 +730,29 @@ out=$(git notes --ref=mycelium show "$OID_RENEW_OLD" 2>/dev/null)
 assert "oid: old blob composted after renew" "status composted" "$out"
 
 echo ""
-echo "=== Overwrite Warning ==="
+echo "=== Overwrite Guard ==="
 
-# Write a note then overwrite — should warn on stderr
+# Write a note, then try to overwrite WITHOUT -f — should fail
 echo "owtest" > owtest.ts
 git add owtest.ts && git commit -m "overwrite test" --quiet
-$MYCELIUM note owtest.ts -k context -t "First note" -m "first" >/dev/null 2>&1
-out=$($MYCELIUM note owtest.ts -k context -t "Second note" -m "second" 2>&1)
-assert "overwrite: shows warning" "overwriting" "$out"
+$MYCELIUM note -f owtest.ts -k context -t "First note" -m "first" >/dev/null 2>&1
+out=$($MYCELIUM note owtest.ts -k context -t "Second note" -m "second" 2>&1) || true
+assert "guard: blocks overwrite without -f" "already exists" "$out"
+assert "guard: shows existing title" "First note" "$out"
+assert "guard: suggests -f" "-f" "$out"
+
+# Original note is untouched
+out=$($MYCELIUM read owtest.ts)
+assert "guard: original note preserved" "First note" "$out"
+
+# With -f, overwrite succeeds and warns
+out=$($MYCELIUM note -f owtest.ts -k context -t "Second note" -m "second" 2>&1)
+assert "overwrite: shows warning with -f" "overwriting" "$out"
 assert "overwrite: shows old title" "First note" "$out"
+
+# New note is in place
+out=$($MYCELIUM read owtest.ts)
+assert "overwrite: new note in place" "Second note" "$out"
 
 echo ""
 echo "=== Slot Topologies: One-to-Many ==="
@@ -749,8 +763,8 @@ git add shared.ts && git commit -m "shared file" --quiet
 SHARED_BLOB=$(git rev-parse HEAD:shared.ts)
 
 # Two different slots note the same file — neither obliterates the other
-$MYCELIUM note shared.ts --slot skeleton -k observation -t "Skeleton obs" -m "File structure noted." >/dev/null 2>&1
-$MYCELIUM note shared.ts --slot enricher -k summary -t "Enricher summary" -m "Rich context added." >/dev/null 2>&1
+$MYCELIUM note -f shared.ts --slot skeleton -k observation -t "Skeleton obs" -m "File structure noted." >/dev/null 2>&1
+$MYCELIUM note -f shared.ts --slot enricher -k summary -t "Enricher summary" -m "Rich context added." >/dev/null 2>&1
 
 # GROUND TRUTH: verify git refs actually exist with correct content
 out=$(git notes --ref=mycelium--slot--skeleton show "$SHARED_BLOB" 2>/dev/null)
@@ -773,7 +787,7 @@ out=$($MYCELIUM read shared.ts --slot enricher 2>&1)
 assert "slot: enricher note exists" "Enricher summary" "$out"
 
 # Default slot still works (no --slot flag)
-$MYCELIUM note shared.ts -k context -t "Default note" -m "Written to default slot." >/dev/null 2>&1
+$MYCELIUM note -f shared.ts -k context -t "Default note" -m "Written to default slot." >/dev/null 2>&1
 out=$($MYCELIUM read shared.ts 2>&1)
 assert "slot: default note exists" "Default note" "$out"
 
@@ -797,7 +811,7 @@ echo ""
 echo "=== Slot Topologies: Supersedes Within Slot ==="
 
 # Overwrite within same slot = supersedes (intra-slot)
-$MYCELIUM note shared.ts --slot skeleton -k observation -t "Updated skeleton" -m "Revised." >/dev/null 2>&1
+$MYCELIUM note -f shared.ts --slot skeleton -k observation -t "Updated skeleton" -m "Revised." >/dev/null 2>&1
 out=$($MYCELIUM read shared.ts --slot skeleton 2>&1)
 assert "slot: supersede within slot" "Updated skeleton" "$out"
 assert_not "slot: old note gone from slot read" "Skeleton obs" "$out"
@@ -811,7 +825,7 @@ echo "=== Slot Topologies: Cross-Slot Edges ==="
 
 # A note in one slot can reference a note in another slot via edge
 SKEL_BLOB=$(git notes --ref=mycelium--slot--skeleton list "$SHARED_BLOB" 2>/dev/null | cut -d' ' -f1 || true)
-$MYCELIUM note shared.ts --slot enricher -k summary -t "Enricher v2" \
+$MYCELIUM note -f shared.ts --slot enricher -k summary -t "Enricher v2" \
   -e "incorporates note:$SKEL_BLOB" \
   -m "Built on skeleton's observation." >/dev/null 2>&1
 out=$($MYCELIUM follow shared.ts --slot enricher 2>&1)
@@ -885,9 +899,9 @@ echo "=== Slot Topologies: Batch Compost Across Slots ==="
 echo "batch-file" > batch.ts
 git add batch.ts && git commit -m "batch file" --quiet
 BATCH_BLOB=$(git rev-parse HEAD:batch.ts)
-$MYCELIUM note batch.ts --slot alpha -k observation -t "Alpha note" -m "a" >/dev/null 2>&1
-$MYCELIUM note batch.ts --slot beta -k observation -t "Beta note" -m "b" >/dev/null 2>&1
-$MYCELIUM note batch.ts -k context -t "Default batch" -m "c" >/dev/null 2>&1
+$MYCELIUM note -f batch.ts --slot alpha -k observation -t "Alpha note" -m "a" >/dev/null 2>&1
+$MYCELIUM note -f batch.ts --slot beta -k observation -t "Beta note" -m "b" >/dev/null 2>&1
+$MYCELIUM note -f batch.ts -k context -t "Default batch" -m "c" >/dev/null 2>&1
 echo "batch-file-v2" > batch.ts
 git add batch.ts && git commit -m "change batch" --quiet
 
@@ -925,7 +939,7 @@ echo "=== Slot Topologies: Backward Compatibility ==="
 # (they live in refs/notes/mycelium, the default)
 echo "legacy-file" > legacy.ts
 git add legacy.ts && git commit -m "legacy" --quiet
-$MYCELIUM note legacy.ts -k context -t "Legacy note" -m "No slot specified." >/dev/null 2>&1
+$MYCELIUM note -f legacy.ts -k context -t "Legacy note" -m "No slot specified." >/dev/null 2>&1
 out=$($MYCELIUM read legacy.ts 2>&1)
 assert "slot: legacy note readable" "Legacy note" "$out"
 out=$($MYCELIUM context legacy.ts 2>&1)
@@ -952,8 +966,8 @@ echo "=== Slot Topologies: OID Ambiguity ==="
 echo "ambig-file" > ambig.ts
 git add ambig.ts && git commit -m "ambig" --quiet
 AMBIG_BLOB=$(git rev-parse HEAD:ambig.ts)
-$MYCELIUM note ambig.ts --slot red -k observation -t "Red note" -m "r" >/dev/null 2>&1
-$MYCELIUM note ambig.ts --slot blue -k observation -t "Blue note" -m "b" >/dev/null 2>&1
+$MYCELIUM note -f ambig.ts --slot red -k observation -t "Red note" -m "r" >/dev/null 2>&1
+$MYCELIUM note -f ambig.ts --slot blue -k observation -t "Blue note" -m "b" >/dev/null 2>&1
 echo "ambig-v2" > ambig.ts
 git add ambig.ts && git commit -m "change ambig" --quiet
 
@@ -971,11 +985,11 @@ echo "=== Slot Topologies: Cross-Slot Supersedes Forbidden ==="
 # Writing to slot A should never auto-supersede a note in slot B
 echo "xsuper-file" > xsuper.ts
 git add xsuper.ts && git commit -m "xsuper" --quiet
-$MYCELIUM note xsuper.ts --slot alpha -k observation -t "Alpha" -m "a" >/dev/null 2>&1
-$MYCELIUM note xsuper.ts --slot beta -k summary -t "Beta" -m "b" >/dev/null 2>&1
+$MYCELIUM note -f xsuper.ts --slot alpha -k observation -t "Alpha" -m "a" >/dev/null 2>&1
+$MYCELIUM note -f xsuper.ts --slot beta -k summary -t "Beta" -m "b" >/dev/null 2>&1
 
 # Overwrite alpha — beta must not get a supersedes header
-$MYCELIUM note xsuper.ts --slot alpha -k observation -t "Alpha v2" -m "a2" >/dev/null 2>&1
+$MYCELIUM note -f xsuper.ts --slot alpha -k observation -t "Alpha v2" -m "a2" >/dev/null 2>&1
 out=$($MYCELIUM read xsuper.ts --slot beta 2>&1)
 assert "slot: beta has no supersedes from alpha" "Beta" "$out"
 assert_not "slot: beta not superseded" "supersedes" "$out"
@@ -986,14 +1000,14 @@ echo "=== Slot Topologies: Renew Collision ==="
 # Renew should only fail if same slot has current note, not other slots
 echo "renew-col" > renew-col.ts
 git add renew-col.ts && git commit -m "renew-col" --quiet
-$MYCELIUM note renew-col.ts --slot enricher -k summary -t "Enricher col" -m "e" >/dev/null 2>&1
+$MYCELIUM note -f renew-col.ts --slot enricher -k summary -t "Enricher col" -m "e" >/dev/null 2>&1
 OLD_RC_BLOB=$(git rev-parse HEAD:renew-col.ts)
 echo "renew-col-v2" > renew-col.ts
 git add renew-col.ts && git commit -m "change renew-col" --quiet
 NEW_RC_BLOB=$(git rev-parse HEAD:renew-col.ts)
 
 # Write a note on current version in default slot
-$MYCELIUM note renew-col.ts -k context -t "Default current" -m "d" >/dev/null 2>&1
+$MYCELIUM note -f renew-col.ts -k context -t "Default current" -m "d" >/dev/null 2>&1
 
 # Renew enricher should succeed even though default has a current note
 out=$($MYCELIUM compost renew-col.ts --slot enricher --renew 2>&1)
@@ -1010,10 +1024,10 @@ echo ""
 echo "=== Slot Topologies: Unsafe Slot Names ==="
 
 # Reserved/dangerous names should be rejected
-out=$($MYCELIUM note shared.ts --slot "main" -k context -m "bad" 2>&1 || true)
+out=$($MYCELIUM note -f shared.ts --slot "main" -k context -m "bad" 2>&1 || true)
 assert "slot: reject 'main' as slot name" "Error" "$out"
 
-out=$($MYCELIUM note shared.ts --slot "default" -k context -m "bad" 2>&1 || true)
+out=$($MYCELIUM note -f shared.ts --slot "default" -k context -m "bad" 2>&1 || true)
 assert "slot: reject 'default' as slot name" "Error" "$out"
 
 echo ""
@@ -1030,7 +1044,7 @@ echo "=== Audit Bug: Prime Slot-Only Repo ==="
 # Bug: prime checked only $REF, missed slot-only repos
 echo "prime-only" > prime-only.ts
 git add prime-only.ts && git commit -m "prime-only" --quiet
-$MYCELIUM note prime-only.ts --slot alpha -k observation -t "Alpha only" -m "Only slot note." >/dev/null 2>&1
+$MYCELIUM note -f prime-only.ts --slot alpha -k observation -t "Alpha only" -m "Only slot note." >/dev/null 2>&1
 # Remove any default-ref notes on this blob to simulate slot-only
 git notes --ref=mycelium remove "$(git rev-parse HEAD:prime-only.ts)" 2>/dev/null || true
 out=$($MYCELIUM prime 2>&1)
@@ -1044,7 +1058,7 @@ echo "=== Audit Bug: Compost Report Ignores Tree Notes ==="
 mkdir -p treedir
 echo "treefile" > treedir/f.ts
 git add treedir && git commit -m "treedir" --quiet
-$MYCELIUM note treedir/ -k constraint -t "Dir constraint" -m "Rule." >/dev/null 2>&1
+$MYCELIUM note -f treedir/ -k constraint -t "Dir constraint" -m "Rule." >/dev/null 2>&1
 echo "treefile-v2" > treedir/f.ts
 git add treedir && git commit -m "change treedir" --quiet
 out=$($MYCELIUM compost --report 2>&1)
@@ -1060,7 +1074,7 @@ echo "=== Audit Bug: Git Noise Suppressed ==="
 # Bug: compost/renew leaked "Overwriting existing notes for object" from git
 echo "noise-file" > noise.ts
 git add noise.ts && git commit -m "noise" --quiet
-$MYCELIUM note noise.ts -k context -t "Noise note" -m "n" >/dev/null 2>&1
+$MYCELIUM note -f noise.ts -k context -t "Noise note" -m "n" >/dev/null 2>&1
 echo "noise-v2" > noise.ts
 git add noise.ts && git commit -m "change noise" --quiet
 out=$($MYCELIUM compost noise.ts --compost 2>&1)
