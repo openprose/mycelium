@@ -1,0 +1,37 @@
+kind constraint
+title Versioning rules
+edge applies-to tree:4cc35b99004cd62db3359d281beefdf6477cc630
+edge targets-treepath treepath:.
+
+## Version scheme: semver with pre-release suffixes
+
+MYCELIUM_VERSION in mycelium.sh line 4 is the single source of truth.
+mycelium.sh --version reads it. The installer prints it after install.
+
+### Format
+  MAJOR.MINOR.PATCH            — stable release on main (tagged)
+  MAJOR.MINOR.PATCH-rc.N       — release candidate on a feature branch
+  MAJOR.MINOR.PATCH-<branch>.N — experimental pre-release
+
+### Rules
+1. main always has a clean semver (no suffix). Example: 0.1.0
+2. Feature branches bump MINOR and add a suffix. Example: 0.2.0-rc.1
+3. Every push to main must have a matching git tag: v0.1.0, v0.2.0, etc.
+4. Tags are immutable. Never delete or move a tag.
+5. The version string in mycelium.sh must match the git tag at that commit.
+6. When a feature branch merges to main, the suffix is removed: 0.2.0-rc.1 → 0.2.0
+7. Bump rc.N on the feature branch when making significant changes during testing.
+
+### Enforcement
+- The pre-commit hook should verify MYCELIUM_VERSION is present and well-formed.
+- CI should verify the version string matches the git tag (on tagged commits).
+- Agents: always check mycelium.sh --version before starting work. If it says -rc or
+  -branch, you are NOT on stable main.
+
+### Current versions
+  v0.1.0       — core single-repo (main, tagged, pushed)
+  0.2.0-rc.1   — multi-repo export/import (multi-repo branch, local)
+
+### Install pinning
+  VERSION=0.1.0 curl -fsSL .../install.sh | bash   # specific version
+  curl -fsSL .../install.sh | bash                   # latest main
