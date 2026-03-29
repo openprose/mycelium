@@ -1,0 +1,36 @@
+kind constraint
+title Versioning rules
+edge applies-to tree:ee49adc29b9f4d27b2b816d0168d2dbdc1143a89
+edge targets-treepath treepath:.
+
+## Version: git tags are the single source of truth
+
+mycelium.sh derives its version from git describe --tags --always at runtime.
+No hardcoded version string to keep in sync. The git tag IS the version.
+
+  v0.1.0                      — exactly on the tag
+  v0.1.0-3-g68e38da           — 3 commits past v0.1.0, at commit 68e38da
+  __MYCELIUM_UNSTAMPED__      — non-git install (curl-copied), installer stamps real version
+
+### Rules
+1. Release = git tag. Create with: git tag -a vX.Y.Z -m 'description'
+2. Tags are immutable. Never delete or move a tag.
+3. Tags follow semver: vMAJOR.MINOR.PATCH
+4. Feature branches need no tags — git describe auto-generates v0.1.0-N-gHASH
+5. The installer stamps the version into copied (non-symlinked) installs.
+6. DO NOT tag until the feature has been validated in real-world use.
+   Synthetic tests passing is necessary but not sufficient for a release tag.
+   v0.2.0 was tagged prematurely — the multi-repo export/import loop has not
+   been tested across real repositories. This is a mistake to learn from.
+7. Use -rc tags (v0.3.0-rc.1) for code that passes tests but lacks real-world validation.
+   Only remove the -rc suffix after actual usage confirms the feature works.
+
+### Enforcement
+- CI runs mycelium.sh --version and verifies it resolves to a tag-based string
+- Pre-commit hook warns if git describe fails (no tags in repo)
+
+### How agents should check
+  mycelium.sh --version
+If output contains a commit hash (v0.2.0-3-gabcdef), you are past the latest release.
+If output says unknown, the install is detached from git.
+If output says -rc, the feature is untested in real-world use.
