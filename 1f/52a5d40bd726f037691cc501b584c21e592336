@@ -1,0 +1,14 @@
+kind context
+title Version enforcement added to pre-commit and CI
+edge applies-to blob:1f52a5d40bd726f037691cc501b584c21e592336
+edge targets-path path:hooks/pre-commit
+
+Pre-commit hook: validates MYCELIUM_VERSION is present and semver-formatted when mycelium.sh is staged.
+CI workflow: checks version string on every push, verifies tag matches script version on tagged pushes.
+
+These enforce the versioning constraint note on the root tree (mycelium.sh find constraint → 'Versioning rules').
+
+The three enforcement points:
+1. Pre-commit hook: catches malformed versions before commit
+2. CI version-present check: catches missing versions on push
+3. CI tag-match check: catches tag/script mismatches on release
