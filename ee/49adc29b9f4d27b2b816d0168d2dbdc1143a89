@@ -1,36 +1,81 @@
-kind constraint
-title Versioning rules
+kind decision
+title Feature exploration lifecycle: branch → validate → merge → tag
+supersedes 2d85d5b7b47e632b3bcd6a1e69b89a72824e55c3
 edge applies-to tree:ee49adc29b9f4d27b2b816d0168d2dbdc1143a89
 edge targets-treepath treepath:.
 
-## Version: git tags are the single source of truth
+## The story of v0.2.0 (how not to do it)
 
-mycelium.sh derives its version from git describe --tags --always at runtime.
-No hardcoded version string to keep in sync. The git tag IS the version.
+An agent studied the mycelium codebase, researched cross-repo linking for two hours,
+consulted three sub-agents, wrote 100 tests, implemented export/import, got a code
+review, fixed every blocker, added CI, added versioning — and then tagged v0.2.0
+without ever actually trying to connect two real repositories.
 
-  v0.1.0                      — exactly on the tag
-  v0.1.0-3-g68e38da           — 3 commits past v0.1.0, at commit 68e38da
-  __MYCELIUM_UNSTAMPED__      — non-git install (curl-copied), installer stamps real version
+Everything passed. Nothing was validated.
 
-### Rules
-1. Release = git tag. Create with: git tag -a vX.Y.Z -m 'description'
-2. Tags are immutable. Never delete or move a tag.
-3. Tags follow semver: vMAJOR.MINOR.PATCH
-4. Feature branches need no tags — git describe auto-generates v0.1.0-N-gHASH
-5. The installer stamps the version into copied (non-symlinked) installs.
-6. DO NOT tag until the feature has been validated in real-world use.
-   Synthetic tests passing is necessary but not sufficient for a release tag.
-   v0.2.0 was tagged prematurely — the multi-repo export/import loop has not
-   been tested across real repositories. This is a mistake to learn from.
-7. Use -rc tags (v0.3.0-rc.1) for code that passes tests but lacks real-world validation.
-   Only remove the -rc suffix after actual usage confirms the feature works.
+The agent confused 'the tests are green' with 'the feature works.' These are
+different claims. Tests prove mechanics. Usage proves value.
 
-### Enforcement
-- CI runs mycelium.sh --version and verifies it resolves to a tag-based string
-- Pre-commit hook warns if git describe fails (no tags in repo)
+## What should have happened
 
-### How agents should check
-  mycelium.sh --version
-If output contains a commit hash (v0.2.0-3-gabcdef), you are past the latest release.
-If output says unknown, the install is detached from git.
-If output says -rc, the feature is untested in real-world use.
+The multi-repo branch existed. It had 11 mycelium notes documenting the entire
+design journey — research, decisions, warnings, test specs. It was the perfect
+exploration space. The agent should have:
+
+1. Stayed on the branch
+2. Switched to a real repo (flywheel_gateway, or a personal project)
+3. Run: mycelium.sh repo-id init && mycelium.sh zone init
+4. Written some notes, exported them
+5. Gone to a second repo, imported them
+6. Written a note: 'Tried it. Here is what happened.'
+7. THEN decided whether to merge
+
+The validation notes would have been evidence. 'I imported 3 decision notes
+from auth-service into gateway. context showed them with [import:auth-service]
+labels. The constraint about retry timeouts surfaced when I ran context on
+the HTTP client file. This is useful.' Or: 'The import worked mechanically
+but the notes were meaningless without the source code context. The feature
+needs rethinking.'
+
+Either outcome is valuable. Both are missing because we skipped step 2-6.
+
+## The lifecycle (for all future features)
+
+### Explore phase (branch, no tag)
+  jj new main
+  jj bookmark create feature/x
+  # develop, test, iterate
+  # mycelium notes document decisions on the branch ref
+
+### Validate phase (still on branch, real usage)
+  jj edit feature/x
+  # use the feature in actual work
+  # write mycelium notes recording what happened
+  # the notes ARE the validation evidence
+
+### Ship phase (merge, then tag)
+  jj edit main
+  jj new main
+  # cherry-pick or rebase feature/x onto main
+  # tag only after validation notes exist
+  git tag -a vX.Y.Z -m 'description'
+
+### Abandon phase (if validation fails)
+  # the branch stays as a record
+  # the mycelium notes explain why it was abandoned
+  # future agents can read the notes and learn from it
+  mycelium.sh branch use feature/x
+  mycelium.sh find decision   # what was tried
+  mycelium.sh find warning    # what went wrong
+
+## The branch notes are the institutional memory
+
+A merged branch's notes get merged into main:
+  mycelium.sh branch merge feature/x
+
+An abandoned branch's notes stay on the branch ref forever.
+Either way, the thinking is preserved. The decisions, the warnings,
+the validation results — they survive the branch lifecycle.
+
+This is why mycelium has branch-scoped notes. Not for organization.
+For exploration with memory.
