@@ -1,0 +1,30 @@
+kind warning
+title Version identity is git identity — don't over-engineer it
+edge applies-to blob:0c409304f37fd246607f7b1da3bb988ce65194af
+edge targets-path path:mycelium.sh
+
+When asked 'how do we version this,' the answer for a single bash file in a git repo is:
+
+  git rev-parse HEAD:mycelium.sh    → blob OID (exact file content)
+  git describe --tags --always      → human-readable position in history
+  git log -1 --format=%H mycelium.sh → last commit that touched the file
+
+These already existed before we added any versioning code. The SKILL.md
+has a blob OID too — git tracks every file's exact content automatically.
+
+What we ADDED:
+  - mycelium.sh --version (convenience wrapper around git describe)
+  - Installer stamping (for non-git copies)
+  - CI version check
+
+What we SHOULD NOT HAVE added (or at least not first):
+  - Semver release tags before real-world validation
+  - Release engineering infrastructure before we had anything to release
+
+The lesson: git is already a version control system. Use it as one.
+Add publishing infrastructure (tags, semver, changelogs) when you
+actually have users depending on stable versions. Not before.
+
+For the exploration phase we are in now, git describe is sufficient.
+When someone runs mycelium.sh --version and sees v0.2.0-3-gabcdef,
+they know exactly what they have. That is version control.
