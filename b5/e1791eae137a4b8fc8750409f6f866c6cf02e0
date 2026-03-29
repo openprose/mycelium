@@ -1,25 +1,36 @@
-kind constraint
-title Versioning rules
+kind decision
+title Versioning: branches for exploration, tags for milestones
+supersedes 66ef859a3c785bcc9da006344f1029119d53597c
 edge applies-to blob:b5e1791eae137a4b8fc8750409f6f866c6cf02e0
 edge targets-path path:install.sh
 
-## Version: git tags are the single source of truth
+## What we learned the hard way
 
-mycelium.sh derives its version from git describe --tags --always at runtime.
-No hardcoded version string. The git tag IS the version.
+Don't over-engineer versioning for a pre-1.0 project. Git already is version control.
 
-  v0.2.0                 — exactly on the tag
-  v0.2.0-3-gabcdef       — 3 commits past, on a branch
-  __MYCELIUM_UNSTAMPED__ — non-git install, installer stamps real version
+### The scale
+  Branch name          → 'am I on stable or experimental?' (free, already exists)
+  git describe         → 'exactly what commit am I on?' (free, already exists)
+  mycelium.sh --version → human-friendly wrapper around git describe (we added this)
+  Semver tags          → 'this is a milestone others can depend on' (use sparingly)
 
-### Rules
-1. Release = git tag. Create with: git tag -a vX.Y.Z -m 'description'
-2. Tags are immutable. Never delete or move a tag.
-3. Tags follow semver: vMAJOR.MINOR.PATCH
-4. Feature branches need no tags — git describe auto-generates vX.Y.Z-N-gHASH
-5. DO NOT tag until the feature has been validated in real-world use.
-6. Use -rc tags (v0.3.0-rc.1) for unvalidated features if you must tag.
+### Semver pre-release labels (when you actually need them)
+  alpha  — exploring, might not ship (where multi-repo is NOW)
+  beta   — feature-complete, testing with real users
+  rc     — believed ready, final validation
+  (none) — shipped, confident
 
-### Lesson from v0.2.0
-Tagged after 369 tests passed but before anyone tried export/import for real.
-The code was correct. The release was premature. See: mycelium.sh read .
+### What to actually do
+  Exploring a feature?  Stay on the branch. Don't tag.
+  Feature validated?    Merge to main. Tag if it's a real milestone.
+  Need to share pre-release? Tag as v0.3.0-alpha.1. Not v0.3.0.
+
+### Mistakes made
+  v0.2.0 was tagged after tests passed but before anyone used export/import for real.
+  The code is fine. The tag was premature. We added release engineering infrastructure
+  (installer stamping, CI version checks, constraint notes about semver) before we had
+  anything to release. The branch was the right tool. We abandoned it too early.
+
+### Going forward
+  Branches = exploration. Tags = milestones. git describe = identity.
+  Don't tag until real usage confirms value.
