@@ -1,0 +1,29 @@
+kind observation
+edge explains commit:4e5f3a5fd13ae89ce4cfec8926ab144f54e316bc
+edge targets-change change:tomrwwquopvrpovtwqvprrtwzukqlrqr
+
+External study of mycelium using mycelium.
+
+An agent was asked to 'study mycelium using mycelium' — a recursive
+prompt. The approach: loaded the SKILL, then used mycelium's own
+commands (list, find, context, edges, doctor, read with slots) to
+build understanding entirely from the note graph.
+
+Key findings:
+- The slot system on root tree (principles, values, safety, history)
+  is the most efficient onboarding path. An agent reading these 4
+  slots gets the project's full constitution in ~40 lines.
+- doctor gives instant orientation: 123 notes, 273 edges, 12 slots.
+- find <kind> is the best exploration primitive. Start with constraint
+  and decision, then drill into individual notes.
+- The composted design-doc-to-notes migration is elegant. The notes
+  ARE the spec. No drift possible because there's no second source.
+- Stale detection is the killer feature for multi-agent workflows.
+  Notes degrade gracefully — they become history, not garbage.
+- The onboarding gap observation (002f366d) is itself the fix:
+  reading that note teaches you what previous agents missed.
+
+The self-referential quality works. Studying the tool with the tool
+produced a richer understanding than reading source code would have.
+The note graph IS the documentation, and navigating it teaches you
+the tool simultaneously.
