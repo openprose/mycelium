@@ -1458,23 +1458,16 @@ cmd_dump() {
 }
 
 cmd_prime() {
-  # Find checked-in agent-facing docs: same directory as this script, or repo root
+  # Find SKILL.md: same directory as this script, or repo root
   local script_dir
   script_dir=$(cd "$(dirname "$0")" && pwd)
-  local skill="" agent_ci=""
+  local skill=""
   if [[ -f "$script_dir/SKILL.md" ]]; then
     skill="$script_dir/SKILL.md"
   else
     local repo_root
     repo_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
     [[ -n "$repo_root" && -f "$repo_root/SKILL.md" ]] && skill="$repo_root/SKILL.md"
-  fi
-  if [[ -f "$script_dir/AGENT_CI.md" ]]; then
-    agent_ci="$script_dir/AGENT_CI.md"
-  else
-    local repo_root
-    repo_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
-    [[ -n "$repo_root" && -f "$repo_root/AGENT_CI.md" ]] && agent_ci="$repo_root/AGENT_CI.md"
   fi
 
   # 1. Skill content (strip YAML frontmatter)
@@ -1500,14 +1493,7 @@ mycelium.sh doctor                   # graph state
 SKILL
   fi
 
-  # 2. Agent-native CI checklist, if present
-  if [[ -n "$agent_ci" ]]; then
-    echo ""
-    echo "---"
-    cat "$agent_ci"
-  fi
-
-  # 3. Live repo state — check all slots
+  # 2. Live repo state — check all slots
   local notelist
   notelist=$(_all_notes)
   if [[ -z "$notelist" ]]; then
@@ -1525,7 +1511,7 @@ SKILL
   cmd_doctor
   echo '```'
 
-  # 4. Root tree notes — scan all slots
+  # 3. Root tree notes — scan all slots
   local root_tree
   root_tree=$(git rev-parse "HEAD^{tree}" 2>/dev/null || true)
   if [[ -n "$root_tree" ]]; then

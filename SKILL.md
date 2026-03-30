@@ -14,8 +14,6 @@ Structured notes attached to git objects via `refs/notes/mycelium`.
 
 That’s the whole contract. Mycelium is the storage layer. Richer arrival / history workflows can live in skill scripts.
 
-For this repo's own maintenance discipline, also read `AGENT_CI.md`. `mycelium.sh prime` should surface it when present.
-
 ## On arrival
 
 Start every session with:

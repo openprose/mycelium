@@ -5,11 +5,6 @@ set -euo pipefail
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
 
-# Agent-native CI reminder for first-class artifact changes
-if git diff --cached --name-only | grep -qE '^(mycelium\.sh|README\.md|SKILL\.md|AGENT_CI\.md|scripts/|hooks/|test/)' 2>/dev/null; then
-  echo "agent-native CI reminder: keep code <> tests <> notes <> SKILL <> README <> prime <> doctor in sync (see AGENT_CI.md)"
-fi
-
 # Run tests if runtime, workflow scripts, hooks/, or anything under test/ is staged
 if git diff --cached --name-only | grep -qE '^(install\.sh|mycelium\.sh|scripts/|hooks/|test/)' 2>/dev/null; then
   echo "running tests..."

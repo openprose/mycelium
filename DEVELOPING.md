@@ -1,14 +1,14 @@
-# Agent-native CI
+# Developing mycelium
 
-This repo keeps its first-class artifacts in sync **inside the repo**, not in GitHub Actions.
+This file is for **how we develop the tool**, not for the tool's external user experience.
 
-Think of this as local, agent-native CI:
+It describes the maintainer-side discipline for keeping the repo coherent:
 - checked into git
-- readable by agents
-- surfaced by `mycelium.sh prime`
-- reinforced by local hooks
+- readable by contributors and agents working on this repo
 - validated by local test suites
 - recorded in mycelium notes on the files and commits involved
+
+It is **not** part of the user-facing product surface. In particular, it should not be surfaced by `mycelium.sh prime`, `README.md`, `SKILL.md`, or other artifacts intended for external users of the tool.
 
 ## First-class artifacts
 
@@ -16,7 +16,7 @@ When behavior changes, treat all of these as part of the same contract:
 
 - **code/runtime** — `mycelium.sh`, `scripts/*.sh`
 - **tests** — `test/test.sh`, multi-repo tests
-- **agent contract** — `SKILL.md`, `mycelium.sh prime`
+- **agent contract for users** — `SKILL.md`, `mycelium.sh prime`
 - **human/public contract** — `README.md`
 - **introspection contract** — `mycelium.sh doctor`
 - **rationale/history** — mycelium notes on touched files and the change commit
@@ -45,11 +45,19 @@ For every semantic change, check these in the same commit slice:
 9. **Review**
    - Before push, do tmux + interactive `pi` review/dogfooding and record the result in a note.
 
+## Separation rule
+
+Keep these layers distinct:
+
+- **User-facing surfaces**: `mycelium.sh`, `README.md`, `SKILL.md`, `prime`, `doctor`, and any examples intended for external users
+- **Contributor-facing surfaces**: this file, branch-specific development notes, maintainer review workflow, and other repo-maintenance discipline
+
+Contributor process can constrain how we build the tool. It should not automatically leak into the product surfaces seen by external users.
+
 ## Tooling stance
 
-- **Canonical source of truth:** this checked-in file
-- **Agent surfacing:** `mycelium.sh prime` should print this when present
-- **Hook behavior:** hooks may remind, but should stay lightweight and non-blocking where possible
+- **Canonical source of truth for maintainer workflow:** this checked-in file
+- **Hooks:** local reminders are okay, but keep shipped examples focused on the product or clearly repo-specific
 - **Notes:** notes record rationale and per-slice decisions; they are not the only source of truth for the checklist itself
 
 ## Minimum local validation for this repo
