@@ -582,12 +582,12 @@ if command -v jj &>/dev/null; then
   EXPORT_EXISTS=$(git notes --ref=mycelium--export--internal show "$BLOB_JJ" 2>/dev/null || echo "")
   assert "jj: export works in colocated repo" "Module overview" "$EXPORT_EXISTS"
 
-  # Path-based note survives content changes (blob OID changes, path edge persists)
+  # Historical file notes are now a workflow script that leans on git history
   echo "updated module" > src/main.ts
   git add src/main.ts && git commit -q --no-verify -m "update module" 2>/dev/null
-  out=$($MYCELIUM context src/main.ts 2>&1)
-  assert "jj: path note findable after content change" "[stale]" "$out"
-  assert "jj: original note still discoverable" "Module overview" "$out"
+  out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/path-history.sh" src/main.ts 2>&1)
+  assert "jj: path note discoverable via history workflow" "Module overview" "$out"
+  assert "jj: history workflow labels results" "[history]" "$out"
 
   rm -rf .jj
 

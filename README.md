@@ -6,16 +6,14 @@ Agents read notes on arrival. They leave notes on departure. The network grows. 
 
 ## What it is
 
-Structured notes attached to git objects — commits, files, directories. Agents use them to communicate decisions, warnings, context, and culture across sessions. The format is plain text with headers and edges. The storage is `git notes`. The dependency list is git and bash.
+Structured notes attached to git objects — commits, files, and directories. Agents use them to communicate decisions, warnings, context, and culture across sessions. The format is plain text with headers and edges. The storage is `git notes`. The dependency list is git and bash.
 
 ```bash
-# agent arrives, reads what's known about a file
-mycelium.sh context src/auth.ts
+# write a note on the current commit
+mycelium.sh note HEAD -k context -m "Why this change exists."
 
-# agent works...
-
-# agent leaves a note explaining what it did
-mycelium.sh note HEAD -k context -m "Refactored retry logic. See warning on auth.ts."
+# read it back
+mycelium.sh read HEAD
 ```
 
 ## Install
@@ -85,74 +83,102 @@ mycelium.sh branch merge my-feature # merge when ready
 
 **We strongly recommend [gitleaks](https://github.com/gitleaks/gitleaks).** It scans notes by default (via `git log --all` which includes `refs/notes/*`). See our [example hooks](hooks/) for pre-commit, pre-push, and post-checkout integration.
 
-## The tool
-
-Core files:
-
-| File | What | Who it's for |
-|------|------|-------------|
-| [mycelium.sh](mycelium.sh) | The CLI — read, write, navigate notes | Agents and humans |
-| [install.sh](install.sh) | Curl-to-bash installer for `mycelium.sh` | Humans |
-| [SKILL.md](SKILL.md) | Agent skill — teaches the convention | AI agents |
-
-At runtime, you only need `mycelium.sh`. Everything else in this repo is support machinery: [install.sh](install.sh), [tests](test/test.sh), example hooks, and mycelium notes on the repo itself. Optionally load `SKILL.md`, and start writing notes.
-
-### Design history
-
-The historical design docs have been distilled into mycelium notes instead of tracked markdown files. Browse them with:
-
-```bash
-mycelium.sh find decision
-mycelium.sh find context
-mycelium.sh find summary
-```
-
-## Commands
+## Core CLI
 
 ```
 mycelium.sh note [target] -k <kind> -m <body>   Write a note
 mycelium.sh read [target]                        Read a note
 mycelium.sh follow [target]                      Read + resolve all edges
 mycelium.sh refs [target]                        Find all notes pointing at target
-mycelium.sh context <path>                       Everything known about a file
 mycelium.sh find <kind>                          Find all notes of a kind
 mycelium.sh kinds                                List all kinds in use
-mycelium.sh branch [use|merge] [name]            Branch-scoped notes
 mycelium.sh edges [type]                         List all edges
 mycelium.sh list                                 All annotated objects
 mycelium.sh log [n]                              Recent commits with notes
 mycelium.sh dump                                 Everything, greppable
-mycelium.sh compost [path|.] [--dry-run|--report] Triage stale notes
-mycelium.sh migrate [--dry-run] [--map <file>]   Reattach notes after jj rewrites
+mycelium.sh compost [path|oid] [--compost|--renew|--dry-run|--report]
 mycelium.sh doctor                               Graph state (facts only)
 mycelium.sh prime                                Skill + live repo context for agents
+mycelium.sh migrate [--dry-run] [--map <file>]   Reattach notes after jj rewrites
+mycelium.sh branch [use|merge] [name]            Branch-scoped notes
 mycelium.sh activate                             Show notes in git log
 mycelium.sh sync-init [remote]                   Configure fetch/push
 mycelium.sh sync-init --export-only [remote]     Configure export ref sync only
 mycelium.sh repo-id [init]                       Durable repository identity
 mycelium.sh zone [init [level]]                  Confidentiality zone (default: 80)
-mycelium.sh export <target> --audience <a>        Export note to audience ref
-mycelium.sh import <remote> [--as <name>]         Import notes from remote
+mycelium.sh export <target> --audience <a>       Export note to audience ref
+mycelium.sh import <remote> [--as <name>]        Import notes from remote
 ```
 
 Kinds and edge types are open vocabulary — use whatever strings make sense. `mycelium.sh kinds` shows what's in use.
 
-### Composting
+## Workflow scripts in this repo
 
-Notes go stale when the file they describe changes. Stale notes aren't wrong — they're just about an older version. Composting triages them:
+When using a full checkout of this repo, the skill also ships workflow scripts that lean on git rather than core CLI aggregation:
 
 ```bash
-mycelium.sh compost src/auth.ts --dry-run      # list stale notes with OIDs
-mycelium.sh compost <oid> --compost            # compost a specific note
-mycelium.sh compost <oid> --renew              # re-attach to current version
-mycelium.sh compost src/auth.ts --compost      # batch: compost all stale on path
-mycelium.sh compost src/auth.ts                # interactive mode (humans)
-mycelium.sh compost --report                   # counts only (for hooks)
+scripts/context-workflow.sh <path> [ref]   # recommended arrival workflow
+scripts/path-history.sh <path> [ref]       # historical file notes via git history
+scripts/note-history.sh <target>           # overwrite history via notes-ref history
 ```
 
-Composted notes aren't deleted — they're still accessible via `read` and `dump`, just no longer surfaced by `context`.
+These are **examples / golden workflows**, not part of the core mycelium protocol.
 
-### Migrate (jj)
+`mycelium.sh compost` still exists for repositories that want an explicit stale/renew lifecycle, but the simpler default is to lean on git-native history scripts first and write a fresh current note when older context still matters.
+
+## Note format
+
+```text
+kind decision
+title Short label
+edge explains commit:abc123...
+edge depends-on blob:def456...
+
+Free-form body. Markdown encouraged.
+```
+
+**Headers**: `kind` (required), `edge`, `title`, `status`
+
+**Kinds**: `decision` · `context` · `summary` · `warning` · `constraint` · `observation` · `value` · `todo` — or invent your own.
+
+**Edge types**: `explains` · `applies-to` · `depends-on` · `warns-about` · `targets-path` · `targets-treepath` — or invent your own.
+
+**Targets**: `commit:<oid>` · `blob:<oid>` · `tree:<oid>` · `path:<filepath>` · `note:<oid>`
+
+## Note history
+
+Mycelium does not store a special `supersedes` chain anymore. Overwrite history lives in git itself on the notes ref.
+
+Use either raw git:
+
+```bash
+OID=$(git rev-parse HEAD:path/to/file.ts)
+FANOUT="${OID:0:2}/${OID:2}"
+git log -p refs/notes/mycelium -- "$FANOUT"
+```
+
+Or the repo workflow script:
+
+```bash
+scripts/note-history.sh path/to/file.ts
+```
+
+## Slots
+
+Multiple tools or agents can write notes on the same object without obliterating each other. Each slot is an independent notes ref.
+
+```bash
+mycelium.sh note src/auth.ts --slot skeleton -k observation -m "File structure."
+mycelium.sh note src/auth.ts --slot enricher -k summary -m "Rich context."
+
+mycelium.sh read src/auth.ts --slot skeleton   # read one slot
+mycelium.sh find decision                      # aggregates across all slots
+mycelium.sh doctor                            # aggregates across all slots
+```
+
+`read` and `follow` use the default slot unless `--slot` is specified. `find`, `kinds`, `doctor`, and `prime` aggregate across all slots.
+
+## Migrate (jj)
 
 When jj rewrites commits (amend, rebase, squash), notes on old commit OIDs become orphaned. `migrate` bulk-reattaches them using the `targets-change` edges that mycelium auto-adds in jj repos:
 
@@ -163,41 +189,6 @@ mycelium.sh migrate --map mapping.txt  # explicit file: old_oid new_oid change_i
 ```
 
 Skips conflicts (target already has a note), updates `explains commit:` edges, and is idempotent.
-
-### Slots
-
-Multiple tools or agents can write notes on the same object without obliterating each other. Each slot is an independent notes ref.
-
-```bash
-mycelium.sh note src/auth.ts --slot skeleton -k observation -m "File structure."
-mycelium.sh note src/auth.ts --slot enricher -k summary -m "Rich context."
-mycelium.sh note src/auth.ts -k context -m "Default slot."  # no --slot
-
-mycelium.sh read src/auth.ts --slot skeleton   # read one slot
-mycelium.sh context src/auth.ts                # aggregates all slots
-mycelium.sh compost src/auth.ts --slot skeleton --compost  # compost per-slot
-```
-
-`context`, `doctor`, `find`, `kinds`, `prime` aggregate across all slots. `read` and `follow` use the default slot unless `--slot` is specified. Supersedes is intra-slot only — writing to one slot never affects another.
-
-### Kinds
-
-Kinds are just strings — there is no schema, no enum, no validation. You can write `kind celebration` or `kind tech-debt` and it works immediately. `mycelium.sh kinds` shows what's in use across your repo.
-
-We ship with these defaults because they cover most agent and human workflows:
-
-| Kind | Purpose |
-|------|---------|
-| `decision` | Why something was chosen — rationale that outlives the commit message |
-| `context` | Background an agent or human needs before touching this code |
-| `summary` | What a file or module does — the note a new reader wishes existed |
-| `warning` | Fragile areas, footguns, things that break in non-obvious ways |
-| `constraint` | Hard rules — must be retryable, must not depend on X, etc. |
-| `observation` | Something noticed but not yet acted on — a seed for future work |
-| `value` | Cultural principles — guides judgment rather than enforcing rules |
-| `todo` | Planned work — compost when done |
-
-Add your own, rename these, or ignore the ones you don't need. The vocabulary is yours.
 
 ## Platform support
 

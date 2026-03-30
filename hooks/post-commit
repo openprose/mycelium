@@ -16,5 +16,4 @@ git notes --ref=mycelium list &>/dev/null 2>&1 || exit 0
 
 echo ""
 "$MYCELIUM" doctor
-"$MYCELIUM" compost --report
 echo ""

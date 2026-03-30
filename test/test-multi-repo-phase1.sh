@@ -268,7 +268,7 @@ fi
 
 # =====================================================================
 echo ""
-echo "=== imported notes in context ==="
+echo "=== imported notes in workflow context ==="
 
 setup_two_repos
 cd "$REPO_B"
@@ -278,17 +278,16 @@ $MYCELIUM import source --as source-repo >/dev/null 2>&1 || true
 # REPO_B has its own src/main.ts (from make_repo), different blob OID
 $MYCELIUM note -f src/main.ts -k observation -t "Local observation" -m "My own note." >/dev/null 2>&1
 
-# Context should show both local and imported notes
-out=$($MYCELIUM context src/main.ts 2>&1)
-assert "context: shows local note" "Local observation" "$out"
+# Workflow context should show both local and imported notes
+out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/context-workflow.sh" src/main.ts 2>&1)
+assert "workflow context: shows local note" "Local observation" "$out"
 
 # Imported notes may not match local blob OID (different repos, different content).
 # But if REPO_A exported a root-tree note, it should show via import scanning.
-out=$($MYCELIUM context . 2>&1)
+out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/context-workflow.sh" . 2>&1)
 # The root tree note "No side effects in lib" was exported from REPO_A
-# It should appear with an [import:source-repo] label if context scans imports
-assert "context: shows imported root note" "import" "$out"
-assert "context: import label present" "source-repo" "$out"
+assert "workflow context: shows imported root note" "import" "$out"
+assert "workflow context: import label present" "source-repo" "$out"
 
 
 # =====================================================================
@@ -424,13 +423,13 @@ git add src/another.ts && git commit -q --no-verify -m "add another"
 $MYCELIUM note -f src/another.ts -k warning -t "New warning" -m "Added after import." >/dev/null 2>&1
 $MYCELIUM export src/another.ts --audience internal >/dev/null 2>&1
 
-# Back in REPO_B — context/find/follow should NOT see the new note (no auto-fetch)
+# Back in REPO_B — workflow context/find/follow should NOT see the new note (no auto-fetch)
 cd "$REPO_B"
 out=$($MYCELIUM find warning 2>&1) || true
-assert_not "no-fetch: context doesn't auto-fetch" "New warning" "$out"
-
-out=$($MYCELIUM context src/another.ts 2>&1) || true
 assert_not "no-fetch: find doesn't auto-fetch" "New warning" "$out"
+
+out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/context-workflow.sh" src/another.ts 2>&1 || true)
+assert_not "no-fetch: workflow context doesn't auto-fetch" "New warning" "$out"
 
 # After explicit refresh, the note appears
 $MYCELIUM import source --as no-fetch-test --refresh >/dev/null 2>&1 || true

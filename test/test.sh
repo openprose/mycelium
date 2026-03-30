@@ -140,15 +140,15 @@ out=$($MYCELIUM read "$NEW_BLOB" 2>&1)
 assert "read missing note" "(no mycelium note)" "$out"
 
 echo ""
-echo "=== Context ==="
+echo "=== Context Workflow Script ==="
 
-# Context walks blob → tree → commit
+# Workflow script walks blob → tree → commit
 $MYCELIUM note -f -k context -m "Commit context for context test" >/dev/null
-out=$($MYCELIUM context src/auth/retry.ts)
-assert "context shows exact blob note" "[exact]" "$out"
-assert "context shows inherited tree" "[tree]" "$out"
-assert "context shows commit" "[commit]" "$out"
-assert "context header" "=== context: src/auth/retry.ts" "$out"
+out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/context-workflow.sh" src/auth/retry.ts)
+assert "context workflow shows exact blob note" "[exact]" "$out"
+assert "context workflow shows inherited tree" "[tree]" "$out"
+assert "context workflow shows commit" "[commit]" "$out"
+assert "context workflow header" "=== workflow context: src/auth/retry.ts" "$out"
 
 echo ""
 echo "=== Find ==="
@@ -200,14 +200,13 @@ out=$($MYCELIUM log 5)
 assert "log shows commits" "initial commit" "$out"
 
 echo ""
-echo "=== Supersession ==="
+echo "=== Note History ==="
 
-# Get the current note blob OID on retry.ts
-old_blob=$(git notes --ref=mycelium list "$BLOB_RETRY" | cut -d' ' -f1)
-$MYCELIUM note -f src/auth/retry.ts -k summary --supersedes "$old_blob" -m "Updated summary" >/dev/null
-out=$($MYCELIUM read src/auth/retry.ts)
-assert "supersedes header present" "supersedes $old_blob" "$out"
-assert "new body present" "Updated summary" "$out"
+# Overwrite a note and inspect history via git / workflow script
+$MYCELIUM note -f src/auth/retry.ts -k summary -m "Updated summary" >/dev/null
+out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/note-history.sh" src/auth/retry.ts 2>&1)
+assert "note history shows latest body" "Updated summary" "$out"
+assert "note history shows earlier body" "Retry module summary" "$out"
 
 echo ""
 echo "=== Activate & Sync Init ==="
@@ -271,34 +270,23 @@ out=$($MYCELIUM read)
 assert "stdin body captured" "Stdin body content" "$out"
 
 echo ""
-echo "=== Auto-Supersede Invariant ==="
+echo "=== Git-Native Note History ==="
 
-# Write a note, overwrite it, verify the old one is preserved
+# Write a note, overwrite it, verify history is preserved in the notes ref
 $MYCELIUM note -f README.md -k observation -m "First version." >/dev/null
-FIRST_BLOB=$(git notes --ref=mycelium list "$BLOB_README" | cut -d' ' -f1)
-
 $MYCELIUM note -f README.md -k observation -m "Second version." >/dev/null
-out=$($MYCELIUM read README.md)
-assert "auto-supersede: new note has supersedes header" "supersedes $FIRST_BLOB" "$out"
-
-# Old blob is still retrievable
-out=$(git cat-file -p "$FIRST_BLOB")
-assert "auto-supersede: old blob retrievable" "First version." "$out"
-
-# Chain: overwrite again, verify it points to second, which points to first
-SECOND_BLOB=$(git notes --ref=mycelium list "$BLOB_README" | cut -d' ' -f1)
 $MYCELIUM note -f README.md -k observation -m "Third version." >/dev/null
-out=$($MYCELIUM read README.md)
-assert "auto-supersede: chain depth 2" "supersedes $SECOND_BLOB" "$out"
-out=$(git cat-file -p "$SECOND_BLOB")
-assert "auto-supersede: chain walkable" "supersedes $FIRST_BLOB" "$out"
+out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/note-history.sh" README.md 2>&1)
+assert "note history: latest body present" "Third version." "$out"
+assert "note history: middle body present" "Second version." "$out"
+assert "note history: first body present" "First version." "$out"
 
 # Notes ref has commit history
 out=$(git log --oneline refs/notes/mycelium | wc -l)
 assert_not "notes ref has commit history" "0" "$out"
 
 echo ""
-echo "=== Stale Detection ==="
+echo "=== Historical File Notes ==="
 
 # Annotate a file, then change it
 echo "version 1" > stalefile.ts
@@ -310,16 +298,12 @@ echo "version 2" > stalefile.ts
 git add stalefile.ts
 git commit -q --no-verify -m "modify stalefile"
 
-# read should find the stale note via path edge
+# read now shows only the current object; history is a workflow script
 out=$($MYCELIUM read stalefile.ts)
-assert "stale: no note on current blob" "(no note on current blob)" "$out"
-assert "stale: shows [stale] label" "[stale]" "$out"
-assert "stale: shows original note content" "Fragile parsing" "$out"
-
-# context should show it as [stale]
-out=$($MYCELIUM context stalefile.ts)
-assert "stale context: shows [stale]" "[stale]" "$out"
-assert "stale context: compressed one-liner" "for full note" "$out"
+assert "historical notes: read no longer surfaces old blob note" "(no mycelium note)" "$out"
+out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/path-history.sh" stalefile.ts)
+assert "historical notes: history script finds original note" "Fragile parsing" "$out"
+assert "historical notes: history script marks history" "[history]" "$out"
 
 echo ""
 echo "=== Rename (same content) ==="
@@ -348,7 +332,7 @@ git commit -q --no-verify -m "deep nesting"
 DEEP_TREE=$(git rev-parse HEAD:deep)
 $MYCELIUM note -f deep -k constraint -m "Everything here is experimental." >/dev/null
 
-out=$($MYCELIUM context deep/a/b/c/leaf.ts)
+out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/context-workflow.sh" deep/a/b/c/leaf.ts)
 assert "deep inheritance: surfaces parent tree note" "[tree]" "$out"
 assert "deep inheritance: shows constraint" "experimental" "$out"
 
@@ -367,12 +351,12 @@ out=$($MYCELIUM read .)
 assert "root tree: note readable" "Test root principle" "$out"
 assert "root tree: has treepath edge" "targets-treepath treepath:." "$out"
 
-# Should surface in context for any file
-out=$($MYCELIUM context README.md)
-assert "root tree: surfaces in context for files" "Test root principle" "$out"
+# Should surface in workflow context for any file
+out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/context-workflow.sh" README.md)
+assert "root tree: surfaces in workflow context for files" "Test root principle" "$out"
 assert "root tree: tagged as [tree] inherited" "[tree]" "$out"
 
-out=$($MYCELIUM context deep/a/b/c/leaf.ts)
+out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/context-workflow.sh" deep/a/b/c/leaf.ts)
 assert "root tree: surfaces for deeply nested files" "Test root principle" "$out"
 
 # find constraint should discover it
@@ -391,10 +375,9 @@ git commit -q --no-verify -m "change root tree"
 out=$($MYCELIUM read .)
 assert_not "stale root: current tree has no note" "Test root principle" "$out"
 
-# But context should find it via stale-tree scan
-out=$($MYCELIUM context README.md)
-assert "stale root: surfaces as stale-tree" "Test root principle" "$out"
-assert "stale root: marked as stale" "[stale-tree]" "$out"
+# Workflow context no longer performs stale-tree recovery; use history when needed
+out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/context-workflow.sh" README.md)
+assert_not "stale root: workflow context stays on current tree" "[stale-tree]" "$out"
 
 echo ""
 echo "=== Follow Command ==="
@@ -524,7 +507,7 @@ $MYCELIUM branch use main >/dev/null
 $MYCELIUM branch merge merge-branch2 >/dev/null
 out=$($MYCELIUM read merge-target.txt)
 assert "branch merge conflict: branch wins" "branch version" "$out"
-assert "branch merge conflict: supersedes main" "supersedes" "$out"
+assert_not "branch merge conflict: no supersedes header" "supersedes" "$out"
 
 echo ""
 echo "=== Self-Documenting CLI ==="
@@ -534,7 +517,7 @@ out=$($MYCELIUM help 2>&1)
 assert "help: shows note command" "mycelium note" "$out"
 assert "help: shows follow command" "mycelium follow" "$out"
 assert "help: shows refs command" "mycelium refs" "$out"
-assert "help: shows context command" "mycelium context" "$out"
+assert "help: shows workflow script guidance" "scripts/context-workflow.sh" "$out"
 assert "help: shows doctor command" "mycelium doctor" "$out"
 assert "help: shows branch command" "mycelium branch" "$out"
 assert "help: shows kinds command" "mycelium kinds" "$out"
@@ -644,14 +627,6 @@ out=$(git notes --ref=mycelium show "$BLOB_BEFORE" 2>/dev/null)
 assert "compost: note has status composted" "status composted" "$out"
 assert "compost: note retains kind" "kind summary" "$out"
 assert "compost: note retains title" "Compost test note" "$out"
-
-# Context hides composted notes by default
-out=$($MYCELIUM context compost-target.ts 2>&1)
-assert_not "compost: context hides composted" "Compost test note" "$out"
-
-# Context --all shows composted notes
-out=$($MYCELIUM context compost-target.ts --all 2>&1)
-assert "compost: context --all shows composted" "Compost test note" "$out"
 
 # Doctor reports composted count
 out=$($MYCELIUM doctor 2>&1)
@@ -797,23 +772,23 @@ assert "slot-git: default ref has default note" "Default note" "$out"
 out=$(git notes --ref=mycelium--slot--skeleton show "$SHARED_BLOB" 2>/dev/null)
 assert "slot-git: skeleton unchanged after default write" "Skeleton obs" "$out"
 
-# Context aggregates all slots by default
-out=$($MYCELIUM context shared.ts 2>&1)
-assert "slot: context shows skeleton" "Skeleton obs" "$out"
-assert "slot: context shows enricher" "Enricher summary" "$out"
-assert "slot: context shows default" "Default note" "$out"
+# Workflow context aggregates all slots by default
+out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/context-workflow.sh" shared.ts 2>&1)
+assert "slot: workflow context shows skeleton" "Skeleton obs" "$out"
+assert "slot: workflow context shows enricher" "Enricher summary" "$out"
+assert "slot: workflow context shows default" "Default note" "$out"
 
-# Context shows which slot each note is from
-assert "slot: context labels skeleton slot" "skeleton" "$out"
-assert "slot: context labels enricher slot" "enricher" "$out"
+# Workflow context shows which slot each note is from
+assert "slot: workflow context labels skeleton slot" "skeleton" "$out"
+assert "slot: workflow context labels enricher slot" "enricher" "$out"
 
 echo ""
-echo "=== Slot Topologies: Supersedes Within Slot ==="
+echo "=== Slot Topologies: Overwrite Within Slot ==="
 
-# Overwrite within same slot = supersedes (intra-slot)
+# Overwrite within same slot updates that slot only
 $MYCELIUM note -f shared.ts --slot skeleton -k observation -t "Updated skeleton" -m "Revised." >/dev/null 2>&1
 out=$($MYCELIUM read shared.ts --slot skeleton 2>&1)
-assert "slot: supersede within slot" "Updated skeleton" "$out"
+assert "slot: overwrite within slot" "Updated skeleton" "$out"
 assert_not "slot: old note gone from slot read" "Skeleton obs" "$out"
 
 # Enricher note untouched by skeleton overwrite
@@ -942,21 +917,26 @@ git add legacy.ts && git commit -m "legacy" --quiet
 $MYCELIUM note -f legacy.ts -k context -t "Legacy note" -m "No slot specified." >/dev/null 2>&1
 out=$($MYCELIUM read legacy.ts 2>&1)
 assert "slot: legacy note readable" "Legacy note" "$out"
-out=$($MYCELIUM context legacy.ts 2>&1)
-assert "slot: legacy note in context" "Legacy note" "$out"
+out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/context-workflow.sh" legacy.ts 2>&1)
+assert "slot: legacy note in workflow context" "Legacy note" "$out"
 
 echo ""
 echo "=== Slot Topologies: Read Semantics ==="
 
-# read with no --slot returns default slot only (not aggregate)
+# read with no --slot returns default slot only on the current object
 out=$($MYCELIUM read shared.ts 2>&1)
-assert "slot: read no-slot returns default" "Default note" "$out"
+assert "slot: read no-slot stays on current object" "(no mycelium note)" "$out"
 assert_not "slot: read no-slot excludes skeleton" "Skeleton" "$out"
 assert_not "slot: read no-slot excludes enricher" "Enricher" "$out"
 
-# read with --slot returns that slot only
+# Historical notes are now a workflow script
+out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/path-history.sh" shared.ts 2>&1)
+assert "slot: history script finds default note" "Default note" "$out"
+assert "slot: history script finds skeleton note" "Updated skeleton" "$out"
+
+# read with --slot returns that slot only on the current object
 out=$($MYCELIUM read shared.ts --slot skeleton 2>&1)
-assert "slot: read --slot skeleton" "Updated skeleton" "$out"
+assert "slot: read --slot skeleton stays on current object" "(no mycelium note)" "$out"
 assert_not "slot: read --slot skeleton excludes enricher" "Enricher" "$out"
 
 echo ""
@@ -980,19 +960,19 @@ out=$($MYCELIUM compost "${AMBIG_BLOB:0:12}" --slot red --compost 2>&1)
 assert "slot: OID + slot compost works" "composted" "$out"
 
 echo ""
-echo "=== Slot Topologies: Cross-Slot Supersedes Forbidden ==="
+echo "=== Slot Topologies: Cross-Slot Independence ==="
 
-# Writing to slot A should never auto-supersede a note in slot B
+# Writing to slot A should never affect the note in slot B
 echo "xsuper-file" > xsuper.ts
 git add xsuper.ts && git commit -m "xsuper" --quiet
 $MYCELIUM note -f xsuper.ts --slot alpha -k observation -t "Alpha" -m "a" >/dev/null 2>&1
 $MYCELIUM note -f xsuper.ts --slot beta -k summary -t "Beta" -m "b" >/dev/null 2>&1
 
-# Overwrite alpha — beta must not get a supersedes header
+# Overwrite alpha — beta must stay untouched
 $MYCELIUM note -f xsuper.ts --slot alpha -k observation -t "Alpha v2" -m "a2" >/dev/null 2>&1
 out=$($MYCELIUM read xsuper.ts --slot beta 2>&1)
-assert "slot: beta has no supersedes from alpha" "Beta" "$out"
-assert_not "slot: beta not superseded" "supersedes" "$out"
+assert "slot: beta survives alpha overwrite" "Beta" "$out"
+assert_not "slot: beta body unchanged by alpha overwrite" "Alpha v2" "$out"
 
 echo ""
 echo "=== Slot Topologies: Renew Collision ==="
@@ -1016,9 +996,9 @@ assert "slot: renew succeeds despite other slot having current" "renewed" "$out"
 echo ""
 echo "=== Slot Topologies: Follow Across Slots ==="
 
-# follow with no --slot shows default slot note + edges
+# follow with no --slot stays on the current object
 out=$($MYCELIUM follow shared.ts 2>&1)
-assert "slot: follow no-slot shows default" "Default note" "$out"
+assert "slot: follow no-slot reports no current note" "no mycelium note" "$out"
 
 echo ""
 echo "=== Slot Topologies: Unsafe Slot Names ==="

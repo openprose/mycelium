@@ -209,7 +209,6 @@ mycelium — structured notes on git objects
   mycelium read [target]                          Read note (default: HEAD)
   mycelium follow [target]                        Read note + resolve all edges
   mycelium refs [target]                          Find all notes pointing at target
-  mycelium context <path> [--all]                 All notes relevant to a path
   mycelium find <kind>                            Find all notes of a kind
   mycelium kinds                                  List all kinds in use
   mycelium edges [type]                           List all edges
@@ -236,17 +235,21 @@ Options for 'note':
                            warning, constraint, observation, value — or invent your own
   -e, --edge <type target>  Extra edges (auto-edges are always added)
   -t, --title <title>       Short label
-  -s, --status <status>     active (default)|superseded|archived
+  -s, --status <status>     active (default)|archived
   --slot <name>             Write to a named slot (default: shared lane)
-  --supersedes <oid>        OID of note this replaces
   -f, --force               Overwrite existing note (required if target already has one)
   -m, --message <body>      Note body (reads stdin if omitted and not a tty)
 
+Workflow scripts shipped with this repo (not core CLI):
+  scripts/context-workflow.sh <path> [ref]  Recommended arrival workflow
+  scripts/path-history.sh <path> [ref]      Historical notes for a file path
+  scripts/note-history.sh <target>          Git-native note overwrite history
+
 Slots:
   Multiple notes on the same object via named slots. Each slot is an
-  independent notes ref. read/follow use default slot; context/find/
-  doctor/prime aggregate all slots. --slot works on note, read, follow,
-  compost. Reserved names: main, default.
+  independent notes ref. read/follow use default slot; find/
+  doctor/prime aggregate all slots. --slot works on note, read, follow.
+  Reserved names: main, default.
 EOF
 
   # jj-specific help when colocated
@@ -263,7 +266,7 @@ EOF
 }
 
 cmd_note() {
-  local target="" kind="" title="" status="" body="" supersedes="" slot="" force=false
+  local target="" kind="" title="" status="" body="" slot="" force=false
   local -a edges=()
 
   # Parse args — target is the first non-flag argument, or HEAD
@@ -273,7 +276,6 @@ cmd_note() {
       -e|--edge)       edges+=("$2"); shift 2 ;;
       -t|--title)      title="$2"; shift 2 ;;
       -s|--status)     status="$2"; shift 2 ;;
-      --supersedes)    supersedes="$2"; shift 2 ;;
       --slot)          slot="$2"; shift 2 ;;
       -f|--force)      force=true; shift ;;
       -m|--message)    body="$2"; shift 2 ;;
@@ -329,32 +331,28 @@ cmd_note() {
       ;;
   esac
 
-  # Auto-supersede: if this object already has a note IN THIS SLOT, capture its blob OID
-  # Supersedes is intra-slot only — writing to skeleton never supersedes enricher
-  if [[ -z "$supersedes" ]]; then
-    local existing_blob
-    existing_blob=$(git notes --ref="$WRITE_REF" list "$oid" 2>/dev/null | cut -d' ' -f1 || true)
-    if [[ -n "$existing_blob" ]]; then
-      local existing_content
-      existing_content=$(git cat-file -p "$existing_blob")
-      local existing_kind=$(note_header "$existing_content" "kind")
-      local existing_title=$(note_header "$existing_content" "title")
-      local slot_label="${slot:+[slot:$slot] }"
-      if [[ "$force" != "true" ]]; then
-        echo "Error: ${slot_label}[$existing_kind] \"${existing_title:-(untitled)}\" already exists on ${type}:${oid:0:12}" >&2
-        echo "  Use -f to overwrite, or choose a different target." >&2
-        exit 1
-      fi
-      supersedes="$existing_blob"
-      echo "⚠ ${slot_label}overwriting [$existing_kind] \"${existing_title:-(untitled)}\" on ${type}:${oid:0:12}" >&2
+  # Guard against silent overwrite
+  local existing_blob
+  existing_blob=$(git notes --ref="$WRITE_REF" list "$oid" 2>/dev/null | cut -d' ' -f1 || true)
+  if [[ -n "$existing_blob" ]]; then
+    local existing_content
+    existing_content=$(git cat-file -p "$existing_blob")
+    local existing_kind existing_title slot_label
+    existing_kind=$(note_header "$existing_content" "kind")
+    existing_title=$(note_header "$existing_content" "title")
+    slot_label="${slot:+[slot:$slot] }"
+    if [[ "$force" != "true" ]]; then
+      echo "Error: ${slot_label}[$existing_kind] \"${existing_title:-(untitled)}\" already exists on ${type}:${oid:0:12}" >&2
+      echo "  Use -f to overwrite, or choose a different target." >&2
+      exit 1
     fi
+    echo "⚠ ${slot_label}overwriting [$existing_kind] \"${existing_title:-(untitled)}\" on ${type}:${oid:0:12}" >&2
   fi
 
   # Build note content
   local content="kind $kind"
   [[ -n "$title" ]]      && content+=$'\n'"title $title"
   [[ -n "$status" ]]     && content+=$'\n'"status $status"
-  [[ -n "$supersedes" ]] && content+=$'\n'"supersedes $supersedes"
   for e in "${auto_edges[@]}"; do
     content+=$'\n'"edge $e"
   done
@@ -389,7 +387,7 @@ cmd_note() {
   elif [[ "$type" == "blob" ]]; then
     echo "  (pinned to blob:${oid:0:12} — specific to this version)" >&2
   elif [[ "$type" == "tree" && "${filepath:-}" == "." ]]; then
-    echo "  (project-level — always findable via context)" >&2
+    echo "  (project-level — stable root-tree target)" >&2
   elif [[ "$type" == "tree" && -n "$filepath" ]]; then
     echo "  (via treepath:$filepath — findable if dir changes)" >&2
   elif [[ "$type" == "commit" ]]; then
@@ -442,30 +440,6 @@ cmd_read() {
     return
   fi
 
-  # No direct note — if this is a path target, scan for stale notes
-  # that reference this path but have a different blob OID
-  if [[ -n "$filepath" ]]; then
-    local path_target="path:$filepath"
-    local found=false
-    git notes --ref="$READ_REF" list 2>/dev/null | while read noteblob obj; do
-      local content
-      content=$(git cat-file -p "$noteblob")
-      # Does this note target our path?
-      if echo "$content" | grep -q "targets-path $path_target"; then
-        local kind=$(note_header "$content" "kind")
-        local title=$(note_header "$content" "title")
-        echo "(no note on current blob)"
-        echo ""
-        echo "[stale] ${title:-(untitled)} ($kind) — blob changed, path note still relevant"
-        echo "$content"
-        found=true
-        break
-      fi
-    done
-    # Subshell means $found doesn't propagate — use grep to check
-    return
-  fi
-
   # jj fallback: look up by change_id edge
   if [[ "$type" == "commit" ]] && { [[ -d "$_git_dir/../.jj" ]] || [[ -d ".jj" ]]; }; then
     local _cid
@@ -495,20 +469,14 @@ cmd_read() {
 }
 
 cmd_context() {
-  local filepath="" at="HEAD" show_all=false slot=""
+  cat >&2 <<'EOF'
+mycelium context moved out of the core CLI.
+Use the workflow scripts from this repo's skill instead:
+  scripts/context-workflow.sh <path> [ref]
+  scripts/path-history.sh <path> [ref]      # optional historical file notes
+EOF
+  return 1
 
-  while [[ $# -gt 0 ]]; do
-    case $1 in
-      --all)  show_all=true; shift ;;
-      --slot) slot="$2"; shift 2 ;;
-      *)      if [[ -z "$filepath" ]]; then filepath="$1"; else at="$1"; fi; shift ;;
-    esac
-  done
-  [[ -z "$filepath" ]] && { echo "Usage: mycelium context <path> [ref] [--all] [--slot <name>]" >&2; exit 1; }
-  _validate_slot "$slot" || exit 1
-
-  echo "=== context: $filepath @ $at ==="
-  echo ""
 
   local blob
   blob=$(git rev-parse "$at:$filepath" 2>/dev/null || true)
@@ -730,22 +698,6 @@ cmd_follow() {
 
   local note
   note=$(git notes --ref="$follow_ref" show "$oid" 2>/dev/null || true)
-  if [[ -z "$note" && -n "$filepath" ]]; then
-    local path_target="path:$filepath"
-    local notelist stale_obj=""
-    notelist=$(git notes --ref="$follow_ref" list 2>/dev/null || true)
-    while read -r noteblob obj; do
-      [[ -z "$noteblob" ]] && continue
-      local content
-      content=$(git cat-file -p "$noteblob")
-      if echo "$content" | grep -q "targets-path $path_target"; then
-        note="$content"
-        stale_obj="$obj"
-        break
-      fi
-    done <<< "$notelist"
-    [[ -n "$stale_obj" ]] && oid="$stale_obj"
-  fi
   if [[ -z "$note" ]]; then
     echo "(no mycelium note on $type:${oid:0:12})"
     return
@@ -1432,19 +1384,7 @@ cmd_branch() {
           [[ -z "$noteblob" ]] && continue
           local existing
           existing=$(git notes --ref="$dst_ref" list "$obj" 2>/dev/null | awk '{print $1}' || true)
-          if [[ -n "$existing" ]]; then
-            local branch_content merged
-            branch_content=$(git cat-file -p "$noteblob")
-            merged=$(echo "$branch_content" | awk -v existing="$existing" '
-              /^kind /{print; next}
-              /^title /{print; next}
-              !done{print "supersedes " existing; done=1}
-              {print}
-            ')
-            git notes --ref="$dst_ref" add -f -m "$merged" "$obj"
-          else
-            git notes --ref="$dst_ref" add -f -C "$noteblob" "$obj"
-          fi
+          git notes --ref="$dst_ref" add -f -C "$noteblob" "$obj"
           count=$((count + 1))
         done <<< "$notelist"
       }
@@ -2091,12 +2031,12 @@ Structured notes attached to git objects via `refs/notes/mycelium`.
 **Before working on a file, check for its note. After meaningful work, leave a note.**
 
 ```bash
-mycelium.sh context <path>       # all notes relevant to a file
-mycelium.sh read [target]        # read a single note
+scripts/context-workflow.sh <path>   # recommended arrival workflow
+mycelium.sh read [target]            # read a single note
 mycelium.sh note <target> -k <kind> -m <body>  # write a note
-mycelium.sh find <kind>          # find all notes of a kind
-mycelium.sh compost [path|.]     # triage stale notes
-mycelium.sh doctor               # graph state
+mycelium.sh find <kind>              # find all notes of a kind
+scripts/note-history.sh <target>     # note overwrite history via git
+mycelium.sh doctor                   # graph state
 ```
 SKILL
   fi
@@ -2117,7 +2057,6 @@ SKILL
   echo ""
   echo '```'
   cmd_doctor
-  cmd_compost --report
   echo '```'
 
   # 3. Root tree notes — scan all slots
