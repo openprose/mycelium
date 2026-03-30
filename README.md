@@ -46,7 +46,7 @@ mycelium.sh note HEAD -k context -m "First note."
 mycelium.sh read HEAD
 ```
 
-For AI agents, load [SKILL.md](SKILL.md) into your agent framework. The skill teaches the convention: check for notes before working, leave notes after.
+For AI agents, load [SKILL.md](SKILL.md) into your agent framework. The skill teaches the convention: check for notes before working, leave notes after. For this repo's own maintenance discipline, see [AGENT_CI.md](AGENT_CI.md).
 
 ## Practical notes
 
@@ -110,6 +110,15 @@ mycelium.sh import <remote> [--as <name>]        Import notes from remote
 ```
 
 Kinds and edge types are open vocabulary — use whatever strings make sense. `mycelium.sh kinds` shows what's in use.
+
+## Agent-native CI
+
+This repo keeps its first-class artifacts in sync with a checked-in local checklist rather than GitHub Actions:
+
+- [AGENT_CI.md](AGENT_CI.md) is the canonical checklist
+- `mycelium.sh prime` should surface it for arriving agents
+- local hooks may remind about it
+- mycelium notes record per-slice rationale and review
 
 ## Workflow scripts in this repo
 

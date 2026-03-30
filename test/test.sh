@@ -1033,7 +1033,8 @@ echo ""
 echo "=== Slot Topologies: Prime Shows Slots ==="
 
 out=$($MYCELIUM prime 2>&1)
-# Prime should show notes from all slots and label them
+# Prime should show the agent-native CI checklist and repo notes from all slots
+assert "slot: prime shows agent-native ci" "Agent-native CI" "$out"
 assert "slot: prime aggregates" "notes" "$out"
 
 echo ""
