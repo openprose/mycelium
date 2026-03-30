@@ -541,6 +541,17 @@ assert "help: shows doctor command" "mycelium doctor" "$out"
 assert "help: shows branch command" "mycelium branch" "$out"
 assert "help: shows kinds command" "mycelium kinds" "$out"
 
+# Compatibility shims should redirect cleanly
+CONTEXT_RC=0
+out=$($MYCELIUM context src/auth/retry.ts 2>&1) || CONTEXT_RC=$?
+assert "shim: context points to script" "scripts/context-workflow.sh" "$out"
+assert "shim: context exits successfully" "0" "$CONTEXT_RC"
+
+COMPOST_RC=0
+out=$($MYCELIUM compost src/auth/retry.ts 2>&1) || COMPOST_RC=$?
+assert "shim: compost points to script" "scripts/compost-workflow.sh" "$out"
+assert "shim: compost exits successfully" "0" "$COMPOST_RC"
+
 # Missing --kind gives clear error
 out=$($MYCELIUM note HEAD -m "no kind" 2>&1) || true
 assert "error: missing kind" "kind" "$out"
@@ -620,11 +631,11 @@ echo "=== Compost ==="
 
 # Setup: create a file, note it, change the file so note goes stale
 echo "original content" > compost-target.ts
-git add compost-target.ts && git commit -m "compost target" --quiet
+git add compost-target.ts && git commit -m "compost target" --quiet --no-verify
 $MYCELIUM note -f compost-target.ts -k summary -t "Compost test note" -m "This is the original." >/dev/null 2>&1
 
 echo "changed content" > compost-target.ts
-git add compost-target.ts && git commit -m "change compost target" --quiet
+git add compost-target.ts && git commit -m "change compost target" --quiet --no-verify
 
 # Verify it's stale
 out=$($MYCELIUM doctor 2>&1)
@@ -656,12 +667,12 @@ echo "=== Compost Renew ==="
 
 # Setup: create file, note it, change file
 echo "renew original" > renew-target.ts
-git add renew-target.ts && git commit -m "renew target" --quiet
+git add renew-target.ts && git commit -m "renew target" --quiet --no-verify
 $MYCELIUM note -f renew-target.ts -k warning -t "Renew test note" -m "This warning still applies." >/dev/null 2>&1
 OLD_BLOB=$(git rev-parse HEAD:renew-target.ts)
 
 echo "renew changed" > renew-target.ts
-git add renew-target.ts && git commit -m "change renew target" --quiet
+git add renew-target.ts && git commit -m "change renew target" --quiet --no-verify
 NEW_BLOB=$(git rev-parse HEAD:renew-target.ts)
 
 # Renew via agent-native flag (no stdin piping)
@@ -681,12 +692,12 @@ echo "=== Compost OID Targeting ==="
 
 # Setup: create file, note it, change file
 echo "oid-target original" > oid-target.ts
-git add oid-target.ts && git commit -m "oid target" --quiet
+git add oid-target.ts && git commit -m "oid target" --quiet --no-verify
 $MYCELIUM note -f oid-target.ts -k observation -t "OID target test" -m "Target by OID." >/dev/null 2>&1
 OID_BLOB=$(git rev-parse HEAD:oid-target.ts)
 
 echo "oid-target changed" > oid-target.ts
-git add oid-target.ts && git commit -m "change oid target" --quiet
+git add oid-target.ts && git commit -m "change oid target" --quiet --no-verify
 
 # Dry-run shows OID
 out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" oid-target.ts --dry-run 2>&1)
@@ -703,12 +714,12 @@ assert "oid: note has status composted" "status composted" "$out"
 
 # Setup for renew by OID
 echo "oid-renew original" > oid-renew.ts
-git add oid-renew.ts && git commit -m "oid renew" --quiet
+git add oid-renew.ts && git commit -m "oid renew" --quiet --no-verify
 $MYCELIUM note -f oid-renew.ts -k decision -t "OID renew test" -m "Renew by OID." >/dev/null 2>&1
 OID_RENEW_OLD=$(git rev-parse HEAD:oid-renew.ts)
 
 echo "oid-renew changed" > oid-renew.ts
-git add oid-renew.ts && git commit -m "change oid renew" --quiet
+git add oid-renew.ts && git commit -m "change oid renew" --quiet --no-verify
 OID_RENEW_NEW=$(git rev-parse HEAD:oid-renew.ts)
 
 # Renew by OID
@@ -728,7 +739,7 @@ echo "=== Overwrite Guard ==="
 
 # Write a note, then try to overwrite WITHOUT -f — should fail
 echo "owtest" > owtest.ts
-git add owtest.ts && git commit -m "overwrite test" --quiet
+git add owtest.ts && git commit -m "overwrite test" --quiet --no-verify
 $MYCELIUM note -f owtest.ts -k context -t "First note" -m "first" >/dev/null 2>&1
 out=$($MYCELIUM note owtest.ts -k context -t "Second note" -m "second" 2>&1) || true
 assert "guard: blocks overwrite without -f" "already exists" "$out"
@@ -753,7 +764,7 @@ echo "=== Slot Topologies: One-to-Many ==="
 
 # Setup: one file, two slots writing different notes on same object
 echo "shared-file" > shared.ts
-git add shared.ts && git commit -m "shared file" --quiet
+git add shared.ts && git commit -m "shared file" --quiet --no-verify
 SHARED_BLOB=$(git rev-parse HEAD:shared.ts)
 
 # Two different slots note the same file — neither obliterates the other
@@ -838,7 +849,7 @@ echo "=== Slot Topologies: Stale Detection Per-Slot ==="
 
 # Change the file — all slots' notes on old blob go stale independently
 echo "shared-file-v2" > shared.ts
-git add shared.ts && git commit -m "change shared file" --quiet
+git add shared.ts && git commit -m "change shared file" --quiet --no-verify
 
 out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" shared.ts --dry-run 2>&1)
 # All three slot notes should show as stale
@@ -891,13 +902,13 @@ echo "=== Slot Topologies: Batch Compost Across Slots ==="
 
 # Setup fresh stale notes across slots
 echo "batch-file" > batch.ts
-git add batch.ts && git commit -m "batch file" --quiet
+git add batch.ts && git commit -m "batch file" --quiet --no-verify
 BATCH_BLOB=$(git rev-parse HEAD:batch.ts)
 $MYCELIUM note -f batch.ts --slot alpha -k observation -t "Alpha note" -m "a" >/dev/null 2>&1
 $MYCELIUM note -f batch.ts --slot beta -k observation -t "Beta note" -m "b" >/dev/null 2>&1
 $MYCELIUM note -f batch.ts -k context -t "Default batch" -m "c" >/dev/null 2>&1
 echo "batch-file-v2" > batch.ts
-git add batch.ts && git commit -m "change batch" --quiet
+git add batch.ts && git commit -m "change batch" --quiet --no-verify
 
 # Batch compost by path (no --slot) = compost across ALL slots
 MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" batch.ts --compost >/dev/null 2>&1
@@ -932,7 +943,7 @@ echo "=== Slot Topologies: Backward Compatibility ==="
 # Existing notes written without --slot still work
 # (they live in refs/notes/mycelium, the default)
 echo "legacy-file" > legacy.ts
-git add legacy.ts && git commit -m "legacy" --quiet
+git add legacy.ts && git commit -m "legacy" --quiet --no-verify
 $MYCELIUM note -f legacy.ts -k context -t "Legacy note" -m "No slot specified." >/dev/null 2>&1
 out=$($MYCELIUM read legacy.ts 2>&1)
 assert "slot: legacy note readable" "Legacy note" "$out"
@@ -963,12 +974,12 @@ echo "=== Slot Topologies: OID Ambiguity ==="
 
 # Setup: same object noted in two slots
 echo "ambig-file" > ambig.ts
-git add ambig.ts && git commit -m "ambig" --quiet
+git add ambig.ts && git commit -m "ambig" --quiet --no-verify
 AMBIG_BLOB=$(git rev-parse HEAD:ambig.ts)
 $MYCELIUM note -f ambig.ts --slot red -k observation -t "Red note" -m "r" >/dev/null 2>&1
 $MYCELIUM note -f ambig.ts --slot blue -k observation -t "Blue note" -m "b" >/dev/null 2>&1
 echo "ambig-v2" > ambig.ts
-git add ambig.ts && git commit -m "change ambig" --quiet
+git add ambig.ts && git commit -m "change ambig" --quiet --no-verify
 
 # Bare OID compost should error when multiple slots match
 out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" "${AMBIG_BLOB:0:12}" --compost 2>&1 || true)
@@ -983,7 +994,7 @@ echo "=== Slot Topologies: Cross-Slot Independence ==="
 
 # Writing to slot A should never affect the note in slot B
 echo "xsuper-file" > xsuper.ts
-git add xsuper.ts && git commit -m "xsuper" --quiet
+git add xsuper.ts && git commit -m "xsuper" --quiet --no-verify
 $MYCELIUM note -f xsuper.ts --slot alpha -k observation -t "Alpha" -m "a" >/dev/null 2>&1
 $MYCELIUM note -f xsuper.ts --slot beta -k summary -t "Beta" -m "b" >/dev/null 2>&1
 
@@ -998,11 +1009,11 @@ echo "=== Slot Topologies: Renew Collision ==="
 
 # Renew should only fail if same slot has current note, not other slots
 echo "renew-col" > renew-col.ts
-git add renew-col.ts && git commit -m "renew-col" --quiet
+git add renew-col.ts && git commit -m "renew-col" --quiet --no-verify
 $MYCELIUM note -f renew-col.ts --slot enricher -k summary -t "Enricher col" -m "e" >/dev/null 2>&1
 OLD_RC_BLOB=$(git rev-parse HEAD:renew-col.ts)
 echo "renew-col-v2" > renew-col.ts
-git add renew-col.ts && git commit -m "change renew-col" --quiet
+git add renew-col.ts && git commit -m "change renew-col" --quiet --no-verify
 NEW_RC_BLOB=$(git rev-parse HEAD:renew-col.ts)
 
 # Write a note on current version in default slot
@@ -1043,7 +1054,7 @@ echo "=== Audit Bug: Prime Slot-Only Repo ==="
 # In a repo with ONLY slot notes (no default ref notes), prime must still work
 # Bug: prime checked only $REF, missed slot-only repos
 echo "prime-only" > prime-only.ts
-git add prime-only.ts && git commit -m "prime-only" --quiet
+git add prime-only.ts && git commit -m "prime-only" --quiet --no-verify
 $MYCELIUM note -f prime-only.ts --slot alpha -k observation -t "Alpha only" -m "Only slot note." >/dev/null 2>&1
 # Remove any default-ref notes on this blob to simulate slot-only
 git notes --ref=mycelium remove "$(git rev-parse HEAD:prime-only.ts)" 2>/dev/null || true
@@ -1057,10 +1068,10 @@ echo "=== Audit Bug: Compost Report Ignores Tree Notes ==="
 # Bug: compost --report only checked targets-path, not targets-treepath
 mkdir -p treedir
 echo "treefile" > treedir/f.ts
-git add treedir && git commit -m "treedir" --quiet
+git add treedir && git commit -m "treedir" --quiet --no-verify
 $MYCELIUM note -f treedir/ -k constraint -t "Dir constraint" -m "Rule." >/dev/null 2>&1
 echo "treefile-v2" > treedir/f.ts
-git add treedir && git commit -m "change treedir" --quiet
+git add treedir && git commit -m "change treedir" --quiet --no-verify
 out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" --report 2>&1)
 # Report should count the stale tree note
 assert "audit: report counts stale tree notes" "stale" "$out"
@@ -1073,10 +1084,10 @@ echo "=== Audit Bug: Git Noise Suppressed ==="
 
 # Bug: compost/renew leaked "Overwriting existing notes for object" from git
 echo "noise-file" > noise.ts
-git add noise.ts && git commit -m "noise" --quiet
+git add noise.ts && git commit -m "noise" --quiet --no-verify
 $MYCELIUM note -f noise.ts -k context -t "Noise note" -m "n" >/dev/null 2>&1
 echo "noise-v2" > noise.ts
-git add noise.ts && git commit -m "change noise" --quiet
+git add noise.ts && git commit -m "change noise" --quiet --no-verify
 out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" noise.ts --compost 2>&1)
 assert_not "audit: no git noise on compost" "Overwriting existing" "$out"
 
@@ -1097,7 +1108,7 @@ edge targets-change change:$MIGRATE_CID
 Body of note to migrate." "$OLD_COMMIT"
 
 # Simulate rewrite: new commit with same tree but different OID
-git commit --allow-empty -m "rewritten commit" --quiet
+git commit --allow-empty -m "rewritten commit" --quiet --no-verify
 NEW_COMMIT=$(git rev-parse HEAD)
 
 # The note is on OLD_COMMIT. We need a way to resolve change_id -> new commit.

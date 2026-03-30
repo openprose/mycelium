@@ -1346,7 +1346,7 @@ mycelium compost moved out of the core CLI.
 Use the workflow script from this repo instead:
   scripts/compost-workflow.sh [path|oid] [--compost|--renew|--dry-run|--report]
 EOF
-  return 1
+  return 0
 }
 
 cmd_migrate() {
