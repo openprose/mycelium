@@ -1,0 +1,15 @@
+kind context
+title Study: prime and architecture
+edge explains commit:9dc0da38ff180a50a5ac3c7c2614c18d27195154
+edge targets-change change:xprpqrlvoyrwxrtvwlwnwupuzpuzyrkk
+
+Studied mycelium starting from `prime`.
+
+Findings:
+- `prime` is an agent onboarding view: SKILL.md + doctor/compost state + project-level notes across slots.
+- Core substrate is plain-text git notes on commits/blobs/trees with auto-edges and open vocabulary.
+- Navigation model is `context` (ambient), `follow` (outbound), `refs` (inbound), `find`/`kinds` (global).
+- Staleness is edge-based (`applies-to` + `targets-path`/`targets-treepath`), then triaged with `compost`.
+- Isolation/sharing model is slots, branch-scoped refs, export/import refs, repo-id, and zone.
+- This repo treats code + README + SKILL + tests + live notes as the canonical design.
+- Observed nuance: project/root notes surface reliably in `prime` and `context` via treepath scanning, while `read . --slot <name>` only shows an exact current root-tree note.
