@@ -96,7 +96,6 @@ mycelium.sh edges [type]                         List all edges
 mycelium.sh list                                 All annotated objects
 mycelium.sh log [n]                              Recent commits with notes
 mycelium.sh dump                                 Everything, greppable
-mycelium.sh compost [path|oid] [--compost|--renew|--dry-run|--report]
 mycelium.sh doctor                               Graph state (facts only)
 mycelium.sh prime                                Skill + live repo context for agents
 mycelium.sh migrate [--dry-run] [--map <file>]   Reattach notes after jj rewrites
@@ -117,14 +116,21 @@ Kinds and edge types are open vocabulary — use whatever strings make sense. `m
 When using a full checkout of this repo, the skill also ships workflow scripts that lean on git rather than core CLI aggregation:
 
 ```bash
-scripts/context-workflow.sh <path> [ref]   # recommended arrival workflow
-scripts/path-history.sh <path> [ref]       # historical file notes via git history
-scripts/note-history.sh <target>           # overwrite history via notes-ref history
+scripts/context-workflow.sh <path> [ref]                    # recommended arrival workflow
+scripts/path-history.sh <path> [ref]                        # historical file notes via git history
+scripts/note-history.sh <target>                            # overwrite history via notes-ref history
+scripts/compost-workflow.sh [path|oid] [--compost|--renew]  # explicit stale/renew workflow
 ```
 
 These are **examples / golden workflows**, not part of the core mycelium protocol.
 
-`mycelium.sh compost` still exists for repositories that want an explicit stale/renew lifecycle, but the simpler default is to lean on git-native history scripts first and write a fresh current note when older context still matters.
+Rule of thumb:
+- `context-workflow.sh` = default arrival workflow for a path
+- `path-history.sh` = explicit historical notes for a file
+- `note-history.sh` = overwrite history for one note target
+- `compost-workflow.sh` = opt-in stale/renew lifecycle
+
+If a repository still wants an explicit stale/renew lifecycle, use `scripts/compost-workflow.sh`. The simpler default is still to lean on git-native history scripts first and write a fresh current note when older context still matters.
 
 ## Note format
 

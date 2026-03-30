@@ -46,6 +46,15 @@ slot_display() {
   fi
 }
 
+resolve_object() {
+  local spec="$1"
+  local oid
+  oid=$(git rev-parse "$spec" 2>/dev/null || true)
+  if [[ -n "$oid" && "$oid" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "$oid"
+  fi
+}
+
 show_object_notes() {
   local obj="$1" label="$2"
   local ref
@@ -87,7 +96,7 @@ printf '=== workflow context: %s @ %s (%s) ===\n\n' "$filepath" "$at" "$BASE_REF
 
 blob=""
 if [[ "$filepath" != "." ]]; then
-  blob=$(git rev-parse "$at:$filepath" 2>/dev/null || true)
+  blob=$(resolve_object "$at:$filepath")
 fi
 if [[ -n "$blob" ]]; then
   show_object_notes "$blob" "exact"
@@ -100,10 +109,10 @@ dir="$filepath"
 while true; do
   dir=$(dirname "$dir")
   if [[ "$dir" == "." ]]; then
-    tree=$(git rev-parse "$at^{tree}" 2>/dev/null || true)
+    tree=$(resolve_object "$at^{tree}")
     label="tree"
   else
-    tree=$(git rev-parse "$at:$dir" 2>/dev/null || true)
+    tree=$(resolve_object "$at:$dir")
     label="tree"
   fi
   [[ -n "${tree:-}" ]] && show_object_notes "$tree" "$label"

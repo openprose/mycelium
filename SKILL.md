@@ -63,14 +63,21 @@ mycelium.sh dump                                 # everything, greppable
 These are recommended workflows, not part of the core CLI:
 
 ```bash
-scripts/context-workflow.sh <path> [ref]   # current file + parent dirs + current commit
-scripts/path-history.sh <path> [ref]       # older file notes via git history
-scripts/note-history.sh <target>           # note overwrite history via notes ref
+scripts/context-workflow.sh <path> [ref]                    # current file + parent dirs + current commit
+scripts/path-history.sh <path> [ref]                        # older file notes via git history
+scripts/note-history.sh <target>                            # note overwrite history via notes ref
+scripts/compost-workflow.sh [path|oid] [--compost|--renew]  # explicit stale/renew workflow
 ```
 
 Use them when you want richer context, but keep in mind they are recipes built on top of git + mycelium primitives.
 
-`mycelium.sh compost` still exists as an explicit stale/renew lifecycle for repos that want it, but the simpler default is to use git-native history first and write a fresh current note when older context still matters.
+Rule of thumb:
+- `context-workflow.sh` = default arrival workflow for a path
+- `path-history.sh` = explicit historical notes for a file
+- `note-history.sh` = overwrite history for one note target
+- `compost-workflow.sh` = opt-in stale/renew lifecycle for repos that still want it
+
+If a repo still wants an explicit stale/renew lifecycle, use `scripts/compost-workflow.sh`. The simpler default is to use git-native history first and write a fresh current note when older context still matters.
 
 ## Patterns
 

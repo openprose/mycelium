@@ -15,6 +15,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MYCELIUM="$REPO_ROOT/mycelium.sh"
+COMPOST_WORKFLOW="$REPO_ROOT/scripts/compost-workflow.sh"
 TMPDIR=$(mktemp -d)
 PASS=0
 FAIL=0
@@ -372,7 +373,7 @@ assert "read-only: direct git read works" "kind" "$DIRECT_READ"
 
 # compost refuses on imported notes
 COMPOST_RC=0
-out=$($MYCELIUM compost "$IMPORTED_OBJ" --compost 2>&1) || COMPOST_RC=$?
+out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" "$IMPORTED_OBJ" --compost 2>&1) || COMPOST_RC=$?
 # Should either fail or skip — imported notes are not compostable
 if echo "$out" | grep -qi "import\|read.only\|error"; then
   echo "  ✓ read-only: compost rejected on import"

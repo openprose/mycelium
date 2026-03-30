@@ -5,6 +5,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MYCELIUM="$REPO_ROOT/mycelium.sh"
+COMPOST_WORKFLOW="$REPO_ROOT/scripts/compost-workflow.sh"
 INSTALLER="$REPO_ROOT/install.sh"
 TMPDIR=$(mktemp -d)
 PASS=0
@@ -149,6 +150,9 @@ assert "context workflow shows exact blob note" "[exact]" "$out"
 assert "context workflow shows inherited tree" "[tree]" "$out"
 assert "context workflow shows commit" "[commit]" "$out"
 assert "context workflow header" "=== workflow context: src/auth/retry.ts" "$out"
+
+out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/context-workflow.sh" does-not-exist.ts 2>&1)
+assert "context workflow missing path warns" "(path does not resolve at HEAD: does-not-exist.ts)" "$out"
 
 echo ""
 echo "=== Find ==="
@@ -304,6 +308,21 @@ assert "historical notes: read no longer surfaces old blob note" "(no mycelium n
 out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/path-history.sh" stalefile.ts)
 assert "historical notes: history script finds original note" "Fragile parsing" "$out"
 assert "historical notes: history script marks history" "[history]" "$out"
+
+# The optional [ref] argument should bound the walk
+cp stalefile.ts refbound.ts
+git add refbound.ts
+git commit -q --no-verify -m "add refbound"
+$MYCELIUM note -f refbound.ts -k summary -t "Refbound v1" -m "first" >/dev/null
+
+echo "refbound v2" > refbound.ts
+git add refbound.ts
+git commit -q --no-verify -m "update refbound"
+$MYCELIUM note -f refbound.ts -k summary -t "Refbound v2" -m "second" >/dev/null
+
+out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/path-history.sh" refbound.ts HEAD~1)
+assert "historical notes: ref arg includes older note" "Refbound v1" "$out"
+assert_not "historical notes: ref arg excludes newer note" "Refbound v2" "$out"
 
 echo ""
 echo "=== Rename (same content) ==="
@@ -612,17 +631,17 @@ out=$($MYCELIUM doctor 2>&1)
 assert "compost: doctor shows stale" "stale:" "$out"
 
 # --dry-run: lists stale notes without acting
-out=$($MYCELIUM compost . --dry-run 2>&1)
+out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" . --dry-run 2>&1)
 assert "compost dry-run: lists stale" "Compost test note" "$out"
 assert "compost dry-run: shows kind" "summary" "$out"
 
 # --report: just counts
-out=$($MYCELIUM compost . --report 2>&1)
+out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" . --report 2>&1)
 assert "compost report: shows count" "stale" "$out"
 
 # Compost via agent-native flag (no stdin piping)
 BLOB_BEFORE=$(git rev-parse HEAD~1:compost-target.ts)
-$MYCELIUM compost compost-target.ts --compost >/dev/null 2>&1
+MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" compost-target.ts --compost >/dev/null 2>&1
 out=$(git notes --ref=mycelium show "$BLOB_BEFORE" 2>/dev/null)
 assert "compost: note has status composted" "status composted" "$out"
 assert "compost: note retains kind" "kind summary" "$out"
@@ -646,7 +665,7 @@ git add renew-target.ts && git commit -m "change renew target" --quiet
 NEW_BLOB=$(git rev-parse HEAD:renew-target.ts)
 
 # Renew via agent-native flag (no stdin piping)
-$MYCELIUM compost renew-target.ts --renew >/dev/null 2>&1
+MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" renew-target.ts --renew >/dev/null 2>&1
 
 # New blob should have the note
 out=$(git notes --ref=mycelium show "$NEW_BLOB" 2>/dev/null)
@@ -670,11 +689,11 @@ echo "oid-target changed" > oid-target.ts
 git add oid-target.ts && git commit -m "change oid target" --quiet
 
 # Dry-run shows OID
-out=$($MYCELIUM compost oid-target.ts --dry-run 2>&1)
+out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" oid-target.ts --dry-run 2>&1)
 assert "oid: dry-run shows OID" "${OID_BLOB:0:12}" "$out"
 
 # Compost by OID (agent-native: no interactive prompt, no path batch)
-out=$($MYCELIUM compost "${OID_BLOB:0:12}" --compost 2>&1)
+out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" "${OID_BLOB:0:12}" --compost 2>&1)
 assert "oid: compost by OID succeeds" "composted" "$out"
 assert "oid: compost output shows kind" "observation" "$out"
 
@@ -693,7 +712,7 @@ git add oid-renew.ts && git commit -m "change oid renew" --quiet
 OID_RENEW_NEW=$(git rev-parse HEAD:oid-renew.ts)
 
 # Renew by OID
-out=$($MYCELIUM compost "${OID_RENEW_OLD:0:12}" --renew 2>&1)
+out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" "${OID_RENEW_OLD:0:12}" --renew 2>&1)
 assert "oid: renew by OID succeeds" "renewed" "$out"
 
 # New blob has the note
@@ -821,7 +840,7 @@ echo "=== Slot Topologies: Stale Detection Per-Slot ==="
 echo "shared-file-v2" > shared.ts
 git add shared.ts && git commit -m "change shared file" --quiet
 
-out=$($MYCELIUM compost shared.ts --dry-run 2>&1)
+out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" shared.ts --dry-run 2>&1)
 # All three slot notes should show as stale
 assert "slot: stale detects skeleton" "Updated skeleton" "$out"
 assert "slot: stale detects enricher" "Enricher" "$out"
@@ -832,7 +851,7 @@ echo "=== Slot Topologies: Compost Per-Slot ==="
 
 # Compost just the skeleton note, leave enricher and default alone
 STALE_SKEL_BLOB=$SHARED_BLOB  # blob before file change
-$MYCELIUM compost shared.ts --slot skeleton --compost >/dev/null 2>&1
+MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" shared.ts --slot skeleton --compost >/dev/null 2>&1
 
 # GROUND TRUTH: skeleton note on old blob has status composted
 out=$(git notes --ref=mycelium--slot--skeleton show "$STALE_SKEL_BLOB" 2>/dev/null)
@@ -847,13 +866,13 @@ out=$(git notes --ref=mycelium show "$STALE_SKEL_BLOB" 2>/dev/null)
 assert_not "slot-git: default NOT composted" "status composted" "$out"
 
 # Skeleton gone from stale list, others remain
-out=$($MYCELIUM compost shared.ts --dry-run 2>&1)
+out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" shared.ts --dry-run 2>&1)
 assert_not "slot: skeleton composted, gone from stale" "Updated skeleton" "$out"
 assert "slot: enricher still stale" "Enricher" "$out"
 assert "slot: default still stale" "Default note" "$out"
 
 # Renew enricher to current blob
-$MYCELIUM compost shared.ts --slot enricher --renew >/dev/null 2>&1
+MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" shared.ts --slot enricher --renew >/dev/null 2>&1
 NEW_SHARED_BLOB=$(git rev-parse HEAD:shared.ts)
 
 # GROUND TRUTH: new blob has enricher note
@@ -881,7 +900,7 @@ echo "batch-file-v2" > batch.ts
 git add batch.ts && git commit -m "change batch" --quiet
 
 # Batch compost by path (no --slot) = compost across ALL slots
-$MYCELIUM compost batch.ts --compost >/dev/null 2>&1
+MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" batch.ts --compost >/dev/null 2>&1
 
 # GROUND TRUTH: all three refs have composted status on old blob
 out=$(git notes --ref=mycelium--slot--alpha show "$BATCH_BLOB" 2>/dev/null)
@@ -892,7 +911,7 @@ out=$(git notes --ref=mycelium show "$BATCH_BLOB" 2>/dev/null)
 assert "slot-git: batch default composted" "status composted" "$out"
 
 # Verify they're gone from stale listing
-out=$($MYCELIUM compost batch.ts --dry-run 2>&1)
+out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" batch.ts --dry-run 2>&1)
 assert_not "slot: batch composted alpha" "Alpha note" "$out"
 assert_not "slot: batch composted beta" "Beta note" "$out"
 assert_not "slot: batch composted default" "Default batch" "$out"
@@ -952,11 +971,11 @@ echo "ambig-v2" > ambig.ts
 git add ambig.ts && git commit -m "change ambig" --quiet
 
 # Bare OID compost should error when multiple slots match
-out=$($MYCELIUM compost "${AMBIG_BLOB:0:12}" --compost 2>&1 || true)
+out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" "${AMBIG_BLOB:0:12}" --compost 2>&1 || true)
 assert "slot: bare OID ambiguous errors" "ambiguous" "$out"
 
 # With --slot, it works
-out=$($MYCELIUM compost "${AMBIG_BLOB:0:12}" --slot red --compost 2>&1)
+out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" "${AMBIG_BLOB:0:12}" --slot red --compost 2>&1)
 assert "slot: OID + slot compost works" "composted" "$out"
 
 echo ""
@@ -990,7 +1009,7 @@ NEW_RC_BLOB=$(git rev-parse HEAD:renew-col.ts)
 $MYCELIUM note -f renew-col.ts -k context -t "Default current" -m "d" >/dev/null 2>&1
 
 # Renew enricher should succeed even though default has a current note
-out=$($MYCELIUM compost renew-col.ts --slot enricher --renew 2>&1)
+out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" renew-col.ts --slot enricher --renew 2>&1)
 assert "slot: renew succeeds despite other slot having current" "renewed" "$out"
 
 echo ""
@@ -1041,11 +1060,11 @@ git add treedir && git commit -m "treedir" --quiet
 $MYCELIUM note -f treedir/ -k constraint -t "Dir constraint" -m "Rule." >/dev/null 2>&1
 echo "treefile-v2" > treedir/f.ts
 git add treedir && git commit -m "change treedir" --quiet
-out=$($MYCELIUM compost --report 2>&1)
+out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" --report 2>&1)
 # Report should count the stale tree note
 assert "audit: report counts stale tree notes" "stale" "$out"
 # Verify dry-run sees it
-out=$($MYCELIUM compost treedir --dry-run 2>&1)
+out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" treedir --dry-run 2>&1)
 assert "audit: dry-run sees stale tree note" "Dir constraint" "$out"
 
 echo ""
@@ -1057,7 +1076,7 @@ git add noise.ts && git commit -m "noise" --quiet
 $MYCELIUM note -f noise.ts -k context -t "Noise note" -m "n" >/dev/null 2>&1
 echo "noise-v2" > noise.ts
 git add noise.ts && git commit -m "change noise" --quiet
-out=$($MYCELIUM compost noise.ts --compost 2>&1)
+out=$(MYCELIUM_REF=mycelium "$COMPOST_WORKFLOW" noise.ts --compost 2>&1)
 assert_not "audit: no git noise on compost" "Overwriting existing" "$out"
 
 echo ""

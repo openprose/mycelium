@@ -41,6 +41,15 @@ slot_display() {
   fi
 }
 
+resolve_object() {
+  local spec="$1"
+  local oid
+  oid=$(git rev-parse "$spec" 2>/dev/null || true)
+  if [[ -n "$oid" && "$oid" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "$oid"
+  fi
+}
+
 filepath="${1:-}"
 at="${2:-HEAD}"
 [[ -z "$filepath" ]] && { usage >&2; exit 1; }
@@ -55,7 +64,7 @@ found=false
 
 while read -r commit; do
   [[ -z "$commit" ]] && continue
-  blob=$(git rev-parse "$commit:$filepath" 2>/dev/null || true)
+  blob=$(resolve_object "$commit:$filepath")
   [[ -z "$blob" ]] && continue
   if grep -qx "$blob" "$seen_blobs" 2>/dev/null; then
     continue
@@ -72,7 +81,7 @@ while read -r commit; do
     echo ""
     found=true
   done < <(all_refs "$BASE_REF")
-done < <(git log --format='%H' -- "$at" -- "$filepath" 2>/dev/null || true)
+done < <(git log --format='%H' "$at" -- "$filepath" 2>/dev/null || true)
 
 if [[ "$found" == "false" ]]; then
   echo "(no historical file notes found)"
