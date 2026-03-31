@@ -1,0 +1,12 @@
+kind summary
+title Tests updated for script-based workflows and git-native history
+edge applies-to tree:c49d94b385e76b949251f0207c0bbfbc024bc687
+edge targets-treepath treepath:test/
+
+The main test suite now checks:
+- `context` behavior through `scripts/context-workflow.sh`
+- file history through `scripts/path-history.sh`
+- note overwrite history through `scripts/note-history.sh`
+- absence of `supersedes` in merge/output expectations
+
+Phase 0 and Phase 1 multi-repo tests were updated where they previously depended on core `context` behavior.
