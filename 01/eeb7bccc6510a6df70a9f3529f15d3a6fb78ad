@@ -1,0 +1,28 @@
+kind decision
+title Separate maintainer workflow from external user experience
+edge explains commit:01eeb7bccc6510a6df70a9f3529f15d3a6fb78ad
+edge targets-change change:yvsvqunwrllznsvknuzutxvzowxlsmxr
+
+This slice corrects a layering mistake.
+
+Relevant existing notes already said this:
+- `Tool vs project: clear separation`
+- `doctor: facts only, no opinions`
+- `Agent onboarding gap: workflow not obvious`
+
+Applied rule:
+- user-facing surfaces (`mycelium.sh`, `README.md`, `SKILL.md`, `prime`, `doctor`, shipped examples) should describe the tool and its user experience
+- maintainer-facing workflow should live in contributor docs, tests, branch notes, and maintainer process
+
+Changes in this slice:
+- renamed `AGENT_CI.md` to `DEVELOPING.md`
+- removed the checklist from `prime`
+- removed checklist mentions from `README.md` and `SKILL.md`
+- removed the maintainer reminder from the example hook
+- kept the contributor checklist as a checked-in repo-maintainer doc instead
+
+Validation:
+- `./test/test.sh`
+- `./test/test-multi-repo-phase0.sh`
+- `./test/test-multi-repo-phase1.sh`
+all passed after the separation change.
