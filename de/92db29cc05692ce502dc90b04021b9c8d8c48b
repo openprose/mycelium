@@ -1,26 +1,14 @@
-kind warning
-title Lesson: don't tag releases before real-world validation
+kind context
+title Plan: simplify core, move workflows to skill
 edge explains commit:de92db29cc05692ce502dc90b04021b9c8d8c48b
 edge targets-change change:rzvlzoosylrmpvmmkrpumzqqxrovqltv
 
-v0.2.0 was tagged after 369 synthetic tests passed but before anyone tried export/import across real repositories. The tests run in temp dirs with file:// remotes — they prove the mechanics work but not that the feature is useful or ergonomic.
+Starting work on initial-feedback branch.
 
-What went wrong:
-- Tests passed → felt like a milestone → tagged immediately
-- The rush to push created pressure to 'finish' by tagging
-- No one asked 'has anyone actually used this?' before calling it a release
+Intent:
+- shrink/remove core context aggregation from mycelium.sh
+- remove supersedes from core and docs/tests
+- move historical/stale workflow guidance into skill-level scripts/docs
+- use subagents for review/testing before landing
 
-What to do differently:
-- Synthetic tests passing → push to main (code is safe to ship)
-- Real-world validation → then tag a release (feature is confirmed useful)
-- If you want to share pre-validated code, use -rc tags: v0.3.0-rc.1
-- The gap between 'tests pass' and 'release' should contain actual usage
-
-This applies to all future features. The pattern:
-  1. TDD: write tests, implement until green
-  2. Review: sub-agent code review, fix blockers
-  3. Push to main: code is safe, CI passes
-  4. Validate: use the feature in real work (not synthetic tests)
-  5. Tag release: only after step 4 confirms value
-
-v0.2.0 skipped step 4. The code is fine. The process was wrong.
+Files likely touched: mycelium.sh, SKILL.md, README.md, test/test.sh and possibly new skill helper scripts.
