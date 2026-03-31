@@ -1,0 +1,8 @@
+kind summary
+title README now explains agent-native CI
+edge applies-to blob:ac01101dcf8bdefadb582e4e8477e68ef75cf307
+edge targets-path path:README.md
+
+README now points contributors at `AGENT_CI.md` and explains that this repo keeps artifact sync in a checked-in local workflow rather than GitHub Actions.
+
+That makes the contract legible to humans outside the mycelium layer too.
