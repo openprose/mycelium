@@ -1,0 +1,11 @@
+kind summary
+title Workflow scripts moved above the core CLI
+edge applies-to tree:328f40b423f39285d67b231194875971ccc37fd8
+edge targets-treepath treepath:scripts/
+
+New workflow scripts in `scripts/`:
+- `context-workflow.sh`: recommended arrival workflow (current file note, parent dirs/root, current commit, imports, optional history)
+- `path-history.sh`: historical file notes via git log + rev-parse
+- `note-history.sh`: overwrite history via notes-ref history
+
+These are intentionally repo-level golden workflows rather than new core mycelium commands.
