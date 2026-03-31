@@ -1,0 +1,21 @@
+kind context
+title Initial-feedback slice: compost moved out of core
+edge explains commit:90f0e51bc8fdcfb3052472dad2c3123daf472e75
+edge targets-change change:zsynxxpuvrnpokqpkpuwpxxoslkxlwol
+
+Implements the next initial-feedback slice.
+
+What changed:
+- moved the explicit stale/renew/compost workflow out of `mycelium.sh` into `scripts/compost-workflow.sh`
+- left a small compatibility shim in `cmd_compost`
+- deleted the dead legacy body under the `context` shim
+- hardened workflow scripts based on real interactive tmux + pi dogfooding:
+  - `context-workflow.sh` now rejects non-OID `rev-parse` output and warns on missing paths
+  - `path-history.sh` now honors its optional `[ref]` argument correctly
+- updated README, SKILL, and tests accordingly
+
+Validation:
+- `./test/test.sh`
+- `./test/test-multi-repo-phase0.sh`
+- `./test/test-multi-repo-phase1.sh`
+all passed after this slice.
