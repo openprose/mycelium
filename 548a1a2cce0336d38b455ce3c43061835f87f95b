@@ -1,0 +1,15 @@
+kind review
+title RC wrap-up review via tmux + interactive pi
+edge explains commit:548a1a2cce0336d38b455ce3c43061835f87f95b
+edge targets-change change:kvqmqmkxytkpywrzmkqrwxorvoosrxqq
+
+A dedicated tmux + interactive `pi` subagent reviewed the current branch tip for release-candidate readiness without expanding scope.
+
+Report artifact:
+- `/tmp/mycelium-rc-wrapup-report.md`
+
+Reviewer conclusions adopted here:
+- branch is RC-ready
+- keep `context` and `compost` shims for discoverability
+- accept current `doctor` semantics for RC
+- only remaining nit was shim exit-code consistency, which was fixed in this commit
