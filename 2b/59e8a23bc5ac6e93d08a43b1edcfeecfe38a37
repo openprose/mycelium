@@ -1,0 +1,6 @@
+kind observation
+title Workflow hardening: [ref] argument now really bounds history
+edge applies-to blob:2b59e8a23bc5ac6e93d08a43b1edcfeecfe38a37
+edge targets-path path:scripts/path-history.sh
+
+The history workflow now calls `git log "$ref" -- "$path"` in the correct order and validates blob resolution. This makes the optional `[ref]` argument real rather than accidental and keeps missing-path resolution from producing fake object strings.
