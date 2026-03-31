@@ -1,0 +1,25 @@
+kind decision
+title Final early-stage cleanup: remove legacy shims
+edge explains commit:2f69708705f5356111c4d6ef0437efae967dd2e3
+edge targets-change change:zuqsyzmlxvtnovzztzsrzlyyqwvnvqsl
+
+User made the final early-stage product call:
+
+- do not keep `context` and `compost` shims purely for backward compatibility
+- the project is still early enough that preserving old entrypoints is unnecessary
+
+Applied change:
+- removed both shims from the core route
+- `context` and `compost` remain available only through the user-facing skill/workflow layer (`SKILL.md` + repo scripts)
+- tests updated accordingly
+
+This keeps the architecture cleaner:
+1. thin core CLI primitives
+2. user-facing skill/workflow layer for richer behaviors
+3. separate maintainer-development process
+
+Validation:
+- `./test/test.sh`
+- `./test/test-multi-repo-phase0.sh`
+- `./test/test-multi-repo-phase1.sh`
+all passed after removing the shims.
