@@ -1,0 +1,15 @@
+kind summary
+title Canonical checklist for agent-native CI
+edge applies-to blob:042fc2b4e2441d5b141fc395c46a2c479ffec068
+edge targets-path path:AGENT_CI.md
+
+This file is now the canonical checked-in checklist for keeping the repo's first-class artifacts in sync:
+- code/runtime
+- tests
+- SKILL.md
+- README.md
+- prime
+- doctor
+- mycelium notes
+
+It is meant to function like local, agent-native CI: readable by agents, versioned in git, surfaced by `prime`, reinforced by hooks, and validated by local test runs.
