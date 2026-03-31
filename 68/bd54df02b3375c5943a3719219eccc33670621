@@ -1,0 +1,28 @@
+kind context
+title Initial-feedback slice: thin core, scripts above it
+edge explains commit:68bd54df02b3375c5943a3719219eccc33670621
+edge targets-change change:kysyxswstlxlnlywyqoqrrxmvxrmmnoz
+
+Implements the first initial-feedback slice.
+
+What changed:
+- removed `supersedes` from the core note format and merge behavior
+- shrank core support for `context` by moving richer behavior to repo workflow scripts
+- kept `compost` available for now, but reframed the default workflow around git-native history scripts
+- updated README, SKILL, hook example, and tests to match
+- added workflow scripts for arrival context, file history, and note overwrite history
+
+Validation:
+- `./test/test.sh`
+- `./test/test-multi-repo-phase0.sh`
+- `./test/test-multi-repo-phase1.sh`
+all passed after the change.
+
+Important workflow correction learned during this session:
+- tmux subagents in this repo should use **interactive `pi`**, not `pi -p`
+- an attempted `pi -p` tmux review flow was incorrect and should not be treated as the repo pattern going forward
+- the relevant branch/review guidance remains in mycelium notes (including the multi-repo note about tmux-driven sub-agent review)
+
+Open follow-up after this slice:
+- decide how much of `compost` should remain in the core CLI versus move fully to workflow scripts
+- eventually clean out dead legacy implementation paths if we fully remove more commands from the core surface.
