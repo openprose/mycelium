@@ -1,0 +1,6 @@
+kind summary
+title Tests now assert prime surfaces the checklist
+edge applies-to tree:67b6da6a40db1445d2c288e6389485467130c7cc
+edge targets-treepath treepath:test/
+
+The main test suite now locks in that `prime` surfaces the agent-native CI checklist. That keeps `prime` in the same sync contract as code/docs/notes instead of treating it as an afterthought.
