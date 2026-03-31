@@ -1,0 +1,8 @@
+kind summary
+title Tests no longer lock shim behavior
+edge applies-to tree:071e03e2b89f56e75513586de66dbc27d995d226
+edge targets-treepath treepath:test/
+
+With the shims removed, the test suite no longer asserts redirect behavior for `context` and `compost` command names.
+
+The workflow-layer behavior remains covered through the workflow scripts themselves, which is the intended user-facing layer for these richer behaviors.
