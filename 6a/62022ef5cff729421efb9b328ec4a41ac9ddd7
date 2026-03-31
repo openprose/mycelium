@@ -1,0 +1,18 @@
+kind summary
+title Core simplification pass
+edge applies-to blob:6a62022ef5cff729421efb9b328ec4a41ac9ddd7
+edge targets-path path:mycelium.sh
+
+First initial-feedback slice in the core CLI.
+
+Changes in this file:
+- Removed `supersedes` from note creation and branch-merge behavior.
+- `read` and `follow` now stay on the exact current object; they no longer walk stale path history.
+- `context` was shrunk to a migration stub that points agents to skill workflow scripts.
+- `prime` now reports doctor facts only (no compost report).
+- Help text now points to workflow scripts for richer arrival/history behavior.
+
+Intent:
+- keep mycelium.sh closer to protocol-ish primitives
+- move richer arrival/history workflows into skill scripts
+- lean on git history instead of denormalized supersession metadata.
