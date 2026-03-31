@@ -1,0 +1,6 @@
+kind observation
+title Example hook no longer leaks maintainer reminder
+edge applies-to blob:b02b255ccb48aa660bf320196f5560782dd934c4
+edge targets-path path:hooks/pre-commit
+
+The internal checklist reminder was removed from the shipped example pre-commit hook. That reminder was about how we maintain this repo, not about the product behavior external users should see in example tooling.
