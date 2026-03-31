@@ -1,0 +1,6 @@
+kind observation
+title Post-commit output simplified
+edge applies-to blob:7554431ad37a02cd2c1dd47860e955f913dda007
+edge targets-path path:hooks/post-commit
+
+The post-commit example hook now prints only `doctor` output. It no longer prints `compost --report`, which matches the move away from making stale/compost lifecycle the default arrival/departure story.
