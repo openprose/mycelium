@@ -1,0 +1,14 @@
+kind summary
+title Skill now teaches scripts for arrival/history workflows
+edge applies-to blob:e5552cc582ddecfa87c75b0f7cabe736d837d913
+edge targets-path path:SKILL.md
+
+SKILL.md was rewritten to push richer behavior out of the core CLI and into workflow recipes.
+
+Key shifts:
+- On arrival, agents are pointed at `scripts/context-workflow.sh`.
+- Historical file notes are taught via `scripts/path-history.sh`.
+- Overwrite history is taught via `scripts/note-history.sh` and raw git log on the notes ref.
+- `compost` remains available but is no longer framed as the default path.
+
+This is the main dogfooding change for the repo itself.
