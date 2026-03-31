@@ -1,0 +1,6 @@
+kind summary
+title Tests now lock in separation of maintainer vs user surfaces
+edge applies-to tree:0c191b2a2e01eb6a887c4c8b7f17cfbf773c2b6a
+edge targets-treepath treepath:test/
+
+The test suite now asserts that `prime` does not leak the contributor checklist. This keeps the separation explicit at the product-behavior level.
