@@ -1,0 +1,25 @@
+kind decision
+title Initial-feedback RC decisions
+edge explains commit:548a1a2cce0336d38b455ce3c43061835f87f95b
+edge targets-change change:kvqmqmkxytkpywrzmkqrwxorvoosrxqq
+
+Final decisions for this branch after tmux + interactive `pi` wrap-up review:
+
+1. `context` and `compost` stay out of the thin core CLI
+2. both remain part of the user-facing skill/workflow layer via repo-shipped scripts
+3. both compatibility shims stay for the RC for discoverability and migration
+4. `doctor` semantics are accepted for RC as "facts only, no opinions"
+5. maintainer workflow remains separate from user-facing product surfaces
+
+Additional wrap-up fix:
+- test harness now uses `--no-verify` on remaining temp-repo commits so host hooks do not interfere
+
+RC verdict from subagent review:
+- YES, release-candidate ready
+- no blockers
+
+Validation for this final wrap-up commit:
+- `./test/test.sh`
+- `./test/test-multi-repo-phase0.sh`
+- `./test/test-multi-repo-phase1.sh`
+all passed.
