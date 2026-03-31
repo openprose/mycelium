@@ -1,0 +1,8 @@
+kind summary
+title Skill now points agents at AGENT_CI.md
+edge applies-to blob:5a5ab857b3be74843301436d75bb0d1870661193
+edge targets-path path:SKILL.md
+
+SKILL.md now explicitly tells agents working on this repo to read `AGENT_CI.md`, and `prime` is expected to surface it.
+
+This keeps the maintenance discipline in the agent-facing contract rather than hiding it only in a human doc or local memory.
