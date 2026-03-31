@@ -541,17 +541,6 @@ assert "help: shows doctor command" "mycelium doctor" "$out"
 assert "help: shows branch command" "mycelium branch" "$out"
 assert "help: shows kinds command" "mycelium kinds" "$out"
 
-# Compatibility shims should redirect cleanly
-CONTEXT_RC=0
-out=$($MYCELIUM context src/auth/retry.ts 2>&1) || CONTEXT_RC=$?
-assert "shim: context points to script" "scripts/context-workflow.sh" "$out"
-assert "shim: context exits successfully" "0" "$CONTEXT_RC"
-
-COMPOST_RC=0
-out=$($MYCELIUM compost src/auth/retry.ts 2>&1) || COMPOST_RC=$?
-assert "shim: compost points to script" "scripts/compost-workflow.sh" "$out"
-assert "shim: compost exits successfully" "0" "$COMPOST_RC"
-
 # Missing --kind gives clear error
 out=$($MYCELIUM note HEAD -m "no kind" 2>&1) || true
 assert "error: missing kind" "kind" "$out"

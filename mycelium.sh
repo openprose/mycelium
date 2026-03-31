@@ -468,16 +468,6 @@ cmd_read() {
   echo "(no mycelium note)"
 }
 
-cmd_context() {
-  cat >&2 <<'EOF'
-mycelium context moved out of the core CLI.
-Use the workflow scripts from this repo's skill instead:
-  scripts/context-workflow.sh <path> [ref]
-  scripts/path-history.sh <path> [ref]      # optional historical file notes
-EOF
-  return 0
-}
-
 cmd_follow() {
   local target="" slot=""
   while [[ $# -gt 0 ]]; do
@@ -1340,15 +1330,6 @@ cmd_doctor() {
   rm -f "$tmp"
 }
 
-cmd_compost() {
-  cat >&2 <<'EOF'
-mycelium compost moved out of the core CLI.
-Use the workflow script from this repo instead:
-  scripts/compost-workflow.sh [path|oid] [--compost|--renew|--dry-run|--report]
-EOF
-  return 0
-}
-
 cmd_migrate() {
   local dry_run=false map_file="" ref="$NOTES_REF"
 
@@ -1553,7 +1534,6 @@ case "${1:-help}" in
   read)       shift; cmd_read "$@" ;;
   follow)     shift; cmd_follow "$@" ;;
   refs)       shift; cmd_refs "$@" ;;
-  context)    shift; cmd_context "$@" ;;
   edges)      shift; cmd_edges "$@" ;;
   find)       shift; cmd_find "$@" ;;
   kinds)      cmd_kinds ;;
@@ -1566,7 +1546,6 @@ case "${1:-help}" in
   export)     shift; cmd_export "$@" ;;
   import)     shift; cmd_import "$@" ;;
   sync-init)  shift; cmd_sync_init "$@" ;;
-  compost)    shift; cmd_compost "$@" ;;
   migrate)    shift; cmd_migrate "$@" ;;
   doctor)     cmd_doctor ;;
   dump)       cmd_dump ;;
