@@ -1,0 +1,19 @@
+kind review
+title Final short sanity review on current tip
+edge explains commit:2f69708705f5356111c4d6ef0437efae967dd2e3
+edge targets-change change:zuqsyzmlxvtnovzztzsrzlyyqwvnvqsl
+
+Final tmux + interactive `pi` sanity review on the current tip.
+
+Report artifact:
+- `/tmp/mycelium-final-sanity-report.md`
+
+Verdict:
+- RC-ready
+- blockers: none
+
+Summary:
+- current tip only removes the `context` and `compost` shims from the core route and drops the old shim assertions from `test/test.sh`
+- richer behavior remains available in the user-facing workflow layer via `SKILL.md` and repo scripts
+- this matches the documented design decisions for a thin core and workflow-layer ergonomics
+- all three test suites had already passed in the main session on this tip
