@@ -1,0 +1,13 @@
+kind decision
+title No backward-compat shims at this project stage
+edge applies-to blob:cfb83af0b54ec7114f25ddbdbebb2d54074ad1ad
+edge targets-path path:mycelium.sh
+
+Final policy update for the initial-feedback branch.
+
+We do not need to keep `context` and `compost` compatibility shims purely for backward compatibility at this early project stage.
+
+Applied change:
+- removed `cmd_context` and `cmd_compost` from the route entirely
+- richer behavior still lives in the user-facing skill/workflow layer via repo scripts
+- the thin core stays smaller and avoids preserving legacy entrypoints prematurely
