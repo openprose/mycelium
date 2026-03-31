@@ -1,0 +1,20 @@
+kind review
+title Interactive tmux+pi review and dogfood
+edge explains commit:90f0e51bc8fdcfb3052472dad2c3123daf472e75
+edge targets-change change:zsynxxpuvrnpokqpkpuwpxxoslkxlwol
+
+This slice was reviewed with the repo-preferred tmux + interactive `pi` flow (not `pi -p`).
+
+Artifacts:
+- `/tmp/mycelium-review-report.md`
+- `/tmp/mycelium-dogfood-report.md`
+
+Sub-agent findings that were addressed in this slice:
+- remove unreachable dead code under the `context` shim in `mycelium.sh`
+- fix `path-history.sh` so its optional `[ref]` argument is actually honored
+- harden `context-workflow.sh` so missing paths do not silently turn into fake object strings
+- improve SKILL/README discoverability for the workflow scripts
+
+Outcome:
+- no blockers remained after fixes
+- all three test suites passed again after integrating the review feedback
