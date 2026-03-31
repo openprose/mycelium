@@ -1,0 +1,24 @@
+kind decision
+title Tagged v0.3.0-rc.1
+edge explains commit:2f69708705f5356111c4d6ef0437efae967dd2e3
+edge targets-change change:zuqsyzmlxvtnovzztzsrzlyyqwvnvqsl
+
+Local release-candidate tag created on the validated main tip.
+
+Tag:
+- v0.3.0-rc.1
+
+Meaning:
+- thin core CLI
+- `context` and `compost` live in the user-facing skill/workflow layer
+- maintainer-development process kept separate from product surfaces
+
+Validation before tagging:
+- `./test/test.sh`
+- `./test/test-multi-repo-phase0.sh`
+- `./test/test-multi-repo-phase1.sh`
+all passed on main after fast-forwarding `initial-feedback` and merging its notes into `mycelium`.
+
+Status:
+- local tag created
+- not pushed
