@@ -1,0 +1,22 @@
+kind context
+title Published initial-feedback branch
+edge explains commit:2f69708705f5356111c4d6ef0437efae967dd2e3
+edge targets-change change:zuqsyzmlxvtnovzztzsrzlyyqwvnvqsl
+
+Publication state after merge prep:
+
+Pushed to origin:
+- branch/bookmark `initial-feedback`
+- tip commit `2f69708705f5356111c4d6ef0437efae967dd2e3`
+
+Not pushed:
+- local tag `v0.3.0-rc.1`
+- notes refs (reviewer caveat said to audit/push those separately if desired)
+
+Remote helper URL reported by push:
+- https://github.com/openprose/mycelium/pull/new/initial-feedback
+
+Reason for this split:
+- feature branch publication was explicitly requested
+- `safe-push` is the approved path for public branch publication here
+- tags/notes remain local until explicitly published/audited
