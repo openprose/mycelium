@@ -1,0 +1,18 @@
+kind decision
+title Context and compost belong in the skill/workflow layer
+edge applies-to blob:ca0a7a3b82dc95fec1d8585ba121aa12e05a4cde
+edge targets-path path:SKILL.md
+
+Clarified branch direction:
+
+- `context` and `compost` should not be first-class core CLI features
+- they also are not purely maintainer-internal workflow
+- they belong in the user-facing agent workflow layer taught by `SKILL.md`
+- that workflow layer can include repo-shipped scripts (`context-workflow.sh`, `path-history.sh`, `note-history.sh`, `compost-workflow.sh`)
+
+So the intended layering is:
+1. thin core CLI primitives
+2. skill/workflow layer for richer agent behavior
+3. maintainer-only repo-development discipline kept separate from user surfaces
+
+This keeps the product surface coherent for external users while still giving full-checkout agents ergonomic workflows.
