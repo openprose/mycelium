@@ -1,0 +1,8 @@
+kind observation
+title Pre-commit hook now reinforces agent-native CI
+edge applies-to blob:9f77d9f17030fe1439e0a38f87ae6b72f9115995
+edge targets-path path:hooks/pre-commit
+
+The sample pre-commit hook now does two useful things:
+- reminds contributors to keep first-class artifacts in sync when runtime/docs/tests/hooks change
+- runs tests when workflow scripts under `scripts/` change, since those scripts are now part of the runtime surface
