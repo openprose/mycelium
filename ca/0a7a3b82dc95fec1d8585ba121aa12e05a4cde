@@ -1,0 +1,6 @@
+kind summary
+title Skill kept generic again
+edge applies-to blob:ca0a7a3b82dc95fec1d8585ba121aa12e05a4cde
+edge targets-path path:SKILL.md
+
+SKILL.md no longer points arriving agents at the maintainer checklist. The skill is for users of mycelium in arbitrary repos; repo-specific maintainer process belongs elsewhere.
