@@ -1,0 +1,12 @@
+kind summary
+title README reframed around thin core + workflow scripts
+edge applies-to blob:bbda0e58561d048aa428433e044e18637d5727fc
+edge targets-path path:README.md
+
+README now presents:
+- the thinner core CLI
+- repo-shipped workflow scripts as examples, not protocol
+- git-native note history instead of `supersedes`
+- compost as an optional lifecycle command rather than the default mental model.
+
+This keeps the public contract aligned with the simplification direction of initial-feedback.
