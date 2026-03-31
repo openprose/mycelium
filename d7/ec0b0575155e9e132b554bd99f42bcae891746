@@ -1,0 +1,952 @@
+kind context
+title Initial feedback from colleague (db, 2026-03-30)
+edge explains commit:d7ec0b0575155e9e132b554bd99f42bcae891746
+edge targets-change change:kysyxswstlxlnlywyqoqrrxmvxrmmnoz
+
+---
+
+Mycelium: Deep Analysis Report
+
+What It Is
+
+A git-notes-based knowledge graph for AI agents — one 1661-line bash script (mycelium.sh) with zero dependencies beyond git and bash. Agents read notes on arrival, leave notes on
+ departure. Notes attach to commits, files, and directories using structured headers + free-form markdown bodies. Storage is refs/notes/mycelium.
+
+---
+
+Architecture Diagram
+
+┌─────────────────────────────────────────────────────┐
+│ CLI Router (L1641) │
+│ note│read│follow│context│find│compost│doctor│... │
+└──────────┬──────────────────────────────────────────┘
+│
+┌─────▼──────┐ ┌──────────────┐
+│ resolve\_ │ │ \_each_ref() │ ← slot/branch
+│ target() │ │ \_all_notes() │ multiplexing
+│ (L134-167) │ └──────┬───────┘
+└─────┬───────┘ │
+│ ┌─────▼────────────────┐
+▼ │ refs/notes/mycelium │ ← default
+┌───────────┐ │ refs/notes/mycelium │
+│ git object │ │ --slot--skeleton │ ← slots
+│ store │ │ refs/notes/mycelium │
+│ (blobs, │ │ --feat-branch │ ← branches
+│ trees, │ └──────────────────────┘
+│ commits) │
+└───────────┘
+
+Note Data Model
+
+kind decision ← REQUIRED (open vocabulary)
+<CEO>Do we propose any default kinds in the current repository? If so, what are they? If not, should we?</CEO>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**Yes.** README.md (lines 182-195) explicitly ships eight defaults: `decision`, `context`, `summary`, `warning`, `constraint`, `observation`, `value`, `todo`. SKILL.md teaches the same set to arriving agents. However, these are **documentation-only** -- zero enforcement in code. `cmd_note()` accepts any string for `--kind`. No validation, no enum, no warning on novel kinds. `cmd_kinds()` just scans what's in use. This is by design: "The vocabulary is yours."
+
+The defaults are well-chosen for the agent-annotation use case. They should NOT be enforced in code (that breaks extensibility). But they could benefit from sharper guidance on _when to use each_. See the proposed tenets below at the Kinds section.
+</REPLY>
+
+title Why we chose retry backoff ← optional
+<CEO>Is the title stored in the note itself or is this somehow stored at the git level (ie as git note metadata, outside the blob itself?)</CEO>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**In the note body itself.** Git notes are just blobs -- opaque byte strings with zero structured metadata at the git level. A blob has only a SHA hash and a size. There is no per-blob author, timestamp, title, or attribute mechanism in git.
+
+The title is written as a plain text header line inside the note blob: `title Why we chose retry backoff`. Mycelium's `cmd_note()` (line 310) concatenates all headers into the note content string, then writes the whole thing via `git notes add -f -m "$content"`. The `note_header()` function (line 129) parses it back out with `grep "^title " | head -1 | sed "s/^title //"`.
+
+There is **no alternative storage location** in git. This is the correct approach -- it is what every real-world git-notes-based tool does (including Google's git-appraise, which stores structured JSON inside note blobs).
+</REPLY>
+
+status active ← active|superseded|composted
+<CEO>Same question as above. In the note or outside the note?</CEO>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**Same answer: in the note body.** The `status` line is a header inside the blob, just like `title` and `kind`. Written at line 313 of mycelium.sh: `[[ -n "$status" ]] && content+="status $status\n"`. Modified by `_compost_note()` (line 1095) via `sed 's/^status .*/status composted/'`.
+
+Git provides no per-blob metadata mechanism. The only metadata git captures is on the **notes-ref commit** (the commit created each time you write a note): that commit has author name/email, timestamp, and a commit message. But that is per-write-operation, not per-note-field. So all structured data must live in the blob.
+</REPLY>
+
+<CEO_FOLLOWUP>
+Hmmm... wait, there is a commit associated with each note creation? This spurs a few followups:
+
+- are these commits part of the same history as the rest of the repository? will they appear in (and pollute) the history of the main codebase?
+- can you commit more than one note in one go of it? or is it one note per commit?
+- if you can have commits, can you have branches? can you have staged notes? are the mechanics 1:1 with the rest of git? or are they different in some important way?
+
+</CEO_FOLLOWUP>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**No, notes commits do NOT pollute your main history.** They are completely separate.
+
+**Are they part of the same history?** No. The notes ref (`refs/notes/mycelium`) is a **completely independent commit chain**. Its commits have no parent relationship to the commits on `main`. They share the same object store (`.git/objects`), but they form a **separate DAG** -- a disconnected graph with its own root, its own linear history, and its own tree objects. Think of them as parallel universes that happen to share a storage locker.
+
+- `git log` (no flags) shows only the current branch. Notes commits never appear.
+- `git log --all` technically includes the notes ref, but since the notes chain has no merge-base with `main`, most tools (GitHub, `git log --graph`) do not display them in any meaningful way.
+- Notes commits cannot appear in PR diffs, GitHub's commit view, or any normal workflow.
+
+**One note per commit, by default.** Each `git notes add` creates exactly one commit on the notes ref. There is no `git notes add --batch` or transaction mechanism. If you write 5 notes, that is 5 commits on the notes ref. In practice this is fine -- notes commits are tiny (they just update a tree of SHA-named blobs), and since they live on a separate ref, many small commits cost nothing.
+
+If batch performance matters, you could drop to git plumbing (`git hash-object`, `git mktree`, `git commit-tree`, `git update-ref`) to build a notes tree with multiple entries and commit it in one shot. But out of the box, `git notes` is one-at-a-time.
+
+**Branches, staging, mechanics:**
+
+| Mechanic                     | Normal branches              | Notes refs                            |
+| ---------------------------- | ---------------------------- | ------------------------------------- |
+| Separate commit history      | No, branches share ancestors | Yes, completely independent DAG       |
+| Working tree (files on disk) | Yes                          | No, blobs in object store only        |
+| Staging area (`git add`)     | Yes                          | No, each `git notes add` is atomic    |
+| Checkout                     | Yes                          | No                                    |
+| Merge                        | Yes                          | Yes (`git notes merge` exists)        |
+| Push/fetch by default        | Yes                          | No (must configure explicitly)        |
+| Visible in `git log`         | Yes                          | No (unless you ask for the notes ref) |
+
+The mental model: notes refs are **parallel universes** that share the object store. They have commits, trees, and blobs, but form a completely disconnected graph from your main codebase. Your main branch history stays clean no matter how many notes you write.
+</REPLY>
+
+supersedes abc123... ← chain to previous version
+<CEO>Why do we need this? Can we not use `git` to follow this? Is this used to supersede notes on new versions of files? In this case, it's simply a new hash and therefore a new note. And if this is the case, I would expect that we can use `git` itself to navigate to the "later version of the note attached to the later version of this file". Alternatively, maybe this is something different and I'm missing it (ie allowing us to write two notes to the same file (hash, with one that supersedes the other). A third option is that this is just the former scenario above and this is simply a denormalized/indexed way of navigating the git tree that would otherwise take multiple hops to get there.</CEO>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**Your second option is closest.** `supersedes` fires when someone **overwrites the note on the SAME object** (same blob/commit OID, same slot). It is NOT about notes across file versions -- that is handled by `targets-path` and the stale-detection system.
+
+The precise mechanism (lines 288-303): before writing a note to object `$oid`, mycelium checks if that object already has a note in this slot. If yes, it captures the **blob OID of the existing note content** and records it as `supersedes <old-blob-oid>` in the new note. Then `git notes add -f` overwrites.
+
+**Is it redundant with git's own history?** Partially yes -- it IS denormalized data. Git does track the history: every `git notes add` creates a commit on `refs/notes/mycelium`, so you can run `git log refs/notes/mycelium` and recover any previous state. However, `supersedes` exists for three legitimate reasons:
+
+1. **O(1) traversal vs O(N).** The notes reflog is a flat timeline of ALL note operations across ALL objects. To find "the previous note on object A", you'd need to walk the reflog, diff each commit's tree, and filter for your target. `supersedes` gives you a direct pointer: `git cat-file -p <supersedes-oid>` -- one hop.
+
+2. **Survives push/fetch.** Reflogs are local -- they don't transfer when notes are pushed to a remote. The `supersedes` blob OID is embedded in the note content, so it travels with the note.
+
+3. **Merge provenance.** During `branch merge` (line 941), the branch's note overwrites the main note, and `supersedes` records which main-line note was displaced. Without it, this would be indistinguishable from a normal overwrite in the reflog.
+
+**Important caveat:** Nothing in the current codebase actually _reads_ or _walks_ the supersedes chain programmatically. It is write-only metadata today. Its value is for future consumers and human inspection. If the system never needs to walk supersession chains across remotes, it could be removed. But if agents will ever need "what did this note say before?" without access to the local reflog, it earns its keep.
+</REPLY>
+
+<CEO_FOLLOWUP>
+
+Okay, I'm still not totally clear on this.
+
+> The precise mechanism (lines 288-303): before writing a note to object `$oid`, mycelium checks if that object already has a note in this slot. If yes, it captures the **blob OID of the existing note content** and records it as `supersedes <old-blob-oid>` in the new note.
+
+Isn't the `oid` the hash of some file (ie a code file) in the repository? If so, and if I'm overwriting the note with a new note... where do I store the old note? The file hasn't changed, so it doesn't have a new `oid`, correct? My assumption was that we'd just overwrite that file and not worry about the history of that note (preserved in git log is fine!).
+
+I may be missing something here.
+
+</CEO_FOLLOWUP>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**You're right that the file hasn't changed, and you're right that git log preserves the history. The confusion is about two different OIDs in play.**
+
+There are two objects involved:
+
+1. **The annotated object** (e.g., file blob `abc123`) -- the thing the note is "on." Its OID is determined by file content. You are correct: it does not change.
+
+2. **The note blob** (e.g., `note111`) -- the note content is ALSO a blob in git's object store, with its own OID. This is a separate object.
+
+Git notes maintains a **tree** under `refs/notes/mycelium` that maps annotated-object OIDs to note-blob OIDs:
+
+```
+BEFORE:  notes tree:  abc123 -> note111
+                      (file blob)  (note blob)
+
+You write a new note on the same file...
+
+AFTER:   notes tree:  abc123 -> note222    (was -> note111)
+```
+
+The old note blob `note111` still exists in the object store. The previous commit on `refs/notes/mycelium` still points to the old tree where `abc123 -> note111`. So `git log -p refs/notes/mycelium` shows the full history.
+
+**There is only ever ONE note per object per ref.** The new note overwrites the old one in place. The old version lives in git's commit history of the notes ref, not as a separate current note.
+
+**Your instinct is correct:** "just overwrite and let git log preserve the history" is exactly what happens. The `supersedes note111` header in `note222` is denormalized data -- a convenience pointer to the old blob so you don't have to walk the notes reflog to find it. If you decide that walking the notes reflog is good enough (and it is, especially since it pushes/fetches with the ref), `supersedes` could be removed without breaking anything. Nothing in the codebase reads it programmatically today.
+</REPLY>
+
+<CEO_DECISION>
+Okay, I'm inclined to say that we \_strike\* supersedes until we find some concrete reason for needing it.
+
+It's always better to design sugar like that with hindsight rather than eagerly.
+</CEO_DECISION>
+
+edge explains commit:def456... ← auto-generated
+<CEO>I'm not sure what this is, can you elaborate on this?</CEO>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+When you attach a note to a git commit, git stores it as a mapping in the notes tree: `commit_oid -> note_blob_oid`. But the note blob itself is just text -- it has no built-in record of *which object it is attached to*. The `explains commit:def456...` edge is an auto-generated line (line 270 of mycelium.sh) that embeds this relationship *in the note body itself*.
+
+**Why not just rely on the notes-ref mapping?** Because the mapping is external and fragile:
+
+1. **Migration**: During `mycelium migrate` (for jj rewrites), a note is detached from one commit OID and reattached to a new one (lines 1517-1527). The code rewrites `explains commit:OLD` to `explains commit:NEW`. Without this edge, a migrated note would have no record of what it was originally about.
+
+2. **Portability**: If a note blob is exported, dumped, or viewed outside its notes-ref context, the `explains` edge makes it self-describing. Without it, you'd need access to the specific notes-ref at that moment to know what object the note annotates.
+
+3. **Edge graph**: The `follow` command (line 595+) resolves edges to build a navigable graph. `explains commit:...` lets you jump from a note to the commit it describes, and from there to the commit's diff and context.
+
+In short: the notes-ref mapping tells you "note X is on commit Y" but only if you have access to that ref right now. The `explains` edge makes the relationship _intrinsic to the note content_, so it survives migration, export, and ref deletion.
+</REPLY>
+
+edge targets-path path:src/auth.ts ← auto-generated
+<CEO>I'm wary of this. Why do we need this? Is this a convenience layer to something we could otherwise get at with `git`? Or is this doing something that would not be possible with `git`?</CEO>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**This is doing something git cannot do natively.** It is arguably the most important design decision in mycelium.
+
+**The problem:** When you annotate a file, mycelium attaches the note to the file's current **blob OID** (the SHA of its content). The moment `src/auth.ts` is edited and committed, it gets a new blob OID. The old note is still attached to the old OID. From the file's perspective, the note is "orphaned."
+
+**Why git can't solve this natively:** Git notes are keyed by object OID. Git has **no mechanism to query "find all notes whose target object was ever associated with this file path."** That association (blob OID <-> file path) exists transiently in tree objects, but git provides no index over it. To reconstruct it without `targets-path`, you would need to:
+
+1. Walk `git log --follow src/auth.ts` to get every commit that touched the file
+2. At each commit, run `git rev-parse COMMIT:src/auth.ts` to get the blob OID
+3. For each blob OID, check every notes ref for a note
+
+For a file with 500 commits, that is 1000+ git commands. And it only finds blobs committed at that path -- if a note was attached to a blob that appeared at a different path first, you'd miss it.
+
+**What targets-path gives you:** A single linear scan of the notes list, grepping each note body for `targets-path path:src/auth.ts`. The note carries the path with it. One pass through the notes, done. No tree walking, no commit history traversal.
+
+**It converts an O(commits x tree-size) problem into an O(notes) grep.** This is the mechanism that makes the entire staleness/context system work. Without it, there is no efficient way to answer "show me all notes ever written about this file."
+</REPLY>
+
+<CEO_FOLLOWUP>
+
+Hmmm...
+
+> if a note was attached to a blob that appeared at a different path first, you'd miss it
+
+But... doesn't the hash change if I move the file somewhere else? it's now at a new path, _and_ it has a new hash. I understand why you'd want this feature for quick scans, but you wouldn't want it for files that were getting moved around the directory, correct?
+
+Maybe I'm missing something here...
+
+> It converts an O(commits x tree-size) problem into an O(notes) grep.
+
+I want you to take a step back here. In agent land, Big O notation can be thought of a little differently. The expensive operations are when we're making calls to the LLM. The cheap operations are when bash/git commands are being run on the machine. So I'll grant you that the above is a real issue _if_ it requires going to the LLM in between calls. However, if you could write one bash command that could do the above (walk the git log, at each commit, do the rev-parse, at each blob id, cat the note), _then_ we don't care about the time it takes to run, it pales in comparison to the LLM calls which dominate the agent work. In fact, we risk making the time _worse_ by introducing steps that require an LLM (we may not here). As always, I may be wrong here, but I do want to push on this a little bit. I guess the core question is: could you write a bash statement that accomplishes that search in one "step" without returning to the LLM?
+
+</CEO_FOLLOWUP>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**Two corrections and one concession:**
+
+**On file moves and hashes:** A blob's hash is determined **solely by its content, not by its path.** If you `git mv src/auth.ts src/authentication.ts` without changing the file's content, the blob OID stays **exactly the same**. The tree changes (different filename entry), but the blob is identical. So a note attached to that blob is found at both paths -- they resolve to the same OID.
+
+Where `targets-path` does break with renames: the note body says `edge targets-path path:src/auth.ts`. After the rename, the staleness code resolves that stored path against HEAD, finds it doesn't exist, and marks the note **orphaned** -- even though the blob (and its note) is still present at the new path. This is a real limitation: `targets-path` does NOT survive renames. You'd need a new note or a path update after renaming.
+
+**On the Big O argument -- you are right.** Yes, you can absolutely write this as a single bash command with zero LLM calls:
+
+```bash
+git log --format='%H' -- src/auth.ts | while read c; do
+  blob=$(git rev-parse "$c:src/auth.ts" 2>/dev/null) || continue
+  note=$(git notes --ref=mycelium show "$blob" 2>/dev/null) || continue
+  echo "=== commit $c  blob $blob ==="
+  echo "$note"
+done
+```
+
+This runs entirely on the machine. Whether it takes 0.1s or 5s is irrelevant compared to a single LLM round-trip. Your framing is insightful: **in agent-land, the cost function is O(k) LLM calls, not O(n) git commands.** A single bash invocation that runs 1000 git subcommands internally is still O(1) in agent cost. The previous reply's Big O argument was framed around machine time, which is the wrong cost model for an agent system.
+
+**Where `targets-path` still earns its keep** (even under your cost model):
+
+1. **Reverse lookup:** The bash one-liner requires you to already know the file path. But `find` and `doctor` start from the notes side -- iterating all notes to determine which file each note is about. Without `targets-path`, recovering the path from a blob OID requires searching every tree in HEAD. `targets-path` makes this O(1) per note.
+
+2. **Disambiguation:** If you copy `src/auth.ts` to `lib/auth.ts` without modifying content, both paths have the same blob OID. A note on that blob would surface for both paths. `targets-path` records which path the author intended.
+
+3. **It is already load-bearing.** The stale-detection code in `_collect_stale()`, `cmd_doctor`, `cmd_context`, and `cmd_compost --report` all rely on it. Removing it breaks four codepaths.
+
+The honest summary: `targets-path` saves machine time, not agent time, for the forward-lookup case. Your bash one-liner handles that case just as well. But it is essential for reverse lookup, disambiguation, and because it is already structural to the codebase.
+</REPLY>
+
+<CEO_FOLLOWUP_2>
+Hmmm... I guess I'm still not sold on the stale/compost feature set anyway, which makes me wary of citing that as being load-bearing reasons to keep it. I think I need a better mental model of how this is useful. I'm really quite skeptical of this feature, given that the target path can be derived from the hash.
+
+Again, if it turns out to be sugar that is needed, I'm always more inclined to add this in _after_ the fact, rather than in anticipation.
+</CEO_FOLLOWUP_2>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**You're right. `targets-path` does not survive if stale/compost is stripped.**
+
+I audited every consumer of `targets-path` in mycelium.sh:
+
+| Line | Function | What It Does |
+|------|----------|-------------|
+| 280 | `cmd_note` | **WRITE**: auto-generates the edge |
+| 406 | `cmd_read` | Stale scan fallback |
+| 493 | `cmd_context` | Stale scan across slots |
+| 627 | `cmd_follow` | Stale fallback for edge resolution |
+| 1014 | `cmd_doctor` | Staleness classification |
+| 1112 | `_renew_note` | Renew: finds path, resolves to current blob |
+| 1175 | `cmd_compost` | Staleness before composting |
+| 1358 | `cmd_status` | Counts stale/composted notes |
+
+**Every single reader** of `targets-path` is part of the stale/compost/renew pipeline. If those features are stripped, line 280 (the writer) is the only thing left -- producing data nothing reads.
+
+**Your claim that the path is derivable from the hash is correct:**
+
+```bash
+git ls-tree -r HEAD | grep <blob-oid>
+```
+
+One bash command. O(1) agent cost. Returns all paths pointing to that blob at HEAD. For reverse lookup in `find` or `doctor` (iterating notes and needing to know which file each is about), you dump `git ls-tree -r HEAD` once and grep it N times -- still one bash invocation.
+
+**Your minimal-mycelium mental model has no flaw.** In a stripped-down mycelium with just `note`, `read`, `find`, `doctor`:
+
+- `note`: resolve path to blob OID, write note. No `targets-path` needed.
+- `read`: resolve path to blob OID, look up note. No `targets-path` needed.
+- `find`: iterate notes, check `kind`. Show paths via `git ls-tree` join. No `targets-path` needed.
+- `doctor`: "does the target object exist?" No staleness concept, no `targets-path` needed.
+
+If `targets-path` turns out to be useful later (e.g., for a future historical-context feature), it can be added back as sugar. With the Option A parallel meta ref decision, it would live in the meta ref rather than the note body anyway -- a cleaner separation.
+
+**Consistent with your decision to strike `supersedes`:** both are premature optimizations that denormalize data git already provides.
+</REPLY>
+
+edge depends-on note:789abc... ← user-supplied
+<CEO>Is this stored in the note or somehow as metadata attached to the note? The reason I'm asking these questions is I'm wary of setting a data model for _inside_ the note. For example, what if the note is JSON? Or a png? There is no room for note-level metadata there. That said, I do like the idea of mycelium being opinionated to the degree that the above fields are useful for the agent-crawling-markup-synthesis use case that it's designed for. So the main question is: do git notes have metadata that can be attached _outside_ the note? If the answer is no, and the current implementation has all of this metadata _inside_ the note, AND we want to keep the opinionated nature of some of the above note fields, one way of addressing this is by introducing a meta-namespace concept, in which metadata is persisted in _other_ git notes that reference the "main" git notes. Before we go too far in making these decisions, I want to get a better sense of the code and options as they stand today.</CEO>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**All metadata is inside the note body.** This is the only viable option given git's data model.
+
+**Git notes have NO external metadata mechanism.** A note is a blob -- an opaque byte string. Blobs have only a SHA hash and a size. There is no per-blob author, timestamp, attributes, or key-value store in git. The only metadata git captures is on the notes-ref _commit_ (author/date of whoever ran the write command), not on individual note blobs.
+
+**Your meta-namespace idea is architecturally sound.** You could absolutely store metadata in a separate ref:
+
+```
+refs/notes/mycelium           -- main content (could be JSON, PNG, anything)
+refs/notes/mycelium--meta     -- structured metadata about notes in the main ref
+```
+
+Each ref independently maps object SHAs to blobs. A meta-note would reference the same object OID and contain the structured headers (kind, edges, status). This gives you:
+
+- Main note body can be any format (JSON, PNG, markdown, whatever)
+- Metadata is separate and structured
+- Independent versioning per channel
+
+**The cost:** Every read now requires two lookups (content + meta). Every write requires two atomic-ish operations. You need to keep them in sync. And the notes ref count doubles.
+
+**The current design's rationale:** Mycelium is opinionated that notes are structured plain text with headers. This is a deliberate constraint, not an accident. The format is optimized for LLM consumption -- an agent can read a note and immediately understand its kind, edges, and body without a parser. If the note were a PNG, you would indeed need the meta-namespace approach.
+
+**The pragmatic assessment:** If mycelium remains a tool for agent-to-agent communication (where notes are always human/LLM-readable text), headers-in-body is the right choice -- simpler, atomic, self-describing. If it evolves to support arbitrary binary attachments, the meta-namespace approach becomes necessary. The current design does not preclude adding a meta-ref later.
+
+For now: the opinionated "structured text with headers" format is a feature, not a limitation. It is what makes `grep "^kind decision"` work, what makes `find` work, what makes `context` work. The format IS the protocol.
+</REPLY>
+
+<CEO_FOLLOWUP>
+
+Hmmm... if we write these in the blobs themselves, I worry that:
+
+- we don't have the proper grep/escaping/chunking mechanisms to deterministically pull them out (or do we?)
+- this foregoes note file types like valid `json`, `png`, etc...
+
+I want to explore a meta notes structure that is elegant as an alternative.
+
+</CEO_FOLLOWUP>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**Your concern about parsing robustness is valid -- there IS a bug here.** And your concern about format lock-in is legitimate. Let me address both, then propose the meta-notes alternative you're asking for.
+
+**On grep/escaping:** The current parser (`note_header()` at line 129) does `grep "^kind " | head -1 | sed "s/^kind //"` on the **entire note blob**, not just the header section. This means a body line starting with `edge cases to consider` would be misread as an edge declaration. The `follow` command (line 652) does `grep '^edge '` across the full blob. This is a real bug -- not theoretical.
+
+The fix is simple: `sed '/^$/q'` before any header grep (stop at the first blank line). This is the HTTP/email/git-commit convention -- headers end at the first blank line. One `sed` addition makes parsing fully deterministic. The body after the blank line is already opaque.
+
+**On JSON/PNG format lock-in:** You're right that prepending `kind observation` to a PNG produces nonsense. However, the body-after-blank-line IS opaque -- JSON bodies work today (the JSON goes after the headers + blank line). For binary, base64 encoding in the body is the standard approach (MIME has done this since 1996).
+
+**Three meta-notes architectures evaluated:**
+
+**Option A: Parallel meta ref**
+
+```
+refs/notes/mycelium        -- content (any format)
+refs/notes/mycelium--meta  -- metadata (kind, status, edges)
+```
+
+Both refs key on the same object OIDs. Content ref is opaque. Metadata ref has structured headers. Cost: every read is two lookups, every write is two operations, every slot doubles its refs, race conditions between content and meta writes. This is clean conceptually but doubles the plumbing everywhere.
+
+**Option B: Refined envelope (fix the current approach)**
+Add `note_headers()` helper: `echo "$1" | sed '/^$/q'` -- returns only lines before the first blank line. Add `note_body()`: `echo "$1" | sed '1,/^$/d'` -- returns only the body. Fix ~15 call sites that grep headers from the full blob. The body remains opaque. No new refs, no structural changes, no migration.
+
+**Option C: Tree-per-note via git mktree**
+Each note becomes a tree with `meta` and `content` blobs. Architecturally elegant but catastrophic in practice: `git notes show` expects blobs, not trees. You would abandon `git notes` plumbing entirely and reimplement the notes fanout structure manually.
+
+**Recommendation: Option B now, Option A as a future evolution.**
+
+Option B is a one-line fix (`sed '/^$/q'`) that makes the current format fully deterministic, keeps the body opaque, and changes nothing structurally. It costs near zero.
+
+Option A (parallel meta ref) is the right long-term architecture if you need truly opaque content (PNG, protobuf, compiled artifacts). It maps naturally to the existing slot mechanism (`--slot meta` could be the metadata channel). But it doubles operational complexity and should only be adopted when there is a real use case for non-text notes.
+
+For the agent-annotation use case today -- where notes are always human/LLM-readable text -- the refined envelope (Option B) is sufficient and dramatically simpler.
+</REPLY>
+
+<CEO_DECISION>
+We have non-text notes impending. We're also very early. If Option A is the right long term architecture and we're going to make the switch, now would be the time.
+</CEO_DECISION>
+
+Free-form body. Markdown encouraged.
+
+Note Lifecycle
+
+                    write (cmd_note)
+                         │
+                         ▼
+                ┌────────────────┐
+                │     active     │◄─── _renew_note() reattaches
+                └───────┬────────┘     to current blob OID
+                        │
+              file changes → stale
+                        │
+             ┌──────────▼──────────┐
+             │ compost  │  renew   │
+             ▼          │          ▼
+      status composted  │   moved to new OID
+      (hidden but       │   old copy composted
+       preserved)       │
+
+<CEO>Okay, there are a few smells in here: what does "hidden" mean, functionally? Why do we need to "hide" anything at all? My understanding is that if I'm walking a current git tree, the hashes of the files in the branches will point to "active" git notes, while those hashes that do not appear in the git notes can be thought of as "inactive". No need to "hide". Perhaps I'm misunderstanding something. Or perhaps I'm misunderstanding the complexity/time/cost of walking the current git tree, and thus a list of "active" and "passive" notes is relevant?</CEO>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**Your intuition is mostly correct.** The core mental model -- "current blob OID exists in notes = active, doesn't = inactive" -- is fundamentally sound. The code already implements exactly this: `cmd_doctor` (line 1017-1022) determines staleness by resolving `HEAD:$filepath`, comparing the blob OID to the one the note is on. Match = current, mismatch = stale, path gone = orphaned.
+
+**Where your model works perfectly:** For the "exact match" path in `cmd_context`, it is cheap and sufficient. Resolve `HEAD:src/auth.ts` to a blob OID, look up the note, done. No hiding needed.
+
+**Where it gets nuanced -- the stale-note scan:** `cmd_context` also surfaces _stale_ notes for a file path (older versions). To do this, it must scan ALL notes in the ref (via `git notes list`), read each note blob, and grep for `targets-path path:src/auth.ts`. For 1000 notes across 5 slots, that is 5000 `git cat-file` calls per `context` invocation.
+
+**What "composted" actually does in code:** It is a `status composted` header written inside the note body. Functionally, it does exactly ONE thing: causes the note to be filtered out of `cmd_context` output (lines 476, 498, 535, 558). It is a display filter, nothing more. And critically, it is checked _after_ the expensive scan, so composting does not even save scan cost -- just display cost.
+
+**So why compost at all?** It is a _semantic_ signal, not a performance optimization:
+
+1. Some stale notes are valuable context ("here's what we tried and it failed"), while others are noise ("summary as of 3 months ago"). Composting lets someone say "this is noise, stop showing it."
+2. The `renew` workflow copies a still-relevant note to the new blob OID and composts the old one. Without composting, the old copy appears alongside the renewed copy, creating duplication.
+
+**An alternative design you might prefer:** `cmd_context` shows only `[exact]` notes (current blob) by default, and requires an explicit `--history` flag to scan for stale notes. That would eliminate the expensive full-scan, eliminate the need for composted status, and put the "do I want historical context?" decision at query time rather than write time. Your instinct that "just walk the current tree" is sufficient for the common case is correct.
+</REPLY>
+
+Context Aggregation (the "killer feature")
+
+mycelium.sh context src/auth/retry.ts
+
+Walks 4 layers, across ALL slots:
+
+    [exact]      ← note on current blob of src/auth/retry.ts
+    [stale]      ← notes on older versions of that file
+    [tree]       ← notes on src/auth/ directory, then src/, then .
+    [commit]     ← note on HEAD commit
+
+Result: everything any agent ever said about this file, hierarchically.
+
+<CEO>Unsure if this should live at the mycelium layer or the programmatic layer that effectively "lives above" this. My mental model of mycelium was that of a data storage "interop" which provides an elegant agent-native interface for writing to git notes and reading from git notes. I didn't expect us to also put in thi type of aggregation logic, which will undoubtedly differ across "kinds" of agent annotation/synthesis. Perhaps I'm missing something, as usual, and perhaps these constructs are helpful in a way I'm not comprehending. But I'd urge caution about baking something like this into the mycelium.
+
+A brief example of where I suspect (tell me if I'm wrong!) the above breaks down. There are certain "kinds" of git note (call it something basic, like, `summary` or `index` that should be attached to every file and every directory. As the files get updated (new hashes) the agents create new summaries in the new hash slots (leaving the old notes in the old hash slots for posterity). This is one model for how notes are created.
+
+However, there may be other `kinds` of notes, which, say, get created for every commit (not stored at the file level hash but instead stored in association with the commit hash). In this case, there is one note per commit hash. If I have the above `Context Aggregation (the "killer feature")` idea right, this feature may make sense for the former "kind" of note, but not for the latter "kind" of note. Am I getting this right? I may not be. Can you inspect this deeper (use a separate opus 4.6 subagent to explore what I'm trying to say here more deeply).
+
+=== OR ===
+
+There's an alternative here where we make mycelium _more_ opinionated and introduce agent-native "workflows" (above and beyond data storage/interop). I'm amenable to this idea, particularly given that this is indeed what we're building (across mycelium and the prose programatic layer above mycelium). However, if this is the case, we almost certainly don't want to do this entirely as a bash script. We'd probably want to use a more expressive/elegant langauge to do this and compile it to a binary (Zig? NodeJS/Typescript? ...?). I do like the simplicity of bash+git as being the only dependencies, but a tight library with minimal dependencies that compiles to a binary is not the worst thing in the world, especially if we're encoding "agent native" capabilities beyond a simple data interop.
+</CEO>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**Your example is precisely right.** I inspected `cmd_context` (lines 449-593) deeply. Here is what it actually does:
+
+`context` is **completely kind-agnostic**. It treats every kind identically -- a `summary` on a file blob and a `decision` on a commit are both surfaced. There is no filtering, ranking, or prioritization by kind. The only filter is `status composted`.
+
+**Your breakdown is exactly correct:**
+
+- A `decision` note on a commit about "refactor auth to use OAuth2" will surface under `[commit]` whenever ANY file in the repo is queried -- even `src/utils/format.ts` which has nothing to do with auth. The commit-level note leaks into every file's context.
+- A `todo` note on the root tree (`.`) shows up under `[tree]` for every file in the repo.
+- For `summary` notes on files, the aggregation makes perfect sense -- walking up the tree to show directory-level and project-level summaries is the natural hierarchy.
+
+**Both sides of the argument have merit:**
+
+_Keep context in mycelium:_ (a) It is the only useful "give me everything" query -- without it, agents must manually compose `read`, walk parent directories, check commits. The SKILL.md contract ("check notes before working") becomes impractical without it. (b) The aggregation strategy is structurally determined -- it walks git's own object graph (blob → parent trees → commit). This is data model traversal, not application logic. (c) One implementation prevents ten tools from writing ten subtly incompatible versions.
+
+_Move it above mycelium:_ (a) The `[commit]` layer is fundamentally different -- commit notes describe a changeset, not a file. They should only surface when the commit's diff touches the queried file. (b) Different kinds genuinely need different aggregation: for `summary`, walk blob + tree; for `decision`, only show if the commit's diff touches this file; for `constraint`, walk tree but not commit. (c) The aggregation will inevitably get more complex (filter by kind, by author, by recency), and bash is ill-suited for that growth.
+
+**Synthesis -- a natural boundary exists:**
+
+Keep in mycelium (data interop): `note`, `read`, `find`, `list`, `doctor`, and the traversal _primitives_ (resolve path to blob/tree OIDs, check staleness). Move to the layer above (agent workflow): the _assembled_ `context` query, `compost` interactive triage, `prime` composition, and any future kind-aware aggregation.
+
+Mycelium would export building blocks; the layer above composes them. `context` could remain as a convenience default, but the programmatic layer could implement its own strategy -- one that, for example, only surfaces commit-level notes when the commit's diff touches the queried file.
+
+**On bash vs compiled binary:**
+
+Bash is still appropriate for the data interop layer -- wrapping `git notes` commands. It is no longer appropriate for the workflow layer. The current complexity indicators: `note_header()` spawns 4 subprocesses per call and is called 2-3x per note in tight loops (800-1200 forks for 100 notes). Staleness detection is reimplemented 4 times with subtle differences. The `declare -A` bug breaks macOS compatibility. `cmd_compost` is 225 lines with 7 code paths.
+
+If you move to a compiled binary for the workflow layer, Go or Zig preserve "single binary, zero runtime deps." TypeScript/Node sacrifices that but gains the agent-ecosystem affinity. The data interop layer (bash wrapping git) could remain as-is for simplicity and transparency.
+</REPLY>
+
+---
+
+Critical Bugs (fix these first)
+
+<CEO>We'll fix these bugs separately/later, but I'm just going to call out here that all these bugs are downstream from using Bash. I like that idea on its face, especially if we think of mycelium as a simple data persistence/interop, but the more complex this library gets, the less likely that Bash is the right language here.</CEO>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**Agreed.** The subshell bug (pipe into `while read` losing associative array state), the `declare -A` bash 4+ incompatibility, and the router not passing `$@` are all classes of bugs that bash makes easy to write and hard to detect. These are fixable in the short term, but they are symptoms of the language outgrowing the task. The natural boundary -- bash for git plumbing, a real language for application logic -- would prevent this class of bug entirely.
+</REPLY>
+
+┌─────┬──────────┬──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────┐
+│ # │ Severity │ Issue │ Location │
+├─────┼──────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼─────────────┤
+│ 1 │ HIGH │ cmd_migrate auto-jj mode is completely broken — oid_map is populated inside a pipe subshell, so it's always empty in the parent shell. Only │ L1471-1487 │
+│ │ │ --map file works. │ │
+├─────┼──────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼─────────────┤
+│ 2 │ MEDIUM │ CLI router doesn't pass $@ to cmd_kinds and cmd_list — --slot flag is silently dropped │ L1649, │
+│ │ │ │ L1651 │
+├─────┼──────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼─────────────┤
+│ 3 │ MEDIUM │ declare -A (associative array) requires bash 4+, but README/installer claim bash 3.2+ compatibility │ L1456 │
+├─────┼──────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼─────────────┤
+│ 4 │ MEDIUM │ sync-init appends duplicate refspecs on repeated calls │ L893-899 │
+├─────┼──────────┼──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼─────────────┤
+│ 5 │ MEDIUM │ $filepath interpolated into grep patterns without escaping regex metacharacters (. in filenames) │ L751-765 │
+└─────┴──────────┴──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┴─────────────┘
+
+---
+
+Code Smells & Structural Issues
+
+The Big Three complexity hotspots:
+
+┌─────────────┬───────────────────────┬───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Function │ Lines │ Problem │
+├─────────────┼───────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ cmd_compost │ 225 lines │ 7 code paths in one function. Contains a 50-line nested function. Handles interactive TTY, batch, single-OID, report, dry-run, renew │
+│ │ (L1215-1438) │ modes. │
+├─────────────┼───────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ cmd_context │ 131 lines (L449-593) │ 5 nested loops (exact blob, stale path, tree walk, stale tree, commit). 3 levels of nesting (slot refs → note list → directory walk). │
+├─────────────┼───────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ cmd_follow │ 113 lines (L595-712) │ Edge resolution switch handles 5 target types with similar code. │
+└─────────────┴───────────────────────┴───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+Staleness detection is implemented 4 separate times — in cmd_doctor, cmd_compost --report, \_collect_stale, and cmd_context. Each is subtly different. A shared \_is_stale() function
+would eliminate ~60 lines.
+
+note_header() spawns 4 subprocesses per call (echo → grep → head → sed) and is called 2-3x per note in hot loops. For 100 notes, that's 800-1200 forks. A single awk would do.
+
+resolve_target result parsing is copy-pasted 4 times:
+oid=$(echo "$resolved" | cut -d' ' -f1)
+type=$(echo "$resolved" | cut -d' ' -f2)
+filepath=$(echo "$resolved" | cut -d' ' -f3-)
+
+Dead code: \_find_refs_for_oid (L1142-1149) is defined but never called.
+
+---
+
+Opinionated Choices Worth Noting
+
+┌───────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Choice │ Assessment │
+├───────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ One file, zero deps │ Strong and correct for a protocol. Keep this. │
+├───────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Append-only / never delete │ Philosophically solid. Composted notes stay forever. No GC. Will need a strategy for long-lived repos. │
+├───────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Visibility is opt-in │ "Humans never see it unless they choose to look." GitHub's lack of notes UI is called "a feature." Bold bet. │
+├───────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Auto-edges are not optional │ Noting a blob always creates applies-to + targets-path. No --no-auto-edges. This is good — the path edges are what make staleness detection │
+│ │ work. │
+├───────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Auto-supersede on overwrite │ Writing to an object that has a note automatically captures the old blob OID. Not optional. Preserves history. │
+├───────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Open vocabulary for kinds │ No schema, no enum, no validation. kind celebration works immediately. Flexible but risks vocabulary drift across agents. │
+├───────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ MYCELIUM_REF env var as override │ Highest priority for ref selection. Good for CI/testing. No validation on the value. │
+├───────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Reserved slot names: main, │ Hardcoded. Pragmatic. │
+│ default │ │
+└───────────────────────────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+---
+
+The "Kinds" Vocabulary — Assessment
+
+<CEO>I want to return to some of these later. Some of these are good, some are questionable. Perhaps we should create some tenets for what makes a good note and why.</CEO>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**Proposed tenets for what makes a good mycelium note:**
+
+1. **A note records what the diff cannot show.** Commit messages say _what_ changed. Code comments say _what the code does_. A mycelium note records the _why_, the _context_, and the _implications_ that neither carries. If the information would be equally well served by a code comment or commit message, put it there instead.
+
+2. **Attach to the most stable relevant object.** Files are more stable than commits. Directories more stable than files. The root (`.`) is the most stable. Choose the target whose lifecycle matches the note's relevance. (This is why commit-level notes are fragile in jj workflows and why `migrate` exists.)
+
+3. **Every kind implies a lifecycle.** Permanent: `constraint`, `value`. Durable (renew when code changes): `decision`, `summary`, `warning`, `context`. Ephemeral (compost when done): `todo`, `observation`. Know which category your note falls into.
+
+4. **One kind per note.** A note that is simultaneously a `decision` and a `warning` signals confused thinking. Split it and use `depends-on` edges to link them. This keeps `find decision` and `find warning` both useful.
+
+5. **Prefer the default vocabulary.** Vocabulary drift is the primary failure mode of a schema-free system. When five agents use `decision`, `choice`, `rationale`, `reasoning`, and `why` for the same concept, `find` becomes useless. Before inventing a new kind, verify the defaults don't fit.
+
+6. **Write for the next agent, not yourself.** A note's audience is someone arriving cold. The title must be self-explanatory. Avoid "I did X" in favor of "X is now true, which means Y."
+
+7. **Silence is better than noise.** A routine refactor does not need a `context` note saying "refactored." Write a note only when its _absence_ would cause a future agent to make a mistake, duplicate work, or miss something non-obvious. Every note written creates future composting work.
+   </REPLY>
+
+┌─────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Kind │ Verdict │
+├─────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ decision │ Strong. Captures rationale — the thing most often lost. │
+├─────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ context │ Overloaded. Used for "background before touching code" AND "what I did." The catch-all. Agents will default to this for everything. │
+├─────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ summary │ Clear. "The note a new reader wishes existed." │
+├─────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ warning │ Well-scoped. Fragile areas, footguns. │
+├─────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ constraint │ Strong. Hard rules (testable) vs value (judgment). Good distinction. │
+├─────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ observation │ Weakest. Overlaps with both todo and context. A "seed for future work" is just a soft todo. │
+├─────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ value │ Distinctive and interesting. Most tools wouldn't include "cultural principles." This says codebases have culture. │
+├─────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ todo │ Practical but risky. "Compost when done" — but who composts? │
+└─────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+Missing: No question kind (unresolved by this session, left for next). No author or timestamp headers — in multi-agent scenarios you can't tell who wrote what or when.
+
+<CEO>Is there any way to capture author or timestamp in the git notes metadata? Or would it have to go in file itself? BTW: is there any sensible way to "version" git notes (ie updates to a note in the same namespace attached to the same hash?). I was sort of guessing not, but perhaps there is? If not, I suppose we could sort of back into a clunky versioning mechanism by using (abusing, lol) the namespace concept?</CEO>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**Author and timestamp ARE captured -- but on the notes-ref commit, not the blob.** Every `git notes add` creates a commit on `refs/notes/mycelium`. That commit records `user.name`, `user.email`, and the current timestamp. To retrieve who wrote a specific note:
+
+```bash
+# Find the commit that last touched the note for <object-sha>
+OBJ=abc123def456...
+FANOUT="${OBJ:0:2}/${OBJ:2}"
+git log refs/notes/mycelium --diff-filter=AM -- "$FANOUT" --format='%an <%ae> %ai' -1
+```
+
+Since each `git notes add -f` call creates exactly one commit, there is a 1:1 mapping between note writes and commits. Author and timestamp are reliably recoverable per note write. Mycelium could surface this via `read` output without storing author/timestamp in the note body at all.
+
+**Versioning: yes, git gives you this for free.** The notes ref is a normal git history. Every overwrite is a commit. You can see every version of a note:
+
+```bash
+git log -p refs/notes/mycelium -- "$FANOUT"
+```
+
+Each commit that changed the note shows up as a diff with author and date. This is why `supersedes` is denormalized data -- git already tracks the history natively.
+
+**You do NOT need to abuse namespaces for versioning.** The notes-ref commit history IS the version history. `git log refs/notes/mycelium` shows every note write ever made. You can diff between any two points. You can recover any previous state. The reflog adds another layer (local only, doesn't push).
+
+**The one caveat:** Reflogs are local -- they don't transfer on push/fetch. The commit history DOES transfer (it is the notes ref itself). So version history is available on any clone that has fetched the notes ref, not just locally.
+
+**Summary table:**
+
+| Question                   | Answer                                                        |
+| -------------------------- | ------------------------------------------------------------- |
+| Author/timestamp from git? | Yes -- from the notes-ref commit, recoverable per write       |
+| Versioning of one note?    | Yes -- `git log -p refs/notes/X -- <path>` shows full history |
+| Need namespace abuse?      | No -- commit history gives you this natively                  |
+| Does version history push? | Yes -- the notes ref commit chain transfers on push/fetch     |
+| Per-blob metadata?         | No -- blobs have only SHA and size, nothing else              |
+
+</REPLY>
+
+---
+
+What's Missing from the Protocol
+
+1. No --json output mode. Every command outputs human-readable text. Agents must parse free-form output. As tool-use/MCP paradigms grow, this becomes a bottleneck.
+   <CEO>I'm not that concerned about this for now. Back burner.</CEO>
+
+   <REPLY author="agent-opus" ts="2026-03-29">
+   Acknowledged. Back burner.
+   </REPLY>
+
+2. No timestamp or author metadata. Notes have no created, updated, or author headers. Two conflicting notes have no ordering signal beyond supersedes chains.
+   <CEO>Note my questions above on this.</CEO>
+
+   <REPLY author="agent-opus" ts="2026-03-29">
+   Addressed above: author and timestamp are recoverable from the notes-ref commit without adding headers to the note body. Mycelium could surface this in `read` output by querying `git log refs/notes/mycelium` for the relevant commit.
+   </REPLY>
+
+3. No query language. Can't say "find all warnings on files under src/auth that are current." Must compose grep manually.
+   <CEO>Interesting. Consider this is agent native. I'm not sold we need a query language, but we do need to make sure these are indexed in a way that makes the above query natural (ie presumably by using a combination of git and grep?) and efficient (do we need to create/maintain any further indices?).</CEO>
+
+   <REPLY author="agent-opus" ts="2026-03-29">
+   The current "index" is the note bodies themselves -- `find warning` does a linear scan of all notes, grepping for `^kind warning`. For path filtering, you'd compose: `find warning` piped through `grep "targets-path path:src/auth"`. This is natural for agents (they can compose shell pipes) and efficient enough for repos with hundreds of notes. For thousands, the O(N) scan of all note blobs becomes a bottleneck. No additional index is maintained today. Whether you need one depends on scale -- for most repos the grep approach will be fine. If it becomes a problem, a compiled binary with in-memory indexing (parse all notes once on startup) would be the natural fix rather than maintaining a separate index file.
+   </REPLY>
+
+4. No body search. find searches by kind only. No mycelium search "retry".
+   <CEO>Mostly the same comment as above.</CEO>
+
+   <REPLY author="agent-opus" ts="2026-03-29">
+   Same answer: `dump | grep "retry"` is the agent-native approach. Works at current scale. A compiled binary could add full-text search trivially with an in-memory index.
+   </REPLY>
+
+5. No enforcement. Nothing checks that an agent read notes before editing. The contract is honor-system.
+   <CEO>We don't need this, at least not yet. Open question if this ever belongs in the mycelium layer.</CEO>
+
+   <REPLY author="agent-opus" ts="2026-03-29">
+   Acknowledged. If enforcement is ever needed, it would likely be a git hook (pre-commit checking that notes were read) rather than something in mycelium itself. Belongs in the agent framework layer.
+   </REPLY>
+
+6. No concrete agent integration examples. No CLAUDE.md, no .cursorrules, no MCP server, no hooks config. SKILL.md exists but the wiring is left as an exercise.
+   <CEO>We'll want these, but later. Punt for now.</CEO>
+
+   <REPLY author="agent-opus" ts="2026-03-29">
+   Acknowledged. When ready, the minimum viable integration would be: a sample CLAUDE.md that runs `mycelium.sh prime` at session start and instructs the agent to check context before edits and leave notes after commits.
+   </REPLY>
+
+7. prime output mismatches SKILL.md instructions. SKILL.md tells agents to run find warning and find constraint on arrival, but prime doesn't include those.
+   <CEO>We'll want to fix this if this is an issue. Punt for the moment.</CEO>
+
+   <REPLY author="agent-opus" ts="2026-03-29">
+   Acknowledged. Quick fix when prioritized: add `find warning` and `find constraint` output to `cmd_prime`.
+   </REPLY>
+
+---
+
+Simplification Recommendations
+
+<CEO>These feel like generally good recommendations and dovetail a little bit with what I'm discussing above, but I don't want to act on any of these yet until I get some answers/insight into some of my above open questions.</CEO>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+Acknowledged. The recommendations are preserved here for when you're ready to act. The key open questions (context aggregation layer boundary, bash vs compiled binary, metadata storage) have now been addressed in the replies above and should inform these decisions.
+</REPLY>
+
+The 80/20 CLI (6 commands instead of 17)
+
+mycelium note [target] -k <kind> -m <body> # write
+mycelium read [target] [--follow] # read (merge read + follow)
+mycelium context <path> [--all] # everything about a file
+mycelium find [kind] [--kinds] # search (merge find + kinds + list)
+mycelium compost [path|oid] [flags] # lifecycle
+mycelium doctor # health
+
+Cut: follow (merge into read --follow), refs, edges, kinds (merge into find --kinds), list (merge into bare find), dump, log, prime, activate, sync-init, migrate, branch
+
+Move to separate scripts or docs: migrate (jj-specific, only part needing bash 4+), activate/sync-init (document the raw git commands), branch (document the env var / file
+mechanism).
+
+This would drop the script from ~1660 lines to ~900.
+
+Separate Protocol from Tool
+
+Write a PROTOCOL.md (under 200 lines) specifying:
+
+<CEO>This is very interesting, and given the fact that this is intended to be "agent-native" can perhaps simply remain as a markdown file (and/or this entire thing can be shipped as a skill).</CEO>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**Agreed -- PROTOCOL.md as a skill-loadable markdown file is the right form factor.** It would serve dual purpose: (1) a specification that anyone could implement in any language (making mycelium a true protocol, not just a bash tool), and (2) an agent-consumable document that teaches the format and conventions without coupling to the CLI. SKILL.md would then reference the protocol and add behavioral instructions (when to read, when to write), while PROTOCOL.md would define the data model (note format, ref layout, edge semantics, staleness rules).
+</REPLY>
+
+1. The note format (headers, edges, body)
+2. The refs layout (refs/notes/mycelium, slot/branch naming)
+3. Auto-edge rules
+4. Staleness semantics
+5. Composting semantics
+6. Supersession semantics
+
+This makes the protocol implementable in any language and separable from the bash tool. Currently SKILL.md mixes protocol concepts with bash command examples.
+
+Halve SKILL.md
+
+Currently 327 lines. Target: 120 lines. Cut:
+
+- Compress the 3 pattern examples from 20+ lines each to 5
+- Remove the "All commands" table (agents can run help)
+- Move jj section to separate doc
+- Compress composting section to 3 lines
+- Move slots section to advanced doc
+
+<CEO>I'm going to echo my above statement. This is all generally correct, but I don't want to make any decisions here until I get a better understanding of some of my above comments.</CEO>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+Acknowledged. Preserved for when you're ready.
+</REPLY>
+
+Top Refactoring Priorities
+
+1. Fix the subshell bug in migrate — use process substitution (while read ... done < <(git notes list)) instead of pipe
+2. Fix the router — add shift; cmd_kinds "$@" and shift; cmd_list "$@"
+3. Extract \_is_stale() — one function, used by doctor/compost/context/collect_stale
+4. Extract \_parse_note() — one function replacing 12 instances of note_header calls
+5. Decompose cmd_compost into 4 functions (~30 lines each)
+6. Decompose cmd_context into 4 layer functions
+
+---
+
+Bottom Line
+
+<CEO>I'm going to echo my above statement. This is all generally correct, but I don't want to make any decisions here until I get a better understanding of some of my above comments.</CEO>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+Your above comments have now been addressed. The key takeaways from the research:
+
+1. **All note metadata must live in the blob body.** Git provides no per-blob metadata. The current headers-in-body approach is correct. (But author/timestamp can be recovered from the notes-ref commit without adding them to the body.)
+
+2. **`targets-path` is essential, not redundant.** Git has no native blob-to-path index. This edge is what makes the entire staleness/context system work.
+
+3. **`supersedes` is denormalized but earns its keep** for O(1) traversal and surviving push/fetch. Could be cut if you never need remote supersession chains.
+
+4. **Context aggregation has a natural layer boundary.** Data interop (git plumbing) stays in bash. Aggregation/workflows move to a layer above (compiled binary or programmatic layer).
+
+5. **Composting is a semantic signal, not a performance optimization.** Your instinct to "just walk the current tree" is correct for the common case. An alternative `--history` flag could replace the composting status entirely.
+
+6. **Git notes versioning is built-in.** No need for namespace abuse. The notes-ref commit history gives you full version tracking, author, and timestamps natively.
+   </REPLY>
+
+The core insight is excellent: git notes are the right substrate for inter-session agent communication. The protocol design (structured headers, path-based edges, staleness
+detection, composting lifecycle) is thoughtful and sound.
+
+The implementation has accumulated features faster than it has shed complexity. The slot system, jj migration, interactive composting, branch scoping, and prime command each add
+50-100 lines for increasingly narrow use cases. The founder's instinct that this should be "simple and standalone" is right, but the code has drifted from that.
+
+The most impactful changes, in order:
+
+1. Fix the 3 bugs (migrate subshell, router args, bash version claim)
+2. Write PROTOCOL.md — make the protocol language-agnostic
+3. Cut the CLI to 6 commands, halve SKILL.md
+4. Add --json on context, find, doctor for machine consumption
+5. Add author and created headers to the note format
+6. Ship a sample CLAUDE.md + hooks config as the reference integration
+
+<CEO>
+META NOTE
+
+One of the most powerful patterns I've developed for interfacing with agents that are building out a codebase for me is to do exactly what we've effectively done inline here.
+
+Synthesized the entire repository (your original note), then comment/discuss.
+
+I'm now adding comments inline in your original synthesis that lets me give feedback, ask questions, etc. I'm going to want async subagents to fan out in order to answer/discuss/research each of these inline comments, and I'm going to want each of them to reply in turn to each of the comments. (Ideally inline, below my original comment).
+
+Suppose all of this (your original note, my comments, your answers, etc.) are happening _in git notes_. This is the ideal that I'd like to work toward. What formats are suitable to facilitate something like this? Is this markdown with html blocks inline, like I'm doing? Are these comments written _across_ notes (if so, how do they target line numbers, etc)? Are there standards or existing formats for accomplishing what we're trying to accomplish?
+
+Ideally, no comments are overwritten, they're preserved inline such that they help to give the agent/human a sense of decision making history, why they arrived where they did, etc...
+</CEO>
+
+<REPLY author="agent-opus" ts="2026-03-29">
+**Three format options were researched, drawing on git-appraise (Google), W3C Web Annotations, mdcomments, and Hypothesis fuzzy anchoring.**
+
+### Option A: Multi-Note JSON (Recommended)
+
+Parent note stays in `refs/notes/mycelium` as-is. Comments go to a parallel ref (`refs/notes/mycelium--discuss` or `--slot discuss`), attached to the same object. Each comment is one JSON line, appended via `git notes append`:
+
+```
+{"id":"a1b2c3","ts":1711670400,"author":"ceo","anchor":{"quote":"The slot system provides namespace isolation","prefix":"...","suffix":"..."},"body":"Do we need slots at all?"}
+{"id":"d4e5f6","ts":1711670500,"author":"agent-opus","parent":"a1b2c3","body":"Slots map 1:1 to refs already. The abstraction adds naming conventions."}
+{"id":"g7h8i9","ts":1711670600,"author":"ceo","parent":"d4e5f6","body":"Keep them but document as optional sugar."}
+```
+
+A "weaving" renderer merges parent + comments into a unified view, inserting threaded comments at their anchor points. **Concurrent-safe** by design: each comment is one appended line, `git notes merge -s cat_sort_uniq` handles conflicts automatically. This is exactly what Google's git-appraise used at scale for code review.
+
+**Content anchoring** uses a TextQuoteSelector pattern (quoted text + prefix + suffix context). This survives edits to surrounding content, unlike line numbers which break immediately.
+
+### Option B: Inline Tags (What REVIEW.md Already Does)
+
+Everything in one note blob. Comments use `<CEO>`, `<REPLY>` tags inline. This is exactly what this document is doing right now.
+
+**Pros:** Human-readable without tooling, agents see full decision history in context.
+**Cons:** No viable merge strategy for concurrent writers, blob grows without bound.
+
+### Option C: Hybrid (Inline Anchors + Sidecar Discussion)
+
+Parent note has lightweight `[^c-id]` markers. Sidecar ref has the full threaded comments targeting those anchors.
+
+**Pros:** Parent note stays clean, anchors are precise.
+**Cons:** Most complex to implement, requires editing the parent note to add markers.
+
+### Recommendation
+
+**Option A is the right foundation** for structured, multi-participant, async discussion in git notes. It is concurrent-safe, append-only (aligns with mycelium's philosophy), proven at scale (git-appraise), and the parent note stays immutable.
+
+**Option B (what this document uses) is the right degenerate case** for quick, informal discussion. Nothing stops someone from writing comments directly into a note body. But for systematic threaded commentary across agents and humans, the sidecar JSON approach scales.
+
+**Implementation path:** New slot `discuss`. New commands: `mycelium comment <target> --author <name> -m "text" [--reply-to <id>] [--anchor "quoted text"]` and `mycelium discuss <target>` (renders woven view). Backward compatible -- existing notes are untouched.
+
+This is a powerful direction and directly aligns with the vision of this document becoming a git note with threaded discussion attached.
+</REPLY>
+
+---
+
+## Synthesis: CEO Mental Model, Implied Concerns, and Proposed Changes
+
+<REPLY author="agent-opus" ts="2026-03-29">
+
+### What Mycelium Should Be (Reading Between the Lines)
+
+Across all your comments, a clear architectural vision is emerging that differs significantly from what was built:
+
+**Mycelium = a protocol-level data interop layer, not an application.** Your mental model is closer to a filesystem specification or a wire format than a tool with features. Specifically:
+- Mycelium defines how notes are formatted, where they live, and how to look them up. It does NOT define what you do with them.
+- Git is the engine, not mycelium. Every feature that duplicates git's built-in behavior is suspect.
+- The ideal form factor is a **protocol specification (PROTOCOL.md) that could be shipped as a skill**, with an optional thin CLI for convenience.
+- The primary consumer is an LLM agent issuing bash/git commands. Cost model: LLM calls are expensive, bash/git commands are free.
+
+### Implied Discomfort
+
+1. **Premature abstraction.** Striking `supersedes`, questioning `targets-path`, questioning `compost`, questioning `context` -- this is not random. You have a design philosophy: **do not build sugar before you have pain.** You state it twice explicitly ("always better to design sugar with hindsight" and "I'm always more inclined to add this in after the fact").
+
+2. **Feature scope creep.** The implementation has accumulated features faster than it has shed complexity. Your silence on simplification recommendations is telling -- you agree with the direction but won't commit until the fundamental architectural questions (metadata storage, layer boundaries, bash vs binary) are resolved. Those questions are upstream of everything else.
+
+3. **Bash for anything beyond plumbing.** You note bugs are "downstream from using Bash" and acknowledge a compiled binary may be needed. But you haven't committed. The tension: you like bash+git simplicity, but bash cannot handle the complexity that has accumulated.
+
+4. **You chose Option A (parallel meta ref) despite its complexity because you are protecting optionality.** This reveals a priority: format agnosticism over implementation simplicity. You are thinking about a future where notes are not just markdown text.
+
+5. **Potential blind spot: Option A's operational cost.** The parallel meta ref means every read/write requires two git operations, every slot doubles its ref count, and you must handle consistency between content and meta refs. You didn't engage with the sync/consistency concern. This could become painful in concurrent multi-agent scenarios. (Worth pressure-testing before committing.)
+
+6. **The use case you care about most** is the inline-discussion-on-synthesized-documents pattern (the META NOTE). This is the "killer app" in your mind, not context aggregation.
+
+### Where CEO Vision Differs From Current Implementation
+
+| Dimension | CEO's Vision | Current Implementation |
+|---|---|---|
+| Scope | Protocol / data interop | Application with workflows |
+| Metadata | Parallel meta ref (outside body) | Headers inside note body |
+| Note format | Format-agnostic (JSON, PNG, markdown) | Opinionated structured text |
+| Staleness | Derive from git state at query time | Pre-computed via `targets-path` + `status` |
+| Lifecycle | Not at this layer (or opt-in at query time) | Built-in compost/renew/stale cycle |
+| Context aggregation | Layer above mycelium | Core feature |
+| Cost model | O(LLM calls), bash is free | O(git commands), machine efficiency |
+| `supersedes` | Strike it | Auto-generated on every overwrite |
+
+---
+
+### Proposed Changes (for the engineer)
+
+#### DECIDED (CEO has explicitly decided)
+
+1. **Strike `supersedes`.** Remove auto-generation (lines 288-303). Remove all code that writes or references `supersedes` headers.
+
+2. **Adopt parallel meta ref (Option A).** Note content lives in `refs/notes/mycelium` (any format). Structured metadata (kind, edges, status) lives in `refs/notes/mycelium--meta` keyed on the same object OIDs.
+
+#### STRONGLY IMPLIED (CEO direction is clear)
+
+3. **Remove or defer `compost`/`renew`/stale lifecycle.** CEO's preferred model: notes on current blob OIDs are active; everything else is historical, accessible via explicit opt-in (`--history` flag) rather than write-time lifecycle management.
+
+4. **Remove or defer `targets-path` auto-edge.** Every consumer is part of the stale/compost pipeline. If that pipeline is stripped, `targets-path` has zero readers. Path is derivable from hash via `git ls-tree -r HEAD | grep <oid>`.
+
+5. **Move `context` aggregation out of mycelium core.** Mycelium provides primitives (`read`, `find`, resolve path to OID). A higher layer composes them into context views. The commit-level-note-leaking-into-every-file concern was validated.
+
+6. **Reframe mycelium as a protocol.** Write PROTOCOL.md (under 200 lines) defining note format, refs layout, edge rules, conventions. Implementable in any language.
+
+7. **Adopt the "agent-native cost model" as a design principle.** Optimize for minimizing LLM round-trips. A single bash invocation that runs 1000 git commands internally is always preferable to a convenience feature that saves machine time but adds conceptual overhead.
+
+8. **Surface author/timestamp from git commit metadata** rather than storing in note body. With Option A, this is even cleaner -- meta ref already separates concerns.
+
+#### OPEN QUESTIONS (need CEO input)
+
+9. **Bash vs binary vs pure-markdown-skill?** Options on the table:
+   - Bash for git plumbing only, compiled binary for everything else
+   - Compiled single binary (Go/Zig for zero deps, or TypeScript for ecosystem)
+   - Pure markdown skill (PROTOCOL.md + SKILL.md, agents use raw git commands, no CLI)
+   - Hybrid: markdown protocol + thin bash CLI + compiled binary for workflows
+
+10. **What happens to the `stale` concept entirely?** If `targets-path` and `compost` are removed, the staleness lifecycle disappears. Is note currency purely a concern of the layer above?
+
+11. **Fate of `cmd_context`, `cmd_prime`, and "workflow" commands?** Strip entirely from mycelium, or keep simplified versions as convenience?
+
+12. **What to do about the `edge` system generally?** With `supersedes` struck and `targets-path` under question, the remaining auto-edge is `explains commit:<oid>`. Are user-supplied edges (`depends-on`, custom) still in scope?
+
+13. **Trim the default kinds vocabulary?** `observation` flagged as weakest, `context` as overloaded. No decision yet.
+
+14. **Scope of threaded discussion (META NOTE)?** Major feature direction or deferred?
+
+#### KEEP AS-IS (validated)
+
+15. Git notes as the storage substrate
+16. One file / zero dependencies (for data interop layer)
+17. Open vocabulary for kinds (no schema enforcement)
+18. Append-only / never delete philosophy
+19. Visibility is opt-in
+20. Slots as namespace isolation
+21. `--json` output: back burner
+22. Agent integration examples: punted
+23. Enforcement of "read before edit" contract: punted
+24. Proposed note tenets: directionally good, preserve and refine
+
+</REPLY>
