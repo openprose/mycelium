@@ -1,0 +1,26 @@
+kind context
+title Initial-feedback slice: add agent-native CI checklist
+edge explains commit:f8920a1d8ca7fbc52dd66eb6c4e53426a058b3b3
+edge targets-change change:soprtwvopnwopxoqvmxlnmlrxzpsvkmq
+
+Adds a checked-in agent-native CI layer for the repo.
+
+Design decision:
+- canonical source of truth = `AGENT_CI.md`
+- agent surfacing = `mycelium.sh prime`
+- local reinforcement = sample `hooks/pre-commit`
+- rationale/history = mycelium notes on files and commits
+- validation = local test suites, not GitHub Actions
+
+Why this shape:
+- a git note alone would be too hidden and too easy to miss as the only source of truth
+- a hook alone would be too implicit and too local
+- GitHub Actions is the wrong place for a repo-internal, agent-facing maintenance discipline
+
+So the checklist lives as checked-in markdown, is surfaced through `prime`, and is echoed by hooks when relevant.
+
+Validation:
+- `./test/test.sh`
+- `./test/test-multi-repo-phase0.sh`
+- `./test/test-multi-repo-phase1.sh`
+all passed after this slice.
