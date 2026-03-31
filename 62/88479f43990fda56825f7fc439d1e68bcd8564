@@ -1,0 +1,8 @@
+kind summary
+title Prime now surfaces agent-native CI
+edge applies-to blob:6288479f43990fda56825f7fc439d1e68bcd8564
+edge targets-path path:mycelium.sh
+
+`prime` now treats `AGENT_CI.md` as a first-class checked-in artifact alongside `SKILL.md`.
+
+This makes the repo maintenance checklist visible to arriving agents in the same place they already load the skill, without baking the checklist into a GitHub Actions workflow or external CI system.
