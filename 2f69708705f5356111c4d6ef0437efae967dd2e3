@@ -1,0 +1,6 @@
+kind observation
+title Public push review
+edge explains commit:2f69708705f5356111c4d6ef0437efae967dd2e3
+edge targets-change change:zuqsyzmlxvtnovzztzsrzlyyqwvnvqsl
+
+Reviewed initial-feedback against trunk() for public push. No /home paths, .jsonl outputs, secrets, credentials, or unrelated files found in the 13 changed files. Scope is coherent: docs, workflow scripts, hooks, tests, and core CLI cleanup. Mild contributor-only/internal-tool mention: `pi` in DEVELOPING.md, but no sensitive details or private references beyond a generic tool name.
