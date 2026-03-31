@@ -1,0 +1,8 @@
+kind summary
+title Lifecycle workflow extracted from core CLI
+edge applies-to blob:323f0270fb91608653fa976fd67783b7a1eaab02
+edge targets-path path:scripts/compost-workflow.sh
+
+`scripts/compost-workflow.sh` now owns the explicit stale/renew lifecycle.
+
+It preserves the old ergonomics (`--dry-run`, `--report`, `--compost`, `--renew`, `--slot`) while keeping that complexity out of `mycelium.sh` itself. This is the main completion of the stale/compost move for the initial-feedback branch.
