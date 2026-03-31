@@ -1,0 +1,8 @@
+kind summary
+title Prime restored to user-facing scope
+edge applies-to blob:5998543ad72065fa37a9d4ebc508ad222812fd80
+edge targets-path path:mycelium.sh
+
+This slice removes the contributor checklist from `prime`.
+
+Reason: `prime` is part of the user-facing / agent-facing product surface, not our private maintainer workflow. Repo-maintainer process must not silently become part of the product UX for external users.
