@@ -1,0 +1,6 @@
+kind summary
+title README no longer advertises internal maintainer workflow
+edge applies-to blob:e9c966432463eba50f9a70b10a4a063fdc85604f
+edge targets-path path:README.md
+
+The brief `AGENT_CI` addition was removed from README. README is part of the external user experience for the tool, so it should describe the product contract rather than our internal development discipline.
