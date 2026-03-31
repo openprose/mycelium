@@ -1,0 +1,6 @@
+kind observation
+title Workflow hardening: reject non-OID rev-parse output
+edge applies-to blob:c86beef7c90db623003c211f44136548a539c157
+edge targets-path path:scripts/context-workflow.sh
+
+Dogfooding found that `git rev-parse` can echo an unreduced refspec like `HEAD:missing-file` on failure. The workflow script now validates that resolved objects are real 40-char OIDs before treating them as notes targets, so missing paths are reported clearly instead of being silently swallowed.
