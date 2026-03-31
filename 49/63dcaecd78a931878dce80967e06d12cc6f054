@@ -1,0 +1,11 @@
+kind summary
+title Tests now lock in workflow-script behavior
+edge applies-to tree:4963dcaecd78a931878dce80967e06d12cc6f054
+edge targets-treepath treepath:test/
+
+Tests were updated to call `scripts/compost-workflow.sh` instead of the core `compost` command.
+
+Additional coverage added in this slice:
+- missing-path diagnostics in `context-workflow.sh`
+- `[ref]` argument semantics in `path-history.sh`
+- multi-repo compost-path usage through the workflow script
