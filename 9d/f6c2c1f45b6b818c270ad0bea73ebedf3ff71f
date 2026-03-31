@@ -1,0 +1,8 @@
+kind summary
+title Contributor workflow doc separated from product surfaces
+edge applies-to blob:9df6c2c1f45b6b818c270ad0bea73ebedf3ff71f
+edge targets-path path:DEVELOPING.md
+
+The maintainer checklist now lives in `DEVELOPING.md` as a contributor-facing document.
+
+That keeps it visible and versioned in git without making it part of `README.md`, `SKILL.md`, `prime`, or other user-facing surfaces.
