@@ -1,22 +1,32 @@
 kind context
-title Published initial-feedback branch
+title Published branch, tag, and audited notes refs
 edge explains commit:2f69708705f5356111c4d6ef0437efae967dd2e3
 edge targets-change change:zuqsyzmlxvtnovzztzsrzlyyqwvnvqsl
 
-Publication state after merge prep:
+Publication state after merge prep is now complete.
 
 Pushed to origin:
 - branch/bookmark `initial-feedback`
-- tip commit `2f69708705f5356111c4d6ef0437efae967dd2e3`
+- tag `v0.3.0-rc.1`
+- audited public notes refs
+
+Audited notes refs selected for push:
+- `refs/notes/mycelium`
+- `refs/notes/mycelium--slot--principles`
+- `refs/notes/mycelium--slot--values`
+- `refs/notes/mycelium--slot--safety`
+- `refs/notes/mycelium--slot--history`
+- `refs/notes/mycelium--slot--design`
+- `refs/notes/mycelium--slot--review`
+- `refs/notes/mycelium--slot--security-review`
+- `refs/notes/mycelium--slot--release`
+- `refs/notes/mycelium--slot--publication`
 
 Not pushed:
-- local tag `v0.3.0-rc.1`
-- notes refs (reviewer caveat said to audit/push those separately if desired)
-
-Remote helper URL reported by push:
-- https://github.com/openprose/mycelium/pull/new/initial-feedback
+- branch-local refs
+- analysis refs
+- test / experimental slot refs
 
 Reason for this split:
-- feature branch publication was explicitly requested
-- `safe-push` is the approved path for public branch publication here
-- tags/notes remain local until explicitly published/audited
+- push the stable/public institutional memory
+- avoid publishing branch-local or exploratory/private working refs as if they were part of the stable surface
