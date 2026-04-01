@@ -1,0 +1,9 @@
+kind summary
+title Installer examples align with release channels
+edge applies-to blob:885dae0f46f4130327870c654b5f2c54e541e314
+edge targets-path path:install.sh
+
+The installer examples and warning text now align with the release policy:
+- examples show latest integrated, pinned stable, and pinned prerelease installs
+- the `VERSION=...` example correctly applies to `bash`, not `curl`
+- prerelease warning text distinguishes stable tags from installs from `main`
