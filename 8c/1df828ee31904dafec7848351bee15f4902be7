@@ -1,0 +1,11 @@
+kind summary
+title Release channels documented for users
+edge applies-to blob:8c1df828ee31904dafec7848351bee15f4902be7
+edge targets-path path:README.md
+
+Current README explains the install/release split concretely:
+- `main` = latest integrated code
+- `VERSION=X.Y.Z` = pinned stable release
+- `VERSION=X.Y.Z-rc.N` = pinned prerelease / RC
+
+This is the user-facing articulation of the project's release policy.
