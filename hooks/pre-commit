@@ -35,3 +35,11 @@ fi
 if command -v gitleaks &>/dev/null; then
   gitleaks git --staged --no-banner --redact -l warn
 fi
+
+# UBS scan (if installed)
+if command -v ubs &>/dev/null; then
+  ubs --ci --fail-on-warning "$REPO_ROOT" >/dev/null 2>&1 || {
+    echo "ubs found warnings — run 'ubs .' to see details"
+    exit 1
+  }
+fi
