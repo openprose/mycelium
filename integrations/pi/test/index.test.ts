@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   addUniquePath,
   buildFreshNoteReminder,
+  buildNoteFollowupReminder,
   extractExactContextBlocks,
   findWorkspaceRoot,
   normalizeRepoPath,
@@ -125,5 +126,14 @@ describe("fresh note helpers", () => {
     expect(reminder).toContain("Details:");
     expect(reminder).toContain("First details.");
     expect(reminder).toContain("Second details.");
+  });
+
+  test("builds note follow-up reminders for edited paths", () => {
+    const reminder = buildNoteFollowupReminder("integrations/pi/index.ts");
+
+    expect(reminder).toContain("=== mycelium note follow-up ===");
+    expect(reminder).toContain("You changed integrations/pi/index.ts.");
+    expect(reminder).toContain("Remember to update or leave mycelium notes for this touched path and for the change commit before wrap-up.");
+    expect(reminder).toContain("Use `mycelium_note` when the relevant file, directory, or commit target is ready.");
   });
 });

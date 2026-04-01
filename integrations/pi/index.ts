@@ -24,16 +24,18 @@ const TRACKED_TOOL_NAMES = new Set(["read", "edit", "write"]);
 const MYCELIUM_TOOL_NAMES = [TOOL_CONTEXT, TOOL_NOTE] as const;
 const MAX_TRACKED_PATHS = 50;
 const MAX_SURFACED_FRESH_NOTES = 100;
+const MAX_SURFACED_NOTE_FOLLOWUPS = 100;
 const COMMAND_TIMEOUT_MS = 30_000;
 const FRESH_NOTE_REMINDER_MAX_LINES = 80;
 const FRESH_NOTE_REMINDER_MAX_BYTES = 8 * 1024;
 const FRESH_NOTE_HEADLINE_MAX_ITEMS = 12;
 
 export interface MyceliumPersistedState {
-	version: 2;
+	version: 3;
 	active: boolean;
 	touchedPaths: string[];
 	surfacedFreshNoteKeys: string[];
+	surfacedNoteFollowupPaths: string[];
 }
 
 interface IntegrationInfo {
@@ -84,10 +86,11 @@ const NoteParams = Type.Object({
 
 function createDefaultState(): MyceliumPersistedState {
 	return {
-		version: 2,
+		version: 3,
 		active: false,
 		touchedPaths: [],
 		surfacedFreshNoteKeys: [],
+		surfacedNoteFollowupPaths: [],
 	};
 }
 
@@ -109,12 +112,18 @@ function sanitizeState(value: unknown): MyceliumPersistedState {
 				.filter((entry): entry is string => typeof entry === "string")
 				.slice(-MAX_SURFACED_FRESH_NOTES)
 		: [];
+	const surfacedNoteFollowupPaths = Array.isArray(value.surfacedNoteFollowupPaths)
+		? value.surfacedNoteFollowupPaths
+				.filter((entry): entry is string => typeof entry === "string")
+				.slice(-MAX_SURFACED_NOTE_FOLLOWUPS)
+		: [];
 
 	return {
-		version: 2,
+		version: 3,
 		active,
 		touchedPaths,
 		surfacedFreshNoteKeys,
+		surfacedNoteFollowupPaths,
 	};
 }
 
@@ -247,6 +256,15 @@ export function buildFreshNoteReminder(path: string, exactBlocks: string[]): str
 		text += `\n\n[mycelium reminder truncated: showing ${truncation.outputLines} of ${truncation.totalLines} lines (${formatSize(truncation.outputBytes)} of ${formatSize(truncation.totalBytes)})]`;
 	}
 	return text;
+}
+
+export function buildNoteFollowupReminder(path: string): string {
+	return [
+		"=== mycelium note follow-up ===",
+		`You changed ${path}.`,
+		"Remember to update or leave mycelium notes for this touched path and for the change commit before wrap-up.",
+		"Use `mycelium_note` when the relevant file, directory, or commit target is ready.",
+	].join("\n");
 }
 
 function buildFreshNoteKey(path: string, reminderSource: string): string {
@@ -599,6 +617,18 @@ function recordSurfacedFreshNote(state: MyceliumPersistedState, reminderKey: str
 	return { ...state, surfacedFreshNoteKeys };
 }
 
+function recordSurfacedNoteFollowup(state: MyceliumPersistedState, path: string): MyceliumPersistedState {
+	const surfacedNoteFollowupPaths = addUniqueStringValue(
+		state.surfacedNoteFollowupPaths,
+		path,
+		MAX_SURFACED_NOTE_FOLLOWUPS,
+	);
+	if (surfacedNoteFollowupPaths === state.surfacedNoteFollowupPaths) {
+		return state;
+	}
+	return { ...state, surfacedNoteFollowupPaths };
+}
+
 function persistStateIfChanged(
 	pi: ExtensionAPI,
 	currentState: MyceliumPersistedState,
@@ -674,6 +704,7 @@ function buildPromptReminder(state: MyceliumPersistedState): string {
 		"- Prefer `mycelium_context` and `mycelium_note` inside Pi; use raw `mycelium.sh` from bash only for commands the extension does not expose yet, or when debugging raw note behavior.",
 		"- Use `mycelium_context` before editing unfamiliar areas so you see repo constraints, warnings, and path-specific context.",
 		"- Fresh exact file notes may appear automatically after successful `read` tool calls when this extension is active.",
+		"- Successful `edit` and `write` tool calls may append hidden note follow-up reminders when this extension is active.",
 		"- After meaningful work, leave concise mycelium notes on touched files or directories and on the change commit with `mycelium_note`.",
 	];
 	if (touched) {
@@ -692,6 +723,7 @@ function buildStatusMessage(state: MyceliumPersistedState, integration: Integrat
 		`jj workspace: ${integration?.usesJjWorkspace ? "yes" : "no"}`,
 		`tracked touched paths: ${summarizePathList(state.touchedPaths, 8) ?? "(none yet)"}`,
 		`surfaced fresh note reminders: ${state.surfacedFreshNoteKeys.length}`,
+		`surfaced note follow-up reminders: ${state.surfacedNoteFollowupPaths.length}`,
 	];
 	if (!integration?.available && integration?.reason) {
 		lines.push(`availability: ${integration.reason}`);
@@ -726,10 +758,10 @@ export default function myceliumExtension(pi: ExtensionAPI) {
 				return;
 			}
 			if (subcommand === "reset") {
-				state = { ...state, touchedPaths: [], surfacedFreshNoteKeys: [] };
+				state = { ...state, touchedPaths: [], surfacedFreshNoteKeys: [], surfacedNoteFollowupPaths: [] };
 				persistState();
 				syncState(ctx);
-				ctx.ui.notify("mycelium touched-path and fresh-note reminder history reset", "info");
+				ctx.ui.notify("mycelium touched-path, fresh-note, and note-follow-up reminder history reset", "info");
 				return;
 			}
 			if (subcommand === "on" || subcommand === "activate") {
@@ -911,15 +943,21 @@ export default function myceliumExtension(pi: ExtensionAPI) {
 		});
 		let nextContent = event.content;
 
-		if (state.active && integration?.available && event.toolName === "read" && !event.isError && integration.workspaceRoot) {
+		if (state.active && integration?.available && !event.isError && integration.workspaceRoot) {
 			const inputPath = event.input.path;
 			if (typeof inputPath === "string") {
 				const normalizedPath = normalizeRepoPath(inputPath, ctx.cwd, integration.workspaceRoot);
 				if (normalizedPath && normalizedPath !== ".") {
-					const reminder = await collectFreshReadReminder(normalizedPath, integration, ctx.signal);
-					if (reminder && !nextState.surfacedFreshNoteKeys.includes(reminder.reminderKey)) {
-						nextContent = appendReminderToToolContent(event.content, reminder.reminderText);
-						nextState = recordSurfacedFreshNote(nextState, reminder.reminderKey);
+					if (event.toolName === "read") {
+						const reminder = await collectFreshReadReminder(normalizedPath, integration, ctx.signal);
+						if (reminder && !nextState.surfacedFreshNoteKeys.includes(reminder.reminderKey)) {
+							nextContent = appendReminderToToolContent(nextContent, reminder.reminderText);
+							nextState = recordSurfacedFreshNote(nextState, reminder.reminderKey);
+						}
+					}
+					if ((event.toolName === "edit" || event.toolName === "write") && !nextState.surfacedNoteFollowupPaths.includes(normalizedPath)) {
+						nextContent = appendReminderToToolContent(nextContent, buildNoteFollowupReminder(normalizedPath));
+						nextState = recordSurfacedNoteFollowup(nextState, normalizedPath);
 					}
 				}
 			}

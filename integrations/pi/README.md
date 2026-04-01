@@ -17,6 +17,8 @@ Experimental Pi extension for making mycelium a first-class part of the agent lo
 - Tracks successful `read`, `edit`, and `write` paths in hidden session state so reminders survive reloads and branch navigation.
 - When active, successful built-in `read` results can append fresh exact mycelium file notes from `scripts/context-workflow.sh`.
 - Multiple exact notes are listed first, then detailed blocks follow, and repeat reads of the same note payload are deduped.
+- When active, successful built-in `edit` and `write` results can append hidden note follow-up reminders to update mycelium notes before wrap-up.
+- Those note follow-up reminders are deduped per path for the current branch/session history.
 - When active, appends a short system-prompt reminder to use mycelium context before unfamiliar edits and to leave notes before wrap-up.
 
 ## Tools
@@ -83,7 +85,7 @@ Prefer the extension tools while you are inside Pi:
 
 - `read` + automatic reminder injection: best default for exact fresh notes on the current file object
 - `mycelium_context`: best default for arrival/orientation context on a path
-- `mycelium_note`: best default for writing structured notes from the agent loop
+- `mycelium_note`: best default for writing structured notes from the agent loop after the edit/write follow-up reminder nudges you
 
 Use raw `mycelium.sh` from bash when you need something the extension does not expose yet, or when you are debugging:
 
