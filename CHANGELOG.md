@@ -10,6 +10,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-04-01
+
 ### Added
 - **Batch export**: `export --all [--kind <k>] --audience <a>` exports all notes
   (or filtered by kind) in one command. Respects public export policy.
@@ -17,14 +19,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
   and source remote.
 - **Foreign object labels**: imported objects that can't be resolved locally
   display `ext:` instead of `??:` for cleaner output alignment.
-- Release policy documented in DEVELOPING.md.
-
-### Changed
-- Extracted `_add_exported_from_edge` helper — deduplicates awk block shared
-  between single and batch export paths.
-- `export --all` rejects being combined with a positional target.
-
-## [0.3.0-rc.1] — 2026-03-30
+- `CHANGELOG.md` — human-readable release history.
+- Release policy and two-layer release notes process documented in DEVELOPING.md.
+- Phase 2 test suite (24 assertions).
 
 ### Changed
 - **Thin core**: `context` and `compost` moved from `mycelium.sh` to
@@ -33,6 +30,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
   the agent skill/workflow layer.
 - `supersedes` header dropped. Auto-supersede on overwrite still
   preserves the old blob OID in an edge.
+- Extracted `_add_exported_from_edge` helper — deduplicates awk block shared
+  between single and batch export paths.
+- `export --all` rejects being combined with a positional target.
 - DEVELOPING.md created — maintainer process separated from user-facing
   surfaces (README, SKILL.md, prime).
 
@@ -81,7 +81,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Core test suite (265+ assertions).
 - SKILL.md — agent convention for the mycelium layer.
 
-[Unreleased]: https://github.com/openprose/mycelium/compare/v0.3.0-rc.1...HEAD
-[0.3.0-rc.1]: https://github.com/openprose/mycelium/compare/v0.2.0...v0.3.0-rc.1
+[Unreleased]: https://github.com/openprose/mycelium/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/openprose/mycelium/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/openprose/mycelium/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/openprose/mycelium/releases/tag/v0.1.0
