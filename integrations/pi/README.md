@@ -77,6 +77,21 @@ bun test
 bun run typecheck
 ```
 
+## When to use extension tools vs the raw CLI
+
+Prefer the extension tools while you are inside Pi:
+
+- `read` + automatic reminder injection: best default for exact fresh notes on the current file object
+- `mycelium_context`: best default for arrival/orientation context on a path
+- `mycelium_note`: best default for writing structured notes from the agent loop
+
+Use raw `mycelium.sh` from bash when you need something the extension does not expose yet, or when you are debugging:
+
+- graph/navigation commands like `follow`, `refs`, `list`, `dump`, `doctor`
+- import/export/branch/slot workflows
+- inspecting raw note output or checking whether read-time reminder injection is behaving correctly
+- repo scripting outside Pi's normal tool loop
+
 ## Notes
 
 - This package is intentionally scoped as a thin MVP, not a full policy/enforcement layer.

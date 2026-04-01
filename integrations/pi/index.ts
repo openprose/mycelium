@@ -671,6 +671,7 @@ function buildPromptReminder(state: MyceliumPersistedState): string {
 	const lines = [
 		"## Mycelium",
 		"This repo uses mycelium notes.",
+		"- Prefer `mycelium_context` and `mycelium_note` inside Pi; use raw `mycelium.sh` from bash only for commands the extension does not expose yet, or when debugging raw note behavior.",
 		"- Use `mycelium_context` before editing unfamiliar areas so you see repo constraints, warnings, and path-specific context.",
 		"- Fresh exact file notes may appear automatically after successful `read` tool calls when this extension is active.",
 		"- After meaningful work, leave concise mycelium notes on touched files or directories and on the change commit with `mycelium_note`.",
