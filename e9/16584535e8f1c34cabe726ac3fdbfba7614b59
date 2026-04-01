@@ -1,0 +1,10 @@
+kind decision
+title Main vs stable release policy
+edge applies-to blob:e916584535e8f1c34cabe726ac3fdbfba7614b59
+edge targets-path path:DEVELOPING.md
+
+Current maintainer policy:
+- `main` is the latest integrated branch
+- stable releases are non-prerelease tags on `main`
+- prereleases are `-rc` / `-beta` tags on `main`
+- no separate `stable` branch yet unless backports/parallel maintenance become real
