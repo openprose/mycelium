@@ -54,6 +54,20 @@ Keep these layers distinct:
 
 Contributor process can constrain how we build the tool. It should not automatically leak into the product surfaces seen by external users.
 
+## Release policy
+
+- **`main`** is the latest integrated branch, not the stable-release boundary.
+- **Stable releases** are the latest non-prerelease semver tags on `main` (for example `v0.3.0`).
+- **Prereleases** use semver prerelease tags on `main` (for example `v0.3.0-rc.1`, `v0.3.0-beta.1`).
+- **Feature branches** remain the place for exploration and validation before merge.
+- We do **not** maintain a separate `stable` branch at this project stage. Add one only if backports or parallel maintenance become real needs.
+- User-facing install docs should distinguish:
+  - `main` = latest integrated
+  - `VERSION=X.Y.Z` = pinned stable
+  - `VERSION=X.Y.Z-rc.N` = pinned prerelease
+
+In short: branch → validate → merge to `main` → tag prerelease/stable milestone as needed.
+
 ## Tooling stance
 
 - **Canonical source of truth for maintainer workflow:** this checked-in file

@@ -6,12 +6,13 @@ set -euo pipefail
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/openprose/mycelium/main/install.sh | bash
 #   curl -fsSL https://raw.githubusercontent.com/openprose/mycelium/main/install.sh | PREFIX=/usr/local bash
-#   VERSION=0.1.0 curl -fsSL https://raw.githubusercontent.com/openprose/mycelium/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/openprose/mycelium/main/install.sh | VERSION=0.3.0 bash
+#   curl -fsSL https://raw.githubusercontent.com/openprose/mycelium/main/install.sh | VERSION=0.3.0-rc.1 bash
 #   PREFIX=$HOME/.local ./install.sh
 #
 # Installs mycelium.sh to $PREFIX/bin/mycelium.sh.
 # Default PREFIX is $HOME/.local so the installer works without sudo.
-# Set VERSION to install a specific tagged release (e.g. VERSION=0.1.0).
+# Set VERSION to install a specific tagged release (stable or prerelease).
 
 PREFIX="${PREFIX:-$HOME/.local}"
 INSTALL_DIR="$PREFIX/bin"
@@ -89,7 +90,8 @@ chmod +x "$TARGET"
 
 if [[ "$INSTALL_VERSION" == *-* && "$INSTALL_VERSION" != *unknown* ]]; then
   info "⚠ Installing pre-release version: $INSTALL_VERSION"
-  info "  For stable releases, use VERSION=X.Y.Z or install from the main branch."
+  info "  For stable releases, use VERSION=X.Y.Z."
+  info "  For latest integrated code, install from the main branch."
 fi
 
 if [ ! -x "$TARGET" ]; then

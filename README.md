@@ -18,7 +18,9 @@ mycelium.sh read HEAD
 
 ## Install
 
-Install the runtime file (`mycelium.sh`) with the one-line installer:
+Install the runtime file (`mycelium.sh`) with the one-line installer.
+
+**Latest integrated (`main`)**:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/openprose/mycelium/main/install.sh | bash
@@ -30,6 +32,18 @@ By default this installs to `~/.local/bin/mycelium.sh`. Override the location wi
 curl -fsSL https://raw.githubusercontent.com/openprose/mycelium/main/install.sh | PREFIX=/usr/local bash
 ```
 
+**Pinned stable release**:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/openprose/mycelium/main/install.sh | VERSION=0.3.0 bash
+```
+
+**Pinned prerelease / RC**:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/openprose/mycelium/main/install.sh | VERSION=0.3.0-rc.1 bash
+```
+
 If you already cloned the repo, you can install from the local checkout instead:
 
 ```bash
@@ -37,6 +51,14 @@ If you already cloned the repo, you can install from the local checkout instead:
 ```
 
 The runtime is still one file, with no dependencies beyond bash and git.
+
+### Release channels
+
+- **`main`** = latest integrated code. Good for contributors and adventurous users. May be ahead of the last stable release.
+- **`vX.Y.Z`** = stable release tag.
+- **`vX.Y.Z-rc.N` / `-beta.N`** = prerelease tags for validation.
+
+If you want a stable install, pin `VERSION=X.Y.Z`. If you want the latest integrated code, install from `main`.
 
 ## Quick start
 
