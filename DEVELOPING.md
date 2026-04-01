@@ -37,13 +37,17 @@ For every semantic change, check these in the same commit slice:
    - Check that `mycelium.sh prime` still teaches the right mental model.
 6. **Doctor**
    - Check that `mycelium.sh doctor` still reflects the intended ontology/state model.
-7. **Notes**
+7. **Changelog**
+   - Add an entry under `[Unreleased]` in `CHANGELOG.md` for any user-visible change.
+   - Follow [Keep a Changelog](https://keepachangelog.com/) categories: Added, Changed, Deprecated, Removed, Fixed, Security.
+   - When tagging a release, move `[Unreleased]` entries into the new version heading and update comparison links at the bottom.
+8. **Notes**
    - Read notes before touching files.
    - Leave notes on touched files and on the change commit after meaningful work.
-8. **Validation**
+9. **Validation**
    - Run the relevant local suites.
-9. **Review**
-   - Before push, do tmux + interactive `pi` review/dogfooding and record the result in a note.
+10. **Review**
+    - Before push, do tmux + interactive `pi` review/dogfooding and record the result in a note.
 
 ## Separation rule
 
@@ -53,6 +57,23 @@ Keep these layers distinct:
 - **Contributor-facing surfaces**: this file, branch-specific development notes, maintainer review workflow, and other repo-maintenance discipline
 
 Contributor process can constrain how we build the tool. It should not automatically leak into the product surfaces seen by external users.
+
+## Release notes: two layers
+
+Mycelium is underground — built for agents, by agents. But humans look at this
+repo too, and they need a readable record of what changed.
+
+- **CHANGELOG.md** — the human-readable surface. Maintained in
+  [Keep a Changelog](https://keepachangelog.com/) format. Updated with every
+  semantic change under `[Unreleased]`, stamped with a version heading when
+  tagging. This is what a person reads on GitHub.
+- **Mycelium notes on release commits** — the agent-readable layer. A
+  `[slot:release]` note on a tag commit records what the release means,
+  what was validated, what design decisions led here. Agents read this
+  with `mycelium.sh read <commit> --slot release`.
+
+Both layers are maintained in parallel. The changelog summarizes; the notes
+explain. Neither replaces the other.
 
 ## Release policy
 
