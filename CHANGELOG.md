@@ -20,7 +20,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **Foreign object labels**: imported objects that can't be resolved locally
   display `ext:` instead of `??:` for cleaner output alignment.
 - `CHANGELOG.md` — human-readable release history.
-- Release policy and two-layer release notes process documented in DEVELOPING.md.
+- Release policy documented for stable vs prerelease install channels.
 - Phase 2 test suite (24 assertions).
 
 ### Changed
@@ -30,11 +30,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
   the agent skill/workflow layer.
 - `supersedes` header dropped. Auto-supersede on overwrite still
   preserves the old blob OID in an edge.
-- Extracted `_add_exported_from_edge` helper — deduplicates awk block shared
-  between single and batch export paths.
 - `export --all` rejects being combined with a positional target.
-- DEVELOPING.md created — maintainer process separated from user-facing
-  surfaces (README, SKILL.md, prime).
+- Internal code deduplication in export path.
 
 ### Removed
 - `context` and `compost` CLI shims (moved to workflow scripts).
