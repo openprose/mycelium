@@ -1,0 +1,19 @@
+kind decision
+title Concrete release policy and install wording
+edge explains commit:0f06ded57e5fa6f3d9ffee9114f8c59e272b2dd1
+edge targets-change change:klpplstoynxvooolsrwlpwznotxtwnrx
+
+Turns the main-vs-stable assessment into concrete docs.
+
+What changed:
+- README install section now distinguishes latest integrated (`main`), pinned stable (`VERSION=X.Y.Z`), and pinned prerelease (`VERSION=X.Y.Z-rc.N`)
+- README adds an explicit release-channels explanation for users
+- DEVELOPING.md now states the maintainer release policy for `main`, stable tags, prerelease tags, and why there is no separate `stable` branch yet
+- install.sh comments and prerelease warning text were aligned with that policy
+- corrected the environment-variable example so `VERSION=...` applies to `bash`, not `curl`
+
+Validation:
+- `./test/test.sh`
+- `./test/test-multi-repo-phase0.sh`
+- `./test/test-multi-repo-phase1.sh`
+all passed.
