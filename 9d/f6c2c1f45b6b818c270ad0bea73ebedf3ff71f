@@ -1,8 +1,12 @@
-kind summary
-title Contributor workflow doc separated from product surfaces
+kind decision
+title Concrete release policy for main vs tags
 edge applies-to blob:9df6c2c1f45b6b818c270ad0bea73ebedf3ff71f
 edge targets-path path:DEVELOPING.md
 
-The maintainer checklist now lives in `DEVELOPING.md` as a contributor-facing document.
+DEVELOPING.md now states the maintainer release policy explicitly:
+- `main` is latest integrated, not the stable boundary
+- stable releases are non-prerelease tags on `main`
+- prereleases are `-rc` / `-beta` tags on `main`
+- no separate `stable` branch at this stage unless backports become real
 
-That keeps it visible and versioned in git without making it part of `README.md`, `SKILL.md`, `prime`, or other user-facing surfaces.
+This keeps maintainer policy concrete without leaking it into user-facing product surfaces beyond the necessary README install guidance.
