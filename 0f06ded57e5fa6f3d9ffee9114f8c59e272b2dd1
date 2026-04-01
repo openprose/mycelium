@@ -1,0 +1,17 @@
+kind context
+title Merged release-policy into main
+edge explains commit:0f06ded57e5fa6f3d9ffee9114f8c59e272b2dd1
+edge targets-change change:klpplstoynxvooolsrwlpwznotxtwnrx
+
+Merged the release-policy follow-up into `main`.
+
+What this adds on top of `v0.3.0-rc.1`:
+- concrete release policy in `DEVELOPING.md`
+- explicit user-facing install wording in `README.md`
+- aligned installer examples and prerelease/stable wording in `install.sh`
+
+Validation after merge to main:
+- `./test/test.sh`
+- `./test/test-multi-repo-phase0.sh`
+- `./test/test-multi-repo-phase1.sh`
+all passed.
