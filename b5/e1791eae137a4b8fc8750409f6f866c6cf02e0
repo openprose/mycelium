@@ -1,36 +1,11 @@
-kind decision
-title Versioning: branches for exploration, tags for milestones
-supersedes 66ef859a3c785bcc9da006344f1029119d53597c
+kind summary
+title Installer comments and prerelease guidance aligned with release policy
 edge applies-to blob:b5e1791eae137a4b8fc8750409f6f866c6cf02e0
 edge targets-path path:install.sh
 
-## What we learned the hard way
+The installer comments now show correct examples for:
+- latest integrated install from `main`
+- pinned stable install via `VERSION=X.Y.Z`
+- pinned prerelease install via `VERSION=X.Y.Z-rc.N`
 
-Don't over-engineer versioning for a pre-1.0 project. Git already is version control.
-
-### The scale
-  Branch name          → 'am I on stable or experimental?' (free, already exists)
-  git describe         → 'exactly what commit am I on?' (free, already exists)
-  mycelium.sh --version → human-friendly wrapper around git describe (we added this)
-  Semver tags          → 'this is a milestone others can depend on' (use sparingly)
-
-### Semver pre-release labels (when you actually need them)
-  alpha  — exploring, might not ship (where multi-repo is NOW)
-  beta   — feature-complete, testing with real users
-  rc     — believed ready, final validation
-  (none) — shipped, confident
-
-### What to actually do
-  Exploring a feature?  Stay on the branch. Don't tag.
-  Feature validated?    Merge to main. Tag if it's a real milestone.
-  Need to share pre-release? Tag as v0.3.0-alpha.1. Not v0.3.0.
-
-### Mistakes made
-  v0.2.0 was tagged after tests passed but before anyone used export/import for real.
-  The code is fine. The tag was premature. We added release engineering infrastructure
-  (installer stamping, CI version checks, constraint notes about semver) before we had
-  anything to release. The branch was the right tool. We abandoned it too early.
-
-### Going forward
-  Branches = exploration. Tags = milestones. git describe = identity.
-  Don't tag until real usage confirms value.
+Also fixed the warning text so it no longer implies that `main` is a stable release channel.
