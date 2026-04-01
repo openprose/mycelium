@@ -27,6 +27,7 @@ const MAX_SURFACED_FRESH_NOTES = 100;
 const COMMAND_TIMEOUT_MS = 30_000;
 const FRESH_NOTE_REMINDER_MAX_LINES = 80;
 const FRESH_NOTE_REMINDER_MAX_BYTES = 8 * 1024;
+const FRESH_NOTE_HEADLINE_MAX_ITEMS = 12;
 
 export interface MyceliumPersistedState {
 	version: 2;
@@ -206,20 +207,36 @@ export function extractExactContextBlocks(output: string): string[] {
 	return blocks;
 }
 
+function extractExactBlockHeadline(block: string): string {
+	const firstLine = block.split(/\r?\n/, 1)[0]?.trim() ?? "";
+	return firstLine.replace(/^\[exact\]\s*/, "") || "(untitled)";
+}
+
 export function buildFreshNoteReminder(path: string, exactBlocks: string[]): string | undefined {
 	if (exactBlocks.length === 0) {
 		return undefined;
 	}
 
-	const rawReminder = [
-		"=== mycelium fresh note ===",
-		`Exact note(s) attached to the current object for ${path}:`,
-		"",
-		exactBlocks.join("\n\n"),
-		"",
-		"Use `mycelium_context` for broader constraints, warnings, and path history.",
-	].join("\n");
+	const noteLabel = exactBlocks.length === 1 ? "note is" : "notes are";
+	const rawReminderLines = [
+		`=== mycelium fresh exact ${exactBlocks.length === 1 ? "note" : "notes"} ===`,
+		`${exactBlocks.length} fresh exact ${noteLabel} attached to the current object for ${path}.`,
+	];
 
+	if (exactBlocks.length > 1) {
+		const headlines = exactBlocks.map(extractExactBlockHeadline);
+		rawReminderLines.push("", "List:");
+		for (const headline of headlines.slice(0, FRESH_NOTE_HEADLINE_MAX_ITEMS)) {
+			rawReminderLines.push(`- ${headline}`);
+		}
+		if (headlines.length > FRESH_NOTE_HEADLINE_MAX_ITEMS) {
+			rawReminderLines.push(`- ... (+${headlines.length - FRESH_NOTE_HEADLINE_MAX_ITEMS} more exact notes)`);
+		}
+	}
+
+	rawReminderLines.push("", exactBlocks.length > 1 ? "Details:" : "Note:", "", exactBlocks.join("\n\n"), "", "Use `mycelium_context` for broader constraints, warnings, and path history.");
+
+	const rawReminder = rawReminderLines.join("\n");
 	const truncation = truncateHead(rawReminder, {
 		maxLines: FRESH_NOTE_REMINDER_MAX_LINES,
 		maxBytes: FRESH_NOTE_REMINDER_MAX_BYTES,
@@ -753,6 +770,7 @@ export default function myceliumExtension(pi: ExtensionAPI) {
 			const env = buildCommandEnv(integration);
 			const inspectPath = params.path?.trim() || ".";
 			const inspectRef = params.ref?.trim();
+			const effectiveRef = inspectRef ?? (integration.usesJjWorkspace ? await resolveContextRef(integration, signal) : undefined);
 			const sections: string[] = [];
 
 			for (const kind of ["constraint", "warning"] as const) {
@@ -767,8 +785,8 @@ export default function myceliumExtension(pi: ExtensionAPI) {
 
 			if (integration.contextScript) {
 				const contextArgs = [inspectPath];
-				if (inspectRef) {
-					contextArgs.push(inspectRef);
+				if (effectiveRef) {
+					contextArgs.push(effectiveRef);
 				}
 				if (params.history) {
 					contextArgs.push("--history");
@@ -804,7 +822,7 @@ export default function myceliumExtension(pi: ExtensionAPI) {
 
 			return await formatToolTextResult(sections.join("\n\n"), {
 				path: inspectPath,
-				ref: inspectRef ?? "HEAD",
+				ref: effectiveRef ?? "HEAD",
 				history: params.history === true,
 				workspaceRoot: integration.workspaceRoot,
 			});

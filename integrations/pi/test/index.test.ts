@@ -3,7 +3,14 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { addUniquePath, findWorkspaceRoot, normalizeRepoPath, summarizePathList } from "../index.ts";
+import {
+  addUniquePath,
+  buildFreshNoteReminder,
+  extractExactContextBlocks,
+  findWorkspaceRoot,
+  normalizeRepoPath,
+  summarizePathList,
+} from "../index.ts";
 
 const tempDirs: string[] = [];
 
@@ -66,5 +73,57 @@ describe("path helpers", () => {
   test("summarizes long lists", () => {
     expect(summarizePathList(["a", "b", "c"], 2)).toBe("a, b (+1 more)");
     expect(summarizePathList([], 2)).toBeUndefined();
+  });
+});
+
+describe("fresh note helpers", () => {
+  test("extracts only fresh exact blocks from workflow output", () => {
+    const output = [
+      "=== workflow context: integrations/pi/index.ts @ abc (mycelium) ===",
+      "",
+      "[exact] Active note (summary)",
+      "kind summary",
+      "edge applies-to blob:abc",
+      "",
+      "Useful details.",
+      "",
+      "[tree] Parent dir note (context)",
+      "kind context",
+      "",
+      "[exact] Archived note (warning)",
+      "kind warning",
+      "status archived",
+      "",
+      "Old details.",
+      "",
+      "[commit] Commit note (context)",
+      "kind context",
+    ].join("\n");
+
+    expect(extractExactContextBlocks(output)).toEqual([
+      [
+        "[exact] Active note (summary)",
+        "kind summary",
+        "edge applies-to blob:abc",
+        "",
+        "Useful details.",
+      ].join("\n"),
+    ]);
+  });
+
+  test("builds multi-note reminders with a list before details", () => {
+    const reminder = buildFreshNoteReminder("integrations/pi/index.ts", [
+      ["[exact] First note (summary)", "kind summary", "", "First details."].join("\n"),
+      ["[exact] [slot:dogfood] Second note (warning)", "kind warning", "", "Second details."].join("\n"),
+    ]);
+
+    expect(reminder).toContain("=== mycelium fresh exact notes ===");
+    expect(reminder).toContain("2 fresh exact notes are attached to the current object for integrations/pi/index.ts.");
+    expect(reminder).toContain("List:");
+    expect(reminder).toContain("- First note (summary)");
+    expect(reminder).toContain("- [slot:dogfood] Second note (warning)");
+    expect(reminder).toContain("Details:");
+    expect(reminder).toContain("First details.");
+    expect(reminder).toContain("Second details.");
   });
 });

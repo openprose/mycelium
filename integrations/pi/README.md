@@ -15,6 +15,8 @@ Experimental Pi extension for making mycelium a first-class part of the agent lo
 - Registers `/mycelium` with `status`, `on`, `off`, `reset`, and `help`.
 - Keeps `mycelium_context` and `mycelium_note` out of the active tool set until `/mycelium on`.
 - Tracks successful `read`, `edit`, and `write` paths in hidden session state so reminders survive reloads and branch navigation.
+- When active, successful built-in `read` results can append fresh exact mycelium file notes from `scripts/context-workflow.sh`.
+- Multiple exact notes are listed first, then detailed blocks follow, and repeat reads of the same note payload are deduped.
 - When active, appends a short system-prompt reminder to use mycelium context before unfamiliar edits and to leave notes before wrap-up.
 
 ## Tools
@@ -44,7 +46,16 @@ Writes a structured mycelium note with explicit fields for:
 
 ## Usage
 
-During local development, load exactly one copy of the extension:
+During local development, load exactly one copy of the extension.
+
+Preferred dogfood install:
+
+```bash
+ln -sfn /absolute/path/to/mycelium/integrations/pi ~/.pi/agent/extensions/mycelium-pi
+pi
+```
+
+One-off alternative:
 
 ```bash
 pi -e /absolute/path/to/mycelium/integrations/pi/index.ts
