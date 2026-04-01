@@ -79,6 +79,34 @@ bun test
 bun run typecheck
 ```
 
+## Design decisions and current contract
+
+- Keep Pi-specific behavior out of `mycelium.sh` core runtime.
+  - The extension belongs in `integrations/pi/` as an integration layer, while `mycelium.sh` stays a git-native primitive layer.
+- Keep the extension dormant by default.
+  - Activation is explicit via `/mycelium on` so inactive sessions do not get prompt pollution.
+- Keep activation lightweight.
+  - Activation turns the loop on, but does not auto-dump broader repo context.
+  - Broad arrival context stays path-specific and explicit through `mycelium_context`.
+- Do not reinvent note-resolution logic in TypeScript.
+  - Exact-note discovery should rely on `scripts/context-workflow.sh` and existing mycelium CLI behavior instead of reimplementing slot/ref/path logic in the extension.
+- Read notes when reading files.
+  - Built-in `read` is the main automatic arrival hook.
+  - Fresh exact notes for the current file object are appended to the raw `read` tool result when active.
+  - If multiple exact notes exist, list them first, then include detail blocks, and truncate reasonably.
+- Nudge note writing after edits.
+  - Built-in `edit` and `write` append hidden follow-up reminders so the agent remembers to update notes for touched paths and the change commit before wrap-up.
+- Keep reminders underground by default.
+  - Read-time and post-edit reminders are agent-facing additions to raw tool results, not normal user-facing UI banners.
+  - If debugging needs improve later, add explicit debug surfaces rather than making reminders visible by default.
+- Prefer extension tools inside Pi.
+  - Use `mycelium_context` and `mycelium_note` as the default agent loop.
+  - Use raw `mycelium.sh` from bash for unsupported commands or debugging raw note behavior.
+- Avoid duplicate extension loading.
+  - During dogfooding, use either the symlink/package install path or `pi -e`, but not both at once.
+- Treat jj workspaces as a first-class environment.
+  - The extension wires `GIT_DIR` + `GIT_WORK_TREE` for mycelium commands and resolves the current `jj @` commit for workflow context when needed.
+
 ## When to use extension tools vs the raw CLI
 
 Prefer the extension tools while you are inside Pi:
