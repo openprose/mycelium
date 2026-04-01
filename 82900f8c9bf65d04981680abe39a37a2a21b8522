@@ -1,0 +1,28 @@
+kind context
+title Multi-repo improvements: batch export, list-imports, foreign labels
+edge applies-to tree:82900f8c9bf65d04981680abe39a37a2a21b8522
+edge targets-treepath treepath:.
+
+Four improvements to the multi-repo surface built on v0.2.0 foundations:
+
+1. Batch export (export --all [--kind <k>] --audience <a>)
+   - Iterates all notes in source ref, optional kind filter
+   - Respects public export policy, adds exported-from edge
+   - Idempotent: re-running exports same count
+   - Works with --slot for slot-scoped export
+
+2. list-imports command
+   - User-facing surface for what was only accessible via raw git refs
+   - Shows name, note count, fetch date, source remote
+   - Remote extracted from import wrapper commit message
+
+3. Foreign object labels
+   - obj_label() now shows [foreign:oid] instead of ??:oid
+   - Affects find, doctor, and any command displaying imported objects
+
+4. Test suite: test-multi-repo-phase2.sh (22 assertions)
+   - Batch export: all, kind filter, slot, empty, idempotent, policy
+   - list-imports: empty, single, multiple, remote discovery
+   - Foreign labels: find and doctor output
+
+All 389 tests pass (267 core + 61 phase0 + 39 phase1 + 22 phase2).
