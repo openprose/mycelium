@@ -10,6 +10,11 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Experimental Pi extension MVP under `integrations/pi/` for the Pi coding agent, with opt-in activation plus built-in `mycelium_context` and `mycelium_note` tools.
+- When the Pi extension is active, successful built-in `read` calls can surface fresh exact mycelium notes for the current file object, list multiple exact notes first, and dedupe repeats for the same note payload.
+- When the Pi extension is active, successful built-in `edit` and `write` calls can add hidden note follow-up reminders so agents remember to leave or update mycelium notes after changing files.
+
 ## [0.3.0] — 2026-04-01
 
 ### Added
