@@ -10,6 +10,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Experimental Pi extension MVP under `integrations/pi/` with `/mycelium`, `mycelium_context`, `mycelium_note`, jj-workspace git wiring, and hidden touched-path state.
+
 ## [0.3.0] — 2026-04-01
 
 ### Added

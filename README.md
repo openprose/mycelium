@@ -229,7 +229,7 @@ Dependencies: `bash` (3.2+), `git`, and POSIX coreutils (`awk`, `grep`, `sed`, `
 ## Roadmap
 
 - **Claude Code plugin** — native integration so Claude Code reads/writes mycelium notes automatically when working in git repos.
-- **Pi extension** — same for the [pi coding agent](https://github.com/badlogic/pi-mono), making mycelium a first-class part of the agent loop.
+- **Pi extension** — experimental MVP now lives in [`integrations/pi/`](integrations/pi/), adding `/mycelium`, `mycelium_context`, and `mycelium_note` for the [pi coding agent](https://github.com/badlogic/pi-mono).
 
 ## Spiritual predecessors
 
