@@ -154,7 +154,7 @@ obj_label() {
     blob)   echo "  blob:${oid:0:12}" ;;
     tree)   echo "  tree:${oid:0:12}" ;;
     tag)    echo "   tag:${oid:0:12}" ;;
-    *)      echo "    ??:${oid:0:12}" ;;
+    *)      echo "   ext:${oid:0:12}" ;;
   esac
 }
 
@@ -222,7 +222,9 @@ mycelium — structured notes on git objects
   mycelium repo-id [init]                          Durable repository identity
   mycelium zone [init [level]]                     Confidentiality zone (default: 80)
   mycelium export <target> --audience <a>           Export note to audience ref
+  mycelium export --all [--kind <k>] --audience <a>  Batch export notes
   mycelium import <remote> [--as <name>] [--refresh] Import notes from remote
+  mycelium list-imports                              Show imported repos
   mycelium sync-init [remote]                      Configure fetch/push
   mycelium sync-init --export-only [remote]        Configure export ref sync only
 
@@ -784,6 +786,35 @@ cmd_activate() {
   echo "Mycelium notes now visible in git log."
 }
 
+cmd_list_imports() {
+  local imports
+  imports=$(_import_refs || true)
+  if [[ -z "$imports" ]]; then
+    echo "No imports."
+    return 0
+  fi
+
+  while read -r iref; do
+    [[ -z "$iref" ]] && continue
+    local iname icount ifresh remote_name repo_id_line
+    iname=$(_import_name_from_ref "$iref")
+    icount=$(git notes --ref="$iref" list 2>/dev/null | wc -l | tr -d ' ')
+    ifresh=$(git log -1 --format='%ci' "refs/notes/$iref" 2>/dev/null | cut -d' ' -f1 || echo "unknown")
+
+    # Extract remote name from wrapper commit message ("mycelium import from <remote>")
+    remote_name=""
+    local wrapper_msg
+    wrapper_msg=$(git log -1 --format='%s' "refs/notes/$iref" 2>/dev/null || true)
+    if [[ "$wrapper_msg" == "mycelium import from "* ]]; then
+      remote_name="${wrapper_msg#mycelium import from }"
+    fi
+
+    printf "%-20s %s note(s)  fetched:%s" "$iname" "$icount" "$ifresh"
+    [[ -n "$remote_name" ]] && printf "  remote:%s" "$remote_name"
+    printf "\n"
+  done <<< "$imports"
+}
+
 cmd_sync_init() {
   local remote="" export_only=false
 
@@ -941,13 +972,44 @@ _check_export_policy() {
   return 0
 }
 
+_add_exported_from_edge() {
+  # Append an exported-from edge to note content if not already present.
+  # Inserts after the last existing edge, or before the body separator.
+  local content="$1" repo_id="$2"
+  if echo "$content" | grep -q "^edge exported-from "; then
+    echo "$content"
+    return
+  fi
+  echo "$content" | awk -v edge="edge exported-from repo:$repo_id" '
+    /^edge / { last_edge=NR }
+    { lines[NR]=$0 }
+    END {
+      if (last_edge) {
+        for (i=1; i<=NR; i++) {
+          print lines[i]
+          if (i==last_edge) print edge
+        }
+      } else {
+        done=0
+        for (i=1; i<=NR; i++) {
+          if (!done && lines[i]=="") { print edge; done=1 }
+          print lines[i]
+        }
+        if (!done) print edge
+      }
+    }
+  '
+}
+
 cmd_export() {
-  local target="" audience="" slot=""
+  local target="" audience="" slot="" batch_all=false batch_kind=""
 
   while [[ $# -gt 0 ]]; do
     case $1 in
       --audience)  audience="$2"; shift 2 ;;
       --slot)      slot="$2"; shift 2 ;;
+      --all)       batch_all=true; shift ;;
+      --kind)      batch_kind="$2"; shift 2 ;;
       -*)          echo "Unknown option: $1" >&2; exit 1 ;;
       *)           target="$1"; shift ;;
     esac
@@ -956,7 +1018,61 @@ cmd_export() {
   # --audience is required
   _validate_audience "${audience:-}" || exit 1
 
-  [[ -z "$target" ]] && { echo "Usage: mycelium.sh export <target> --audience <internal|public> [--slot <name>]" >&2; exit 1; }
+  # --- batch export mode ---
+  if [[ "$batch_all" == "true" ]]; then
+    [[ -n "$target" ]] && { echo "Error: --all cannot be combined with a target" >&2; exit 1; }
+    _validate_slot "$slot" || exit 1
+    local SOURCE_REF
+    SOURCE_REF=$(_slot_ref "$slot")
+
+    if [[ ! -f .mycelium/repo-id ]]; then
+      echo "Error: .mycelium/repo-id not found" >&2
+      exit 1
+    fi
+    local repo_id
+    repo_id=$(cat .mycelium/repo-id)
+
+    local EXPORT_REF="${REF}--export--${audience}"
+    local exported=0 skipped=0
+
+    local notelist
+    notelist=$(git notes --ref="$SOURCE_REF" list 2>/dev/null || true)
+    [[ -z "$notelist" ]] && { echo "0 note(s) exported to $audience" >&2; return 0; }
+
+    while read -r blob obj; do
+      [[ -z "$blob" ]] && continue
+      local content
+      content=$(git cat-file -p "$blob" 2>/dev/null) || { skipped=$((skipped + 1)); continue; }
+
+      # Filter by kind if --kind given
+      if [[ -n "$batch_kind" ]]; then
+        local note_kind
+        note_kind=$(echo "$content" | grep "^kind " | head -1 | cut -d' ' -f2)
+        [[ "$note_kind" != "$batch_kind" ]] && continue
+      fi
+
+      # Policy check for public audience
+      if [[ "$audience" == "public" ]]; then
+        if ! _check_export_policy "$content" 2>/dev/null; then
+          skipped=$((skipped + 1))
+          continue
+        fi
+      fi
+
+      # Add exported-from edge if not present
+      local export_content
+      export_content=$(_add_exported_from_edge "$content" "$repo_id")
+
+      git notes --ref="$EXPORT_REF" add -f -m "$export_content" "$obj" 2>/dev/null
+      exported=$((exported + 1))
+    done <<< "$notelist"
+
+    echo "$exported note(s) exported to $audience" >&2
+    [[ $skipped -gt 0 ]] && echo "$skipped note(s) skipped (policy)" >&2
+    return 0
+  fi
+
+  [[ -z "$target" ]] && { echo "Usage: mycelium.sh export <target> --audience <internal|public> [--slot <name>]" >&2; echo "       mycelium.sh export --all [--kind <kind>] --audience <a> [--slot <name>]" >&2; exit 1; }
 
   # repo-id must exist
   if [[ ! -f .mycelium/repo-id ]]; then
@@ -997,30 +1113,8 @@ cmd_export() {
   local EXPORT_REF="${REF}--export--${audience}"
 
   # Add exported-from edge if not already present
-  local export_content="$content"
-  if ! echo "$content" | grep -q "^edge exported-from "; then
-    # Insert the edge after the last existing edge line, or after headers
-    export_content=$(echo "$content" | awk -v edge="edge exported-from repo:$repo_id" '
-      /^edge / { last_edge=NR }
-      { lines[NR]=$0 }
-      END {
-        if (last_edge) {
-          for (i=1; i<=NR; i++) {
-            print lines[i]
-            if (i==last_edge) print edge
-          }
-        } else {
-          # No existing edges — insert before blank line (body separator)
-          done=0
-          for (i=1; i<=NR; i++) {
-            if (!done && lines[i]=="") { print edge; done=1 }
-            print lines[i]
-          }
-          if (!done) print edge
-        }
-      }
-    ')
-  fi
+  local export_content
+  export_content=$(_add_exported_from_edge "$content" "$repo_id")
 
   # Write to export ref
   git notes --ref="$EXPORT_REF" add -f -m "$export_content" "$oid" 2>/dev/null
@@ -1543,9 +1637,10 @@ case "${1:-help}" in
   activate)   cmd_activate ;;
   repo-id)    shift; cmd_repo_id "$@" ;;
   zone)       shift; cmd_zone "$@" ;;
-  export)     shift; cmd_export "$@" ;;
-  import)     shift; cmd_import "$@" ;;
-  sync-init)  shift; cmd_sync_init "$@" ;;
+  export)       shift; cmd_export "$@" ;;
+  import)       shift; cmd_import "$@" ;;
+  list-imports) cmd_list_imports ;;
+  sync-init)    shift; cmd_sync_init "$@" ;;
   migrate)    shift; cmd_migrate "$@" ;;
   doctor)     cmd_doctor ;;
   dump)       cmd_dump ;;

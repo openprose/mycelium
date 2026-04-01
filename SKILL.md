@@ -240,7 +240,10 @@ mycelium.sh sync-init       # notes travel with fetch/push
 mycelium.sh repo-id init    # durable repo identity
 mycelium.sh zone init       # confidentiality zone
 mycelium.sh export f -a internal
+mycelium.sh export --all --audience internal      # batch export all notes
+mycelium.sh export --all --kind decision -a public # batch export by kind
 mycelium.sh import remote --as lib
+mycelium.sh list-imports                          # show imported repos
 ```
 
 ## jj+git colocated repos

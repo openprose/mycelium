@@ -128,7 +128,9 @@ mycelium.sh sync-init --export-only [remote]     Configure export ref sync only
 mycelium.sh repo-id [init]                       Durable repository identity
 mycelium.sh zone [init [level]]                  Confidentiality zone (default: 80)
 mycelium.sh export <target> --audience <a>       Export note to audience ref
+mycelium.sh export --all [--kind <k>] --audience <a>  Batch export notes
 mycelium.sh import <remote> [--as <name>]        Import notes from remote
+mycelium.sh list-imports                         Show imported repos
 ```
 
 Kinds and edge types are open vocabulary — use whatever strings make sense. `mycelium.sh kinds` shows what's in use.
