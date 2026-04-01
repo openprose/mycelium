@@ -1,0 +1,28 @@
+kind context
+title Validation: real-world test across mycelium→index repos
+edge explains commit:0f06ded57e5fa6f3d9ffee9114f8c59e272b2dd1
+edge targets-change change:klpplstoynxvooolsrwlpwznotxtwnrx
+
+Tested all 3 features against real repositories:
+
+Source: mycelium repo (138 notes on main ref)
+Target: index repo (imported via file:// remote as 'mycelium')
+
+1. Batch export (mycelium repo):
+   - export --all --kind decision: 28 decisions exported ✓
+   - export --all: 138 total notes exported ✓
+   - Idempotent: re-running doesn't duplicate ✓
+
+2. list-imports (index repo):
+   - Before refresh: 'mycelium  4 note(s)  fetched:2026-03-29  remote:mycelium-repo' ✓
+   - After refresh:  'mycelium  138 note(s)  fetched:2026-04-01  remote:mycelium-repo' ✓
+   - Remote name correctly extracted from wrapper commit ✓
+
+3. Foreign labels (index repo):
+   - find decision: 28 entries, all show [foreign:oid] instead of ??:oid ✓
+   - doctor: 'import mycelium  138 note(s)  fetched:2026-04-01' — clean, no ??'s ✓
+   - kinds: aggregates 9 kinds across local + 138 imported notes ✓
+
+4. Read-only enforcement: writes to import ref still blocked ✓
+
+Rough edges observed: none. All features work as designed.
