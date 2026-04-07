@@ -1,5 +1,5 @@
 .aplumb/
 .shoulder/
-# Local Pi extension scratch file; keep untracked unless promoted into a real extension.
-mycelium-hook.ts
+# Local Pi extension scratch file at repo root; canonical copy lives in integrations/pi/.
+/mycelium-hook.ts
 demo/

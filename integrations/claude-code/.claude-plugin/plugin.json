@@ -1,0 +1,17 @@
+{
+  "name": "mycelium",
+  "description": "Git-native note graph for AI agent collaboration. Injects mycelium notes into context when files are read, teaches agents the protocol via SKILL.md, and nudges agents to leave notes after edits.",
+  "version": "0.3.0",
+  "author": {
+    "name": "OpenProse",
+    "url": "https://github.com/OpenProse"
+  },
+  "repository": "https://github.com/OpenProse/mycelium",
+  "keywords": [
+    "git-notes",
+    "agent-collaboration",
+    "knowledge-graph",
+    "mycelium",
+    "context-injection"
+  ]
+}
