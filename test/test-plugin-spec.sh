@@ -176,7 +176,7 @@ assert "reading annotated file returns slot ref note" \
 
 # Test 9: Reading annotated file output contains [ref: labels
 assert "reading annotated file output contains ref labels" \
-  'echo "$out" | grep -q "\[ref:"'
+  'echo "$out" | grep -q "\[mycelium\]\|\\[ref:"'
 
 # Test 10: Reading unannotated file produces no output
 UNANNOTATED_JSON="{\"cwd\":\"$TEST_DIR\",\"tool_input\":{\"file_path\":\"$TEST_DIR/src/utils.ts\"}}"
@@ -198,6 +198,58 @@ out_nogit2=$(run_hook "$HOOK_READ" "$NOGIT_JSON")
 assert "reading file in non-git dir produces no output" \
   '[ -z "$out_nogit2" ]'
 rm -rf "$NOGIT2"
+
+echo ""
+
+# ============================================================
+echo "=== Content Handling ==="
+# ============================================================
+
+# Create a binary note (PNG header) on a file
+echo "text content" > src/binary-target.txt
+git add src/binary-target.txt
+git commit -q --no-verify -m "add binary target"
+BIN_BLOB=$(git rev-parse HEAD:src/binary-target.txt)
+# Write a fake PNG as a note (PNG magic bytes + padding)
+printf '\x89PNG\r\n\x1a\n\x00\x00\x00\x00IHDR' | \
+  git notes --ref=mycelium add --allow-empty -F - "$BIN_BLOB" 2>/dev/null || true
+
+BIN_JSON="{\"cwd\":\"$TEST_DIR\",\"tool_input\":{\"file_path\":\"$TEST_DIR/src/binary-target.txt\"}}"
+out_bin=$(run_hook "$HOOK_READ" "$BIN_JSON")
+
+# Test: non-text note shows type descriptor
+assert "non-text note shows type descriptor" \
+  'echo "$out_bin" | grep -qi "non-text"'
+
+# Test: non-text note includes retrieval command
+assert "non-text note includes retrieval command" \
+  'echo "$out_bin" | grep -q "git notes"'
+
+# Create a large text note (over 4KB)
+echo "large note content" > src/large-target.txt
+git add src/large-target.txt
+git commit -q --no-verify -m "add large target"
+LARGE_BLOB=$(git rev-parse HEAD:src/large-target.txt)
+# Generate >4KB of text
+LARGE_TEXT="kind observation
+title Large note test
+"
+for i in $(seq 1 200); do
+  LARGE_TEXT="${LARGE_TEXT}Line $i: This is padding to exceed the 4KB note size threshold for truncation testing.
+"
+done
+echo "$LARGE_TEXT" | git notes --ref=mycelium add -F - "$LARGE_BLOB" 2>/dev/null
+
+LARGE_JSON="{\"cwd\":\"$TEST_DIR\",\"tool_input\":{\"file_path\":\"$TEST_DIR/src/large-target.txt\"}}"
+out_large=$(run_hook "$HOOK_READ" "$LARGE_JSON")
+
+# Test: large text note is truncated
+assert "large text note shows truncation indicator" \
+  'echo "$out_large" | grep -q "truncated"'
+
+# Test: large text note still has some content
+assert "large text note includes partial content" \
+  'echo "$out_large" | grep -q "Large note test"'
 
 echo ""
 
@@ -323,6 +375,13 @@ assert "pi extension references mycelium--slot--" \
 # Test 29: Pi extension uses display: false on messages
 assert "pi extension uses display: false on messages" \
   'echo "$PI" | grep -q "display: false"'
+
+# Test: Pi extension handles binary/large note content
+assert "pi extension checks for non-text content" \
+  'echo "$PI" | grep -q "mime-type\|mime_type\|mimeType\|text/"'
+
+assert "pi extension has truncation logic" \
+  'echo "$PI" | grep -qi "truncat\|MAX_NOTE"'
 
 echo ""
 

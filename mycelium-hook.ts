@@ -155,9 +155,46 @@ export default function (pi: ExtensionAPI) {
 
       const noteParts: string[] = [];
 
-      // Check default ref
-      const defaultNote = run(`git notes --ref=mycelium show ${oid}`, ctx.cwd);
-      if (defaultNote) noteParts.push(`[mycelium] ${relPath}:\n${defaultNote}`);
+      // Classify and format a note blob. Text notes are injected as content
+      // (truncated if over 4KB). Non-text notes get a type/size descriptor
+      // so the agent can decide how to view them.
+      const formatNote = (noteBlob: string, label: string): string | null => {
+        const sizeStr = run(`git cat-file -s ${noteBlob}`, ctx.cwd);
+        const size = parseInt(sizeStr, 10) || 0;
+
+        // Check for non-text content via MIME type (more reliable than null-byte grep)
+        const mimeType = run(
+          `git cat-file -p ${noteBlob} | file -b --mime-type -`,
+          ctx.cwd
+        ) || "application/octet-stream";
+        if (!mimeType.startsWith("text/")) {
+          const humanSize = size >= 1048576 ? `${Math.floor(size / 1048576)}MB`
+            : size >= 1024 ? `${Math.floor(size / 1024)}KB`
+            : `${size}B`;
+          return `[${label}] (non-text note: ${mimeType}, ${humanSize}) — use \`git notes --ref=${label} show ${oid}\` to retrieve`;
+        }
+
+        // Text content
+        const content = run(`git cat-file -p ${noteBlob}`, ctx.cwd);
+        if (!content) return null;
+
+        const MAX_NOTE_BYTES = 4096;
+        if (size > MAX_NOTE_BYTES) {
+          const truncated = content.substring(0, MAX_NOTE_BYTES);
+          return `[${label}]\n${truncated}\n... (truncated, ${size} bytes total — use \`git notes --ref=${label} show ${oid}\` for full content)`;
+        }
+        return `[${label}]\n${content}`;
+      };
+
+      // Check default ref — get note blob OID
+      const defaultList = run(`git notes --ref=mycelium list ${oid}`, ctx.cwd);
+      if (defaultList) {
+        const noteBlob = defaultList.split(" ")[0];
+        if (noteBlob) {
+          const formatted = formatNote(noteBlob, "mycelium");
+          if (formatted) noteParts.push(formatted);
+        }
+      }
 
       // Check slot refs
       const slotRefs = run(
@@ -167,11 +204,10 @@ export default function (pi: ExtensionAPI) {
       if (slotRefs) {
         for (const ref of slotRefs.split("\n")) {
           if (!ref) continue;
-          const slotNote = run(`git notes --ref="${ref}" show ${oid}`, ctx.cwd);
-          if (slotNote) {
-            const slotName = ref.replace(/^.*mycelium--slot--/, "");
-            noteParts.push(`[mycelium slot:${slotName}] ${relPath}:\n${slotNote}`);
-          }
+          const noteBlob = (run(`git notes --ref="${ref}" list ${oid}`, ctx.cwd) || "").split(" ")[0];
+          if (!noteBlob) continue;
+          const formatted = formatNote(noteBlob, ref);
+          if (formatted) noteParts.push(formatted);
         }
       }
 
@@ -180,7 +216,7 @@ export default function (pi: ExtensionAPI) {
       return {
         message: {
           customType: "mycelium-file-note",
-          content: noteParts.join("\n\n"),
+          content: `[mycelium] Notes on ${relPath}:\n\n${noteParts.join("\n\n")}`,
           display: false,
         },
       };

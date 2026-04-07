@@ -92,6 +92,26 @@ for ref in $(git for-each-ref --format='%(refname:short)' refs/notes/mycelium--s
 done
 ```
 
+**Content handling:**
+
+Git notes can be any content type — text, images, binaries, HTML.
+Adapters must classify each note blob before injecting:
+
+| Content type | Action |
+|---|---|
+| Text, ≤ 4KB | Inject as-is |
+| Text, > 4KB | Truncate to 4KB, append size and retrieval command |
+| Binary (null bytes detected) | Do not inject content. Emit a one-line descriptor: type, size, and `git notes show` command so the agent can decide how to view it |
+
+Detection: pipe the blob through `file --mime-type` to classify.
+Text notes have `text/*` MIME types; everything else is non-text.
+
+```bash
+mime=$(git cat-file -p <blob> | file -b --mime-type -)
+# text/plain, text/html → text (inject)
+# image/png, application/pdf → non-text (describe)
+```
+
 **What NOT to inject:**
 
 - Parent directory notes (the agent can run `context-workflow.sh` if
