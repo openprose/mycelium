@@ -1,5 +1,3 @@
 .aplumb/
 .shoulder/
-# Local Pi extension scratch file at repo root; canonical copy lives in integrations/pi/.
-/mycelium-hook.ts
 demo/

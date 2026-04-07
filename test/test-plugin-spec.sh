@@ -5,7 +5,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MYCELIUM="${HOME}/.local/bin/mycelium.sh"
-PI_EXT="$REPO_ROOT/integrations/pi/mycelium-hook.ts"
+PI_EXT="$REPO_ROOT/mycelium-hook.ts"
 
 HOOK_DIR="$REPO_ROOT/integrations/claude-code/hooks"
 HOOK_SESSION="$HOOK_DIR/mycelium-session-start.sh"

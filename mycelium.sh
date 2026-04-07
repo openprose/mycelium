@@ -1316,33 +1316,36 @@ EOF
 cmd_doctor() {
   # White hat: facts only. What exists, in what state.
 
-  local tmp
+  local tmp notefile
   tmp=$(mktemp)
+  notefile=$(mktemp)
 
-  # Classify each note across all slots
-  local notelist
-  notelist=$(_all_notes)
-  if [[ -z "$notelist" ]]; then
+  # Collect all notes into a file to avoid SIGPIPE from nested pipes
+  _all_notes > "$notefile"
+  if [[ ! -s "$notefile" ]]; then
     echo "notes  0"
+    rm -f "$notefile"
   else
 
   while read sref noteblob obj; do
     local content kind status note_status target_path target_treepath n_edges
     content=$(git cat-file -p "$noteblob")
-    kind=$(echo "$content" | awk '/^kind /{print $2; exit}')
-    note_status=$(echo "$content" | awk '/^status /{print $2; exit}')
+    # Use <<< (herestring) instead of echo|awk to avoid SIGPIPE when
+    # awk exits early on large notes under set -o pipefail.
+    kind=$(awk '/^kind /{print $2; exit}' <<< "$content")
+    note_status=$(awk '/^status /{print $2; exit}' <<< "$content")
     status="current"
 
     # Composted notes are composted regardless of staleness
     if [[ "$note_status" == "composted" ]]; then
       status="composted"
-      n_edges=$(echo "$content" | awk '/^edge /{n++} END{print n+0}')
+      n_edges=$(awk '/^edge /{n++} END{print n+0}' <<< "$content")
       echo "$kind $status $n_edges"
       continue
     fi
 
-    target_path=$(echo "$content" | awk '/^edge targets-path /{sub(/^edge targets-path path:/,""); print; exit}')
-    target_treepath=$(echo "$content" | awk '/^edge targets-treepath /{sub(/^edge targets-treepath treepath:/,""); print; exit}')
+    target_path=$(awk '/^edge targets-path /{sub(/^edge targets-path path:/,""); print; exit}' <<< "$content")
+    target_treepath=$(awk '/^edge targets-treepath /{sub(/^edge targets-treepath treepath:/,""); print; exit}' <<< "$content")
 
     if [[ -n "$target_path" ]]; then
       local current_blob
@@ -1366,9 +1369,10 @@ cmd_doctor() {
       git cat-file -t "$obj" &>/dev/null || status="orphaned"
     fi
 
-    n_edges=$(echo "$content" | awk '/^edge /{n++} END{print n+0}')
+    n_edges=$(awk '/^edge /{n++} END{print n+0}' <<< "$content")
     echo "$kind $status $n_edges"
-  done <<< "$notelist" > "$tmp"
+  done < "$notefile" > "$tmp"
+  rm -f "$notefile"
 
   # Summarize
   read total n_current n_stale n_orphaned n_composted n_edges < <(

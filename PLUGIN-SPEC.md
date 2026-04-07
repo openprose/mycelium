@@ -45,7 +45,6 @@ respect them.
 | SKILL.md | Repo root, or global install location | Yes |
 | Constraint notes | `mycelium.sh find constraint` | Yes, if any exist |
 | Warning notes | `mycelium.sh find warning` | Yes, if any exist |
-| Graph state | `mycelium.sh doctor` | Yes |
 | Note count | `git notes --ref=mycelium list \| wc -l` | Yes |
 
 **What NOT to inject at session start:**

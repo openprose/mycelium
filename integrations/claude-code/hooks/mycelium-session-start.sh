@@ -26,9 +26,9 @@ parts="[mycelium] This repo has ${NOTE_COUNT} mycelium note(s)."
 parts="${parts}\n\nUse \`mycelium.sh read <file>\` to check notes before working on a file."
 parts="${parts}\nUse \`mycelium.sh note <file> -k <kind> -m \"...\"\` to leave notes after meaningful work."
 
-# Inject SKILL.md — check repo root, plugin root, then global locations
+# Inject SKILL.md — check repo root, then global install locations
 SKILL=""
-for loc in "${REPO_ROOT}/SKILL.md" "${CLAUDE_PLUGIN_ROOT:-}/SKILL.md" "${HOME}/.claude/skills/mycelium/SKILL.md" "${HOME}/.local/share/mycelium/SKILL.md"; do
+for loc in "${REPO_ROOT}/SKILL.md" "${HOME}/.claude/skills/mycelium/SKILL.md" "${HOME}/.local/share/mycelium/SKILL.md"; do
   if [ -n "$loc" ] && [ -f "$loc" ]; then
     SKILL=$(cat "$loc")
     break
@@ -48,12 +48,6 @@ fi
 warnings=$("$MYCELIUM" find warning 2>/dev/null || true)
 if [ -n "$warnings" ]; then
   parts="${parts}\n\n## Warnings\n${warnings}"
-fi
-
-# Graph state — pipe through cat to avoid SIGPIPE in non-terminal contexts
-doctor=$("$MYCELIUM" doctor 2>/dev/null | cat || true)
-if [ -n "$doctor" ]; then
-  parts="${parts}\n\n## Graph state\n${doctor}"
 fi
 
 # Escape for JSON
