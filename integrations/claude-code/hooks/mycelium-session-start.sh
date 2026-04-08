@@ -21,13 +21,15 @@ for loc in "${HOME}/.local/bin/mycelium.sh" "${HOME}/.agents/skills/mycelium/myc
   [ -x "$loc" ] && MYCELIUM="$loc" && break
 done
 
+# Build the payload with REAL newlines (bash string concat does not
+# interpret \n escapes, so we use $'...' ANSI-C quoting and printf).
 if [ "$NOTE_COUNT" -eq 0 ]; then
-  parts="[mycelium] This repo has no mycelium notes yet — be the first to leave one."
+  header="[mycelium] This repo has no mycelium notes yet — be the first to leave one."
 else
-  parts="[mycelium] This repo has ${NOTE_COUNT} mycelium note(s)."
+  header="[mycelium] This repo has ${NOTE_COUNT} mycelium note(s)."
 fi
-parts="${parts}\n\nUse \`mycelium.sh read <file>\` to check notes before working on a file."
-parts="${parts}\nUse \`mycelium.sh note <file> -k <kind> -m \"...\"\` to leave notes after meaningful work."
+
+parts=$(printf '%s\n\nUse `mycelium.sh read <file>` to check notes before working on a file.\nUse `mycelium.sh note <file> -k <kind> -m "..."` to leave notes after meaningful work.' "$header")
 
 # Inject skill + graph state via `mycelium.sh prime` — the canonical
 # user-facing command for surfacing the skill and live repo context.
@@ -36,7 +38,7 @@ parts="${parts}\nUse \`mycelium.sh note <file> -k <kind> -m \"...\"\` to leave n
 if [ -n "$MYCELIUM" ]; then
   prime_out=$("$MYCELIUM" prime 2>/dev/null | cat || true)
   if [ -n "$prime_out" ]; then
-    parts="${parts}\n\n${prime_out}"
+    parts=$(printf '%s\n\n%s' "$parts" "$prime_out")
   fi
 fi
 
