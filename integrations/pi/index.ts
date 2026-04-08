@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import type { ImageContent, TextContent } from "@mariozechner/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
@@ -142,30 +143,25 @@ export function findWorkspaceRoot(start: string): string | undefined {
 }
 
 /**
- * Find and read SKILL.md, searching in order:
- * 1. The workspace root (if it is the mycelium repo itself)
- * 2. The installed-skill global locations
- * Returns the file contents, or an empty string if not found.
+ * Read the canonical mycelium SKILL.md.
+ *
+ * Single source of truth: the repo's root SKILL.md. This extension lives
+ * at `<mycelium-repo>/integrations/pi/index.ts`, so the skill is two
+ * directories up from this file. We resolve it relative to the extension's
+ * own install path (via `import.meta.url`) so the skill always comes from
+ * the same mycelium checkout that supplies the extension code.
+ *
+ * Returns file contents, or an empty string if SKILL.md is not found.
  */
-export function readSkillMd(workspaceRoot: string | undefined): string {
-	const candidates: string[] = [];
-	if (workspaceRoot) {
-		candidates.push(join(workspaceRoot, "SKILL.md"));
-	}
-	const home = process.env.HOME;
-	if (home) {
-		candidates.push(join(home, ".agents/skills/mycelium/SKILL.md"));
-		candidates.push(join(home, ".claude/skills/mycelium/SKILL.md"));
-		candidates.push(join(home, ".local/share/mycelium/SKILL.md"));
-	}
-	for (const path of candidates) {
-		if (existsSync(path)) {
-			try {
-				return readFileSync(path, "utf8");
-			} catch {
-				// ignore — try next candidate
-			}
+export function readSkillMd(): string {
+	try {
+		const extensionDir = dirname(fileURLToPath(import.meta.url));
+		const skillPath = resolve(extensionDir, "..", "..", "SKILL.md");
+		if (existsSync(skillPath)) {
+			return readFileSync(skillPath, "utf8");
 		}
+	} catch {
+		// ignore — e.g. non-file: URL, permission error
 	}
 	return "";
 }
@@ -1039,7 +1035,7 @@ export default function myceliumExtension(pi: ExtensionAPI) {
 		// via the platform's prompt caching.
 		let additions = buildPromptReminder(state);
 		if (!skillInjectedThisCycle) {
-			const skillContent = readSkillMd(integration.workspaceRoot);
+			const skillContent = readSkillMd();
 			if (skillContent) {
 				additions = `${skillContent}\n\n${additions}`;
 			}

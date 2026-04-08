@@ -21,8 +21,6 @@ for loc in "${HOME}/.local/bin/mycelium.sh" "${HOME}/.agents/skills/mycelium/myc
   [ -x "$loc" ] && MYCELIUM="$loc" && break
 done
 
-REPO_ROOT=$(git rev-parse --show-toplevel)
-
 if [ "$NOTE_COUNT" -eq 0 ]; then
   parts="[mycelium] This repo has no mycelium notes yet — be the first to leave one."
 else
@@ -31,28 +29,14 @@ fi
 parts="${parts}\n\nUse \`mycelium.sh read <file>\` to check notes before working on a file."
 parts="${parts}\nUse \`mycelium.sh note <file> -k <kind> -m \"...\"\` to leave notes after meaningful work."
 
-# Inject SKILL.md — check repo root, then global install locations
-SKILL=""
-for loc in "${REPO_ROOT}/SKILL.md" "${HOME}/.claude/skills/mycelium/SKILL.md" "${HOME}/.local/share/mycelium/SKILL.md"; do
-  if [ -n "$loc" ] && [ -f "$loc" ]; then
-    SKILL=$(cat "$loc")
-    break
-  fi
-done
-if [ -n "$SKILL" ]; then
-  parts="${parts}\n\n## Mycelium Skill\n${SKILL}"
-fi
-
-# Constraints and warnings only exist if there are notes already
-if [ -n "$MYCELIUM" ] && [ "$NOTE_COUNT" -gt 0 ]; then
-  constraints=$("$MYCELIUM" find constraint 2>/dev/null || true)
-  if [ -n "$constraints" ]; then
-    parts="${parts}\n\n## Constraints\n${constraints}"
-  fi
-
-  warnings=$("$MYCELIUM" find warning 2>/dev/null || true)
-  if [ -n "$warnings" ]; then
-    parts="${parts}\n\n## Warnings\n${warnings}"
+# Inject skill + graph state via `mycelium.sh prime` — the canonical
+# user-facing command for surfacing the skill and live repo context.
+# Single source of truth: prime finds SKILL.md via its own resolution
+# (script dir → git repo root → inline fallback) and emits graph state.
+if [ -n "$MYCELIUM" ]; then
+  prime_out=$("$MYCELIUM" prime 2>/dev/null | cat || true)
+  if [ -n "$prime_out" ]; then
+    parts="${parts}\n\n${prime_out}"
   fi
 fi
 
