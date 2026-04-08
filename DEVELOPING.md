@@ -102,3 +102,10 @@ In short: branch → validate → merge to `main` → tag prerelease/stable mile
 ./test/test-multi-repo-phase0.sh
 ./test/test-multi-repo-phase1.sh
 ```
+
+When touching adapter code, also run the plugin compliance suite:
+
+- `bash test/test-plugin-spec.sh` when changing anything under `integrations/`, `PLUGIN-SPEC.md`, or `test/test-plugin-spec.sh` itself.
+- `cd integrations/pi && bun run typecheck && bun test` when changing anything under `integrations/pi/`.
+
+The shipped pre-commit hook at `hooks/pre-commit` runs both of these automatically against staged files, including a graceful skip for the bun tests when `bun` is not installed.
