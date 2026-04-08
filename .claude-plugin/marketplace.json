@@ -1,5 +1,5 @@
 {
-  "name": "mycelium",
+  "name": "openprose-mycelium",
   "owner": {
     "name": "OpenProse",
     "url": "https://github.com/OpenProse"
@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "mycelium",
-      "source": "./",
+      "source": "integrations/claude-code",
       "description": "Git-native note graph for AI agent collaboration"
     }
   ]

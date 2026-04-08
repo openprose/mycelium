@@ -26,24 +26,9 @@ the primary user interface.
 
 ### Claude Code
 
-A Claude Code plugin using shell hooks. Install via the OpenProse
-marketplace — add to your Claude Code settings:
-
-```json
-{
-  "extraKnownMarketplaces": {
-    "openprose-mycelium": {
-      "source": {
-        "source": "github",
-        "repo": "openprose/mycelium",
-        "path": "integrations/claude-code"
-      }
-    }
-  }
-}
-```
-
-Then enable `mycelium@openprose-mycelium` via `/plugins` in Claude Code.
+A Claude Code plugin using shell hooks. In Claude Code, run `/plugins`,
+select "Add Marketplace", and enter `openprose/mycelium`. Then enable
+`mycelium@openprose-mycelium`.
 
 Requires `jq` and `mycelium.sh` in PATH or at `~/.local/bin/mycelium.sh`.
 

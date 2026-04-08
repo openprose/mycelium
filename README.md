@@ -234,23 +234,17 @@ Both adapters are documented in [`integrations/README.md`](integrations/README.m
 
 A plugin that auto-injects mycelium context into Claude Code sessions.
 
-**Install via the OpenProse marketplace.** Add the marketplace to your Claude Code settings (`~/.claude/settings.json` or `.claude/settings.json`):
+**Install via the OpenProse marketplace.** In Claude Code, run `/plugins`, select "Add Marketplace", and enter `openprose/mycelium`. Then enable `mycelium@openprose-mycelium`.
+
+Or add to your Claude Code settings manually (`~/.claude/settings.json`):
 
 ```json
 {
-  "extraKnownMarketplaces": {
-    "openprose-mycelium": {
-      "source": {
-        "source": "github",
-        "repo": "openprose/mycelium",
-        "path": "integrations/claude-code"
-      }
-    }
+  "enabledPlugins": {
+    "mycelium@openprose-mycelium": true
   }
 }
 ```
-
-Then enable the plugin: open Claude Code, run `/plugins`, and enable `mycelium@openprose-mycelium`.
 
 Session start injects the skill and constraint/warning notes. Per-file reads surface exact notes on the current blob. The stop hook nudges the agent to leave notes on changed files. Works on fresh repos with zero notes.
 
