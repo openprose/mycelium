@@ -47,14 +47,14 @@ A TypeScript extension for the Pi coding agent.
 
 ```bash
 # Symlink to Pi's extensions directory
-ln -s /path/to/mycelium/mycelium-hook.ts \
+ln -s /path/to/mycelium/integrations/pi/mycelium-hook.ts \
   ~/.pi/agent/extensions/mycelium.ts
 ```
 
 Requires `mycelium.sh` at `~/.agents/skills/mycelium/mycelium.sh` or
 `~/.local/bin/mycelium.sh`.
 
-See [mycelium-hook.ts](../mycelium-hook.ts) in the repo root.
+See [pi/mycelium-hook.ts](pi/mycelium-hook.ts) for the extension source.
 
 ## What adapters do NOT do
 
