@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Mycelium PostToolUse(Edit|Write) hook — track changed files for stop nudge.
+# Mycelium PostToolUse(Edit|Write) hook — remind agent to leave notes after edits.
+# Tracks changed files AND injects a per-edit reminder as additionalContext,
+# matching the Pi extension's "underground follow-up reminder" pattern.
 set -euo pipefail
 
 INPUT=$(cat)
@@ -14,18 +16,28 @@ fi
 # that could enable path traversal.
 [[ "$SESSION_ID" =~ ^[A-Za-z0-9_-]{1,64}$ ]] || exit 0
 
-# Only track in git repos. Fresh repos with no notes yet are valid targets —
-# the Stop hook still needs to nudge the agent to leave a first note.
+# Only fire in git repos.
 cd "$CWD" 2>/dev/null || exit 0
 git rev-parse --is-inside-work-tree &>/dev/null || exit 0
 
 # Convert to repo-relative
 REPO_ROOT=$(git rev-parse --show-toplevel)
 REL_PATH="${FILE_PATH#"${REPO_ROOT}/"}"
-[[ "$REL_PATH" == /* ]] && exit 0
+if [[ "$REL_PATH" == /* ]]; then
+  exit 0
+fi
 
-# Append to state file
+# Track changed file (for Stop hook if enabled, and for cumulative nudge)
 STATE="/tmp/mycelium-cc-${SESSION_ID}.changed"
 echo "$REL_PATH" >> "$STATE"
 
-exit 0
+# Build the reminder — show cumulative list of all changed files this session
+FILES=$(sort -u "$STATE")
+COUNT=$(echo "$FILES" | wc -l)
+FILE_LIST=$(echo "$FILES" | sed 's/^/  - /')
+
+context=$(printf '[mycelium] %d file(s) changed this session:\n%s\nRemember to leave mycelium notes before wrapping up: mycelium.sh note <file> -k <kind> -m "..."' "$COUNT" "$FILE_LIST" | jq -Rs .)
+
+cat <<EOF
+{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":${context}}}
+EOF
