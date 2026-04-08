@@ -141,6 +141,35 @@ export function findWorkspaceRoot(start: string): string | undefined {
 	}
 }
 
+/**
+ * Find and read SKILL.md, searching in order:
+ * 1. The workspace root (if it is the mycelium repo itself)
+ * 2. The installed-skill global locations
+ * Returns the file contents, or an empty string if not found.
+ */
+export function readSkillMd(workspaceRoot: string | undefined): string {
+	const candidates: string[] = [];
+	if (workspaceRoot) {
+		candidates.push(join(workspaceRoot, "SKILL.md"));
+	}
+	const home = process.env.HOME;
+	if (home) {
+		candidates.push(join(home, ".agents/skills/mycelium/SKILL.md"));
+		candidates.push(join(home, ".claude/skills/mycelium/SKILL.md"));
+		candidates.push(join(home, ".local/share/mycelium/SKILL.md"));
+	}
+	for (const path of candidates) {
+		if (existsSync(path)) {
+			try {
+				return readFileSync(path, "utf8");
+			} catch {
+				// ignore — try next candidate
+			}
+		}
+	}
+	return "";
+}
+
 export function normalizeRepoPath(inputPath: string, cwd: string, workspaceRoot: string): string | undefined {
 	const resolvedPath = isAbsolute(inputPath) ? inputPath : resolve(cwd, inputPath);
 	const repoRelative = relative(workspaceRoot, resolvedPath);
@@ -755,6 +784,10 @@ function buildStatusMessage(state: MyceliumPersistedState, integration: Integrat
 export default function myceliumExtension(pi: ExtensionAPI) {
 	let state = createDefaultState();
 	let integration: IntegrationInfo | undefined;
+	// Tracks whether SKILL.md has been injected during the current activation
+	// cycle. Resets whenever state.active goes false → true, so turning
+	// mycelium off then on again re-injects the skill.
+	let skillInjectedThisCycle = false;
 
 	const persistState = () => {
 		pi.appendEntry<MyceliumPersistedState>(STATE_ENTRY_TYPE, state);
@@ -789,6 +822,11 @@ export default function myceliumExtension(pi: ExtensionAPI) {
 					ctx.ui.notify(`mycelium is unavailable: ${integration?.reason ?? "missing integration prerequisites"}`, "warning");
 					return;
 				}
+				// Transition from off → on resets the skill injection flag,
+				// so the next agent turn dumps SKILL.md into context.
+				if (!state.active) {
+					skillInjectedThisCycle = false;
+				}
 				state = { ...state, active: true };
 				persistState();
 				syncState(ctx);
@@ -797,6 +835,7 @@ export default function myceliumExtension(pi: ExtensionAPI) {
 			}
 			if (subcommand === "off" || subcommand === "deactivate") {
 				state = { ...state, active: false };
+				skillInjectedThisCycle = false;
 				persistState();
 				syncState(ctx);
 				ctx.ui.notify("mycelium deactivated: tools removed from the active set", "info");
@@ -994,8 +1033,20 @@ export default function myceliumExtension(pi: ExtensionAPI) {
 		if (!state.active || !integration?.available) {
 			return;
 		}
+		// On the first turn after activation, dump SKILL.md into context
+		// so the agent learns the mycelium protocol. Subsequent turns only
+		// get the short reminder — the skill stays in the system prompt
+		// via the platform's prompt caching.
+		let additions = buildPromptReminder(state);
+		if (!skillInjectedThisCycle) {
+			const skillContent = readSkillMd(integration.workspaceRoot);
+			if (skillContent) {
+				additions = `${skillContent}\n\n${additions}`;
+			}
+			skillInjectedThisCycle = true;
+		}
 		return {
-			systemPrompt: `${event.systemPrompt}\n\n${buildPromptReminder(state)}`,
+			systemPrompt: `${event.systemPrompt}\n\n${additions}`,
 		};
 	});
 }

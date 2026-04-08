@@ -34,18 +34,29 @@ respect them.
 
 ## Behaviors
 
-### 1. Session start: inject skill + high-signal notes
+### 1. Session start: teach the protocol (adapter-optional)
 
-**When:** New session begins (not resume/compact).
+**When:** New session begins. Whether this fires is platform-dependent —
+some adapters are dormant by default (Pi uses `/mycelium on`), others
+activate whenever installed (Claude Code plugin).
 
-**What to inject:**
+**Activation model:**
 
-| Content | Source | Required |
-|---------|--------|----------|
-| SKILL.md | Repo root, or global install location | Yes |
-| Constraint notes | `mycelium.sh find constraint` | Yes, if any exist |
-| Warning notes | `mycelium.sh find warning` | Yes, if any exist |
-| Note count | `git notes --ref=mycelium list \| wc -l` | Yes |
+- **Auto-activate** (Claude Code): plugin fires on every session start
+  in git repos. Teaches the agent the protocol via SKILL.md.
+- **Dormant-by-default** (Pi): extension stays dormant until the user
+  runs `/mycelium on`, then teaches the protocol. This avoids prompt
+  pollution in sessions where the user doesn't care about mycelium.
+
+**What an auto-activate adapter should inject when active:**
+
+| Content | Source | When |
+|---------|--------|------|
+| Mycelium protocol hint | Plugin-provided | Always, even on fresh repos |
+| SKILL.md | Repo root, or global install location | Always if found |
+| Constraint notes | `mycelium.sh find constraint` | Only if notes exist |
+| Warning notes | `mycelium.sh find warning` | Only if notes exist |
+| Note count | `git notes --ref=mycelium list \| wc -l` | Always |
 
 **What NOT to inject at session start:**
 
@@ -57,8 +68,9 @@ respect them.
 
 **Visibility:** Hidden from user UI. Agent/LLM sees it.
 
-**Guard:** Only fire in git repos where `refs/notes/mycelium` has at
-least one note. Exit silently otherwise.
+**Bootstrap requirement:** Session start MUST inject the skill/protocol
+even on fresh repos with zero notes. Otherwise the first note can never
+be written. Exit silently only if the cwd is not a git repo at all.
 
 ### 2. Per-file note injection on read
 
@@ -140,6 +152,10 @@ equivalent).
 **What to do:** Record the file path. No output to LLM. No user-visible
 side effect.
 
+**Bootstrap requirement:** Track mutations even in fresh repos with
+zero mycelium notes. The nudge that fires on stop needs this state
+to bootstrap the first note.
+
 **Implementation is platform-specific:**
 
 - In-process: set/list in memory (Pi approach)
@@ -150,7 +166,8 @@ side effect.
 
 **When:** Agent finishes responding / session ends.
 
-**Condition:** Files were mutated AND the repo uses mycelium notes.
+**Condition:** Files were mutated in a git repo. Fire even if the
+repo has zero notes — the first note path must work.
 
 **What to inject:** A message listing the changed files and suggesting
 the agent leave notes. Include the file list and a usage example:

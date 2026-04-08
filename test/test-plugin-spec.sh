@@ -5,7 +5,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MYCELIUM="${HOME}/.local/bin/mycelium.sh"
-PI_EXT="$REPO_ROOT/integrations/pi/mycelium-hook.ts"
+PI_EXT="$REPO_ROOT/integrations/pi/index.ts"
 
 HOOK_DIR="$REPO_ROOT/integrations/claude-code/hooks"
 HOOK_SESSION="$HOOK_DIR/mycelium-session-start.sh"
@@ -145,7 +145,8 @@ assert "session start in non-git dir produces no output" \
   '[ -z "$out_nogit" ]'
 rm -rf "$NOGIT"
 
-# Test 6: Session start in git repo without mycelium notes produces no output
+# Test 6: Session start in git repo without mycelium notes STILL injects SKILL.md
+# (bootstrapping: fresh repos need the skill so the agent can write the first note)
 EMPTY_GIT=$(mktemp -d)
 git -C "$EMPTY_GIT" init -q
 git -C "$EMPTY_GIT" config user.email "t@t"
@@ -153,8 +154,10 @@ git -C "$EMPTY_GIT" config user.name "t"
 touch "$EMPTY_GIT/f.txt"
 git -C "$EMPTY_GIT" add . && git -C "$EMPTY_GIT" commit -q --no-verify -m "init"
 out_empty=$(run_hook "$HOOK_SESSION" "{\"cwd\":\"$EMPTY_GIT\"}")
-assert "session start in repo without mycelium notes produces no output" \
-  '[ -z "$out_empty" ]'
+assert "session start in fresh repo injects mycelium context" \
+  '[ -n "$out_empty" ] && echo "$out_empty" | grep -q "mycelium"'
+assert "session start in fresh repo mentions zero notes" \
+  'echo "$out_empty" | grep -qi "no mycelium notes"'
 rm -rf "$EMPTY_GIT"
 
 echo ""
@@ -273,19 +276,30 @@ run_hook "$HOOK_WRITE" "$WRITE_JSON2" >/dev/null
 assert "post-write appends on second call" \
   'grep -q "src/auth.ts" "$STATE" && grep -q "src/utils.ts" "$STATE"'
 
-# Test 15: Post-write in non-mycelium repo creates no state file
-NON_MYCEL=$(mktemp -d)
-git -C "$NON_MYCEL" init -q
-git -C "$NON_MYCEL" config user.email "t@t"
-git -C "$NON_MYCEL" config user.name "t"
-touch "$NON_MYCEL/f.txt"
-git -C "$NON_MYCEL" add . && git -C "$NON_MYCEL" commit -q --no-verify -m "init"
-NM_SESSION="nonmycel-$$"
-NM_JSON="{\"cwd\":\"$NON_MYCEL\",\"session_id\":\"$NM_SESSION\",\"tool_input\":{\"file_path\":\"$NON_MYCEL/f.txt\"}}"
-run_hook "$HOOK_WRITE" "$NM_JSON" >/dev/null
-assert "post-write in non-mycelium repo creates no state file" \
-  '[ ! -f "/tmp/mycelium-cc-${NM_SESSION}.changed" ]'
-rm -rf "$NON_MYCEL"
+# Test 15: Post-write in fresh git repo (no notes yet) DOES track mutations
+# (bootstrap: the Stop hook needs this state to nudge the agent to leave a first note)
+FRESH_GIT=$(mktemp -d)
+git -C "$FRESH_GIT" init -q
+git -C "$FRESH_GIT" config user.email "t@t"
+git -C "$FRESH_GIT" config user.name "t"
+touch "$FRESH_GIT/f.txt"
+git -C "$FRESH_GIT" add . && git -C "$FRESH_GIT" commit -q --no-verify -m "init"
+FRESH_SESSION="fresh-$$"
+FRESH_JSON="{\"cwd\":\"$FRESH_GIT\",\"session_id\":\"$FRESH_SESSION\",\"tool_input\":{\"file_path\":\"$FRESH_GIT/f.txt\"}}"
+run_hook "$HOOK_WRITE" "$FRESH_JSON" >/dev/null
+assert "post-write in fresh git repo tracks mutations for bootstrap nudge" \
+  '[ -f "/tmp/mycelium-cc-${FRESH_SESSION}.changed" ] && grep -q "f.txt" "/tmp/mycelium-cc-${FRESH_SESSION}.changed"'
+rm -f "/tmp/mycelium-cc-${FRESH_SESSION}.changed"
+
+# Test: post-write in non-git directory produces no state file
+NON_GIT=$(mktemp -d)
+touch "$NON_GIT/f.txt"
+NG_SESSION="nongit-$$"
+NG_JSON="{\"cwd\":\"$NON_GIT\",\"session_id\":\"$NG_SESSION\",\"tool_input\":{\"file_path\":\"$NON_GIT/f.txt\"}}"
+run_hook "$HOOK_WRITE" "$NG_JSON" >/dev/null
+assert "post-write in non-git dir creates no state file" \
+  '[ ! -f "/tmp/mycelium-cc-${NG_SESSION}.changed" ]'
+rm -rf "$NON_GIT" "$FRESH_GIT"
 
 # Clean up state from tracking tests for stop tests
 rm -f "$STATE"
@@ -332,6 +346,24 @@ run_hook "$HOOK_STOP" "$STOP_JSON" >/dev/null
 assert "stop cleans up state file" \
   '[ ! -f "$STOP_STATE" ]'
 
+# Test: Stop in fresh git repo (zero notes) STILL nudges when files changed
+# (bootstrap: first-note path must work)
+FRESH_GIT2=$(mktemp -d)
+git -C "$FRESH_GIT2" init -q
+git -C "$FRESH_GIT2" config user.email "t@t"
+git -C "$FRESH_GIT2" config user.name "t"
+touch "$FRESH_GIT2/f.txt"
+git -C "$FRESH_GIT2" add . && git -C "$FRESH_GIT2" commit -q --no-verify -m "init"
+FRESH_STOP_SESSION="fresh-stop-$$"
+FRESH_STOP_STATE="/tmp/mycelium-cc-${FRESH_STOP_SESSION}.changed"
+printf 'f.txt\n' > "$FRESH_STOP_STATE"
+FRESH_STOP_JSON="{\"cwd\":\"$FRESH_GIT2\",\"session_id\":\"$FRESH_STOP_SESSION\",\"stop_hook_active\":false}"
+out_fresh=$(run_hook "$HOOK_STOP" "$FRESH_STOP_JSON")
+assert "stop in fresh repo nudges for first note" \
+  'echo "$out_fresh" | grep -q "\"decision\":\"block\""'
+rm -rf "$FRESH_GIT2"
+rm -f "$FRESH_STOP_STATE"
+
 echo ""
 
 # ============================================================
@@ -340,48 +372,55 @@ echo "=== Pi Extension Structure ==="
 
 PI=$(<"$PI_EXT")
 
-# Test 21: Pi extension has before_agent_start handler
-assert "pi extension has before_agent_start handler" \
-  'echo "$PI" | grep -q "before_agent_start"'
+# The real Pi extension uses a different activation model than Claude Code:
+# - Dormant by default; enabled via /mycelium on
+# - Agent-callable tools (mycelium_context, mycelium_note) for context/writes
+# - Read-time reminders appended to raw read tool results
+# - Edit/write follow-up reminders for note nudging
+# - Persisted state via STATE_ENTRY_TYPE
+# These tests assert the structural contract, not a specific injection model.
 
-# Test 22: Pi extension has tool_result handler checking "read"
-assert "pi extension has tool_result handler checking read" \
-  'echo "$PI" | grep -q "tool_result" && echo "$PI" | grep -q "\"read\""'
+# tool_result handler tracking the three built-in tool names
+assert "pi extension tracks read/edit/write via tool_result" \
+  'echo "$PI" | grep -q "tool_result" && echo "$PI" | grep -q "TRACKED_TOOL_NAMES"'
 
-# Test 23: Pi extension has tool_result handler checking "write" or "edit"
-assert "pi extension has tool_result handler checking write or edit" \
-  'echo "$PI" | grep -q "\"write\"" || echo "$PI" | grep -q "\"edit\""'
+# Agent-callable tools
+assert "pi extension registers mycelium_context tool" \
+  'echo "$PI" | grep -q "mycelium_context"'
 
-# Test 24: Pi extension has agent_end handler
-assert "pi extension has agent_end handler" \
-  'echo "$PI" | grep -q "agent_end"'
+assert "pi extension registers mycelium_note tool" \
+  'echo "$PI" | grep -q "mycelium_note"'
 
-# Test 25: Pi extension references "find constraint"
-assert "pi extension references find constraint" \
-  'echo "$PI" | grep -q "find constraint"'
+# Slash command surface
+assert "pi extension provides /mycelium slash command" \
+  'echo "$PI" | grep -q "/mycelium\|\"mycelium\"" && echo "$PI" | grep -q "on\|off\|status"'
 
-# Test 26: Pi extension references "find warning"
-assert "pi extension references find warning" \
-  'echo "$PI" | grep -q "find warning"'
+# Uses mycelium.sh as the primitive layer (not reimplemented in TS)
+assert "pi extension calls out to mycelium command" \
+  'echo "$PI" | grep -q "myceliumCommand\|mycelium\.sh"'
 
-# Test 27: Pi extension references SKILL.md / SKILL_MD
-assert "pi extension references SKILL.md" \
-  'echo "$PI" | grep -qi "skill.md\|SKILL_MD"'
+# Read-time exact-note surfacing
+assert "pi extension surfaces exact notes on read" \
+  'echo "$PI" | grep -q "read" && echo "$PI" | grep -qi "exact\|fresh"'
 
-# Test 28: Pi extension references mycelium--slot--
-assert "pi extension references mycelium--slot--" \
-  'echo "$PI" | grep -q "mycelium--slot--"'
+# Post-edit follow-up reminders
+assert "pi extension nudges after edit/write" \
+  'echo "$PI" | grep -q "edit\|write" && echo "$PI" | grep -qi "follow.*up\|reminder\|surfacedNoteFollowupPaths"'
 
-# Test 29: Pi extension uses display: false on messages
-assert "pi extension uses display: false on messages" \
-  'echo "$PI" | grep -q "display: false"'
+# Underground by default — state persistence
+assert "pi extension persists state via appendEntry" \
+  'echo "$PI" | grep -q "appendEntry\|STATE_ENTRY_TYPE"'
 
-# Test: Pi extension handles binary/large note content
-assert "pi extension checks for non-text content" \
-  'echo "$PI" | grep -q "mime-type\|mime_type\|mimeType\|text/"'
+# jj workspace support (key architectural requirement)
+assert "pi extension supports jj workspaces" \
+  'echo "$PI" | grep -qi "jj\|GIT_DIR\|GIT_WORK_TREE"'
 
-assert "pi extension has truncation logic" \
-  'echo "$PI" | grep -qi "truncat\|MAX_NOTE"'
+# Skill injection on activation (off → on dumps SKILL.md into context)
+assert "pi extension has SKILL.md reader" \
+  'echo "$PI" | grep -q "readSkillMd\|SKILL\.md"'
+
+assert "pi extension tracks skill injection per activation cycle" \
+  'echo "$PI" | grep -q "skillInjectedThisCycle"'
 
 echo ""
 

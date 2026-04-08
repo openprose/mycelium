@@ -8,10 +8,10 @@ SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 [ -z "$FILE_PATH" ] || [ -z "$SESSION_ID" ] || [ -z "$CWD" ] && exit 0
 
-# Only track in git repos with mycelium notes
+# Only track in git repos. Fresh repos with no notes yet are valid targets —
+# the Stop hook still needs to nudge the agent to leave a first note.
 cd "$CWD" 2>/dev/null || exit 0
 git rev-parse --is-inside-work-tree &>/dev/null || exit 0
-[ "$(git notes --ref=mycelium list 2>/dev/null | wc -l)" -eq 0 ] && exit 0
 
 # Convert to repo-relative
 REPO_ROOT=$(git rev-parse --show-toplevel)

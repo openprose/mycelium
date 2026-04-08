@@ -20,10 +20,10 @@ FILES=$(sort -u "$STATE")
 [ -z "$FILES" ] && exit 0
 COUNT=$(echo "$FILES" | wc -l)
 
-# Only nudge in git repos with mycelium
+# Only nudge in git repos. Fresh repos with zero notes still get nudged —
+# the plugin's job is to bootstrap the first note, not just preserve existing ones.
 cd "$CWD" 2>/dev/null || exit 0
 git rev-parse --is-inside-work-tree &>/dev/null || exit 0
-[ "$(git notes --ref=mycelium list 2>/dev/null | wc -l)" -eq 0 ] && exit 0
 
 # Clean up state file
 rm -f "$STATE"

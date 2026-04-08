@@ -17,8 +17,8 @@ CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 cd "$CWD" 2>/dev/null || exit 0
 git rev-parse --is-inside-work-tree &>/dev/null || exit 0
 
-# Check if mycelium notes exist at all (fast path)
-git notes --ref=mycelium list &>/dev/null || exit 0
+# Fast path: if no notes exist anywhere, nothing to inject.
+# (Fresh repos are handled by session-start/stop hooks, not post-read.)
 [ "$(git notes --ref=mycelium list 2>/dev/null | wc -l)" -eq 0 ] && exit 0
 
 # Convert absolute path to repo-relative
