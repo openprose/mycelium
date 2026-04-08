@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "mycelium",
-      "source": "integrations/claude-code",
+      "source": "./integrations/claude-code",
       "description": "Git-native note graph for AI agent collaboration"
     }
   ]
