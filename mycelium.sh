@@ -454,7 +454,7 @@ cmd_read() {
         [[ -z "$noteblob" ]] && continue
         local content
         content=$(git cat-file -p "$noteblob")
-        if echo "$content" | awk -v cid="$_cid" '/^edge targets-change change:/ && index($0, cid) {found=1; exit} END {exit !found}'; then
+        if awk -v cid="$_cid" '/^edge targets-change change:/ && index($0, cid) {found=1; exit} END {exit !found}' <<< "$content"; then
           local kind=$(note_header "$content" "kind")
           local title=$(note_header "$content" "title")
           echo "[via change_id] ${title:-(untitled)} ($kind)"
@@ -1537,7 +1537,11 @@ cmd_dump() {
 }
 
 cmd_prime() {
-  # Find SKILL.md: same directory as this script, or repo root
+  # Find SKILL.md. Only accept it from:
+  # 1. The same directory as this script (installed or source layout)
+  # 2. A git repo root that ALSO contains mycelium.sh (the mycelium source
+  #    repo itself — gated this way to avoid prompt injection from arbitrary
+  #    user repos that happen to have an unrelated SKILL.md at their root).
   local script_dir
   script_dir=$(cd "$(dirname "$0")" && pwd)
   local skill=""
@@ -1546,7 +1550,9 @@ cmd_prime() {
   else
     local repo_root
     repo_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
-    [[ -n "$repo_root" && -f "$repo_root/SKILL.md" ]] && skill="$repo_root/SKILL.md"
+    if [[ -n "$repo_root" && -f "$repo_root/SKILL.md" && -f "$repo_root/mycelium.sh" ]]; then
+      skill="$repo_root/SKILL.md"
+    fi
   fi
 
   # 1. Skill content (strip YAML frontmatter)

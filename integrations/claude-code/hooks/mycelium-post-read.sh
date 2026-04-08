@@ -11,7 +11,9 @@ MAX_NOTE_BYTES=4096
 INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
-[ -z "$FILE_PATH" ] || [ -z "$CWD" ] && exit 0
+if [ -z "$FILE_PATH" ] || [ -z "$CWD" ]; then
+  exit 0
+fi
 
 # Only run in git repos
 cd "$CWD" 2>/dev/null || exit 0

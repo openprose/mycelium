@@ -6,7 +6,13 @@ INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
-[ -z "$FILE_PATH" ] || [ -z "$SESSION_ID" ] || [ -z "$CWD" ] && exit 0
+if [ -z "$FILE_PATH" ] || [ -z "$SESSION_ID" ] || [ -z "$CWD" ]; then
+  exit 0
+fi
+
+# Strict session ID validation — used in a /tmp path, so reject anything
+# that could enable path traversal.
+[[ "$SESSION_ID" =~ ^[A-Za-z0-9_-]{1,64}$ ]] || exit 0
 
 # Only track in git repos. Fresh repos with no notes yet are valid targets —
 # the Stop hook still needs to nudge the agent to leave a first note.

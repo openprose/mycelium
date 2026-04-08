@@ -46,15 +46,15 @@ See [claude-code/](claude-code/) for the plugin structure.
 A TypeScript extension for the Pi coding agent.
 
 ```bash
-# Symlink to Pi's extensions directory
-ln -s /path/to/mycelium/integrations/pi/mycelium-hook.ts \
-  ~/.pi/agent/extensions/mycelium.ts
+# Symlink the pi integration directory — this is a full bun package
+ln -sfn /path/to/mycelium/integrations/pi \
+  ~/.pi/agent/extensions/mycelium-pi
 ```
 
 Requires `mycelium.sh` at `~/.agents/skills/mycelium/mycelium.sh` or
 `~/.local/bin/mycelium.sh`.
 
-See [pi/mycelium-hook.ts](pi/mycelium-hook.ts) for the extension source.
+See [pi/index.ts](pi/index.ts) for the extension source.
 
 ## What adapters do NOT do
 

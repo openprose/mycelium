@@ -10,7 +10,12 @@ STOP_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false')
 
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
-[ -z "$SESSION_ID" ] || [ -z "$CWD" ] && exit 0
+if [ -z "$SESSION_ID" ] || [ -z "$CWD" ]; then
+  exit 0
+fi
+
+# Strict session ID validation — used in a /tmp path, rm target.
+[[ "$SESSION_ID" =~ ^[A-Za-z0-9_-]{1,64}$ ]] || exit 0
 
 STATE="/tmp/mycelium-cc-${SESSION_ID}.changed"
 [ -f "$STATE" ] || exit 0
