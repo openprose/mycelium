@@ -1,3 +1,6 @@
 .aplumb/
 .shoulder/
+.hive/
+# Local Pi extension scratch file at repo root; canonical extension lives in integrations/pi/.
+/mycelium-hook.ts
 demo/

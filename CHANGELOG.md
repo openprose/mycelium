@@ -10,6 +10,11 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Experimental Pi extension MVP under `integrations/pi/` for the Pi coding agent, with opt-in activation plus built-in `mycelium_context` and `mycelium_note` tools.
+- When the Pi extension is active, successful built-in `read` calls can surface fresh exact mycelium notes for the current file object, list multiple exact notes first, and dedupe repeats for the same note payload.
+- When the Pi extension is active, successful built-in `edit` and `write` calls can add hidden note follow-up reminders so agents remember to leave or update mycelium notes after changing files.
+
 ## [0.3.0] — 2026-04-01
 
 ### Added
@@ -20,7 +25,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - **Foreign object labels**: imported objects that can't be resolved locally
   display `ext:` instead of `??:` for cleaner output alignment.
 - `CHANGELOG.md` — human-readable release history.
-- Release policy and two-layer release notes process documented in DEVELOPING.md.
+- Release policy documented for stable vs prerelease install channels.
 - Phase 2 test suite (24 assertions).
 
 ### Changed
@@ -30,11 +35,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
   the agent skill/workflow layer.
 - `supersedes` header dropped. Auto-supersede on overwrite still
   preserves the old blob OID in an edge.
-- Extracted `_add_exported_from_edge` helper — deduplicates awk block shared
-  between single and batch export paths.
 - `export --all` rejects being combined with a positional target.
-- DEVELOPING.md created — maintainer process separated from user-facing
-  surfaces (README, SKILL.md, prime).
+- Internal code deduplication in export path.
 
 ### Removed
 - `context` and `compost` CLI shims (moved to workflow scripts).
