@@ -226,10 +226,35 @@ Works on **Linux**, **macOS**, and **Windows** (via Git Bash).
 
 Dependencies: `bash` (3.2+), `git`, and POSIX coreutils (`awk`, `grep`, `sed`, `sort`, etc.). On Windows, Git for Windows ships all of these. Optional: `gitleaks` for secret scanning.
 
-## Roadmap
+## Agent platform integrations
 
-- **Claude Code plugin** — native integration so Claude Code reads/writes mycelium notes automatically when working in git repos.
-- **Pi extension** — experimental MVP now lives in [`integrations/pi/`](integrations/pi/), adding `/mycelium`, `mycelium_context`, and `mycelium_note` for the [pi coding agent](https://github.com/badlogic/pi-mono).
+Both adapters are documented in [`integrations/README.md`](integrations/README.md) and governed by [`PLUGIN-SPEC.md`](PLUGIN-SPEC.md).
+
+### Claude Code
+
+A plugin that auto-injects mycelium context into Claude Code sessions. Install from the repo:
+
+```bash
+# Symlink the plugin directory
+ln -sfn /path/to/mycelium/integrations/claude-code ~/.claude/plugins/mycelium
+```
+
+Session start injects the skill and constraint/warning notes. Per-file reads surface exact notes on the current blob. The stop hook nudges the agent to leave notes on changed files. Works on fresh repos with zero notes.
+
+Requires `jq` and `mycelium.sh` in PATH or at `~/.local/bin/mycelium.sh`.
+
+### Pi
+
+A TypeScript extension for the [Pi coding agent](https://github.com/badlogic/pi-mono) with `/mycelium` controls, `mycelium_context` and `mycelium_note` tools, read-time note surfacing, and post-edit follow-up reminders.
+
+```bash
+# Symlink the extension directory
+ln -sfn /path/to/mycelium/integrations/pi ~/.pi/agent/extensions/mycelium-pi
+```
+
+Dormant by default — activate with `/mycelium on`. SKILL.md is injected on the first turn after activation.
+
+Requires `mycelium.sh` at `~/.agents/skills/mycelium/mycelium.sh` or `~/.local/bin/mycelium.sh`.
 
 ## Spiritual predecessors
 
