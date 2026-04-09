@@ -467,6 +467,30 @@ cmd_read() {
     fi
   fi
 
+  # targets-path fallback: when a blob was resolved from a filepath but the
+  # file has changed since the note was written, scan all notes for a matching
+  # "targets-path path:<filepath>" edge.  O(n) scan over all notes — acceptable
+  # for small-to-medium repos.
+  if [[ "$type" == "blob" && -n "$filepath" ]]; then
+    local _found=""
+    local notelist
+    notelist=$(git notes --ref="$READ_REF" list 2>/dev/null || true)
+    while read noteblob obj; do
+      [[ -z "$noteblob" ]] && continue
+      local content
+      content=$(git cat-file -p "$noteblob")
+      if awk -v fp="$filepath" '/^edge targets-path path:/ { sub(/^edge targets-path path:/, ""); if ($0 == fp) {found=1; exit} } END {exit !found}' <<< "$content"; then
+        local kind=$(note_header "$content" "kind")
+        local title=$(note_header "$content" "title")
+        echo "[stale — file changed since this note] ${title:-(untitled)} ($kind)"
+        echo "$content"
+        _found=yes
+        break
+      fi
+    done <<< "$notelist"
+    [[ -n "$_found" ]] && return
+  fi
+
   echo "(no mycelium note)"
 }
 

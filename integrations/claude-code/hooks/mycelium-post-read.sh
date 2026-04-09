@@ -99,6 +99,30 @@ for ref in $(git for-each-ref --format='%(refname:short)' 'refs/notes/mycelium--
   fi
 done
 
+# targets-path fallback: if no direct blob notes found, scan for stale notes
+# that were attached to a previous version of this file.  O(n) scan — acceptable
+# for small-to-medium repos.
+if [ -z "$all_notes" ]; then
+  for ref in "mycelium" $(git for-each-ref --format='%(refname:short)' 'refs/notes/mycelium--slot--*' 2>/dev/null); do
+    notelist=$(git notes --ref="$ref" list 2>/dev/null || true)
+    while read noteblob obj; do
+      [ -z "$noteblob" ] && continue
+      content=$(git cat-file -p "$noteblob" 2>/dev/null || true)
+      if echo "$content" | grep -q "^edge targets-path path:${REL_PATH}$"; then
+        stale_note=$(printf '[%s] [stale — file changed since this note]\n%s' "$ref" "$content")
+        if [ -n "$all_notes" ]; then
+          all_notes="${all_notes}
+
+${stale_note}"
+        else
+          all_notes="$stale_note"
+        fi
+        break
+      fi
+    done <<< "$notelist"
+  done
+fi
+
 [ -z "$all_notes" ] && exit 0
 
 context=$(printf '[mycelium] Notes on %s:\n%s' "$REL_PATH" "$all_notes" | jq -Rs .)

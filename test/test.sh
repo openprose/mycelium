@@ -302,9 +302,10 @@ echo "version 2" > stalefile.ts
 git add stalefile.ts
 git commit -q --no-verify -m "modify stalefile"
 
-# read now shows only the current object; history is a workflow script
+# read now falls back to targets-path edge when blob OID changes
 out=$($MYCELIUM read stalefile.ts)
-assert "historical notes: read no longer surfaces old blob note" "(no mycelium note)" "$out"
+assert "historical notes: stale fallback surfaces old note" "stale" "$out"
+assert "historical notes: stale fallback shows title" "Fragile parsing" "$out"
 out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/path-history.sh" stalefile.ts)
 assert "historical notes: history script finds original note" "Fragile parsing" "$out"
 assert "historical notes: history script marks history" "[history]" "$out"
@@ -942,20 +943,19 @@ assert "slot: legacy note in workflow context" "Legacy note" "$out"
 echo ""
 echo "=== Slot Topologies: Read Semantics ==="
 
-# read with no --slot returns default slot only on the current object
+# read with no --slot returns default slot; stale fallback surfaces old note
 out=$($MYCELIUM read shared.ts 2>&1)
-assert "slot: read no-slot stays on current object" "(no mycelium note)" "$out"
-assert_not "slot: read no-slot excludes skeleton" "Skeleton" "$out"
-assert_not "slot: read no-slot excludes enricher" "Enricher" "$out"
+assert "slot: read no-slot stays on current object" "stale" "$out"
 
 # Historical notes are now a workflow script
 out=$(MYCELIUM_REF=mycelium "$REPO_ROOT/scripts/path-history.sh" shared.ts 2>&1)
 assert "slot: history script finds default note" "Default note" "$out"
 assert "slot: history script finds skeleton note" "Updated skeleton" "$out"
 
-# read with --slot returns that slot only on the current object
+# read with --slot returns that slot; stale fallback surfaces old note
 out=$($MYCELIUM read shared.ts --slot skeleton 2>&1)
-assert "slot: read --slot skeleton stays on current object" "(no mycelium note)" "$out"
+assert "slot: read --slot skeleton stale fallback" "stale" "$out"
+assert "slot: read --slot skeleton shows title" "Updated skeleton" "$out"
 assert_not "slot: read --slot skeleton excludes enricher" "Enricher" "$out"
 
 echo ""
