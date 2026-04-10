@@ -1196,6 +1196,29 @@ assert "migrate: auto mode mentions jj or map" "jj" "$out"
 rm -rf .jj
 
 echo ""
+echo "=== Uncommitted File Errors ==="
+
+# Untracked file should produce a clear error
+echo "brand new" > untracked-file.txt
+out=$($MYCELIUM note untracked-file.txt -k context -m "test" 2>&1 || true)
+assert "untracked file error mentions untracked" "untracked" "$out"
+assert "untracked file error mentions git add" "git add" "$out"
+rm -f untracked-file.txt
+
+# Staged-but-not-committed new file should produce a clear error
+echo "staged new" > staged-new.txt
+git add staged-new.txt
+out=$($MYCELIUM note staged-new.txt -k context -m "test" 2>&1 || true)
+assert "staged uncommitted file error mentions uncommitted" "uncommitted" "$out"
+assert "staged uncommitted file error mentions commit" "commit it first" "$out"
+git reset -q staged-new.txt
+rm -f staged-new.txt
+
+# Committed file should still resolve fine
+out=$($MYCELIUM note -f README.md -k context -m "resolve test")
+assert "committed file resolves" "$BLOB_README" "$out"
+
+echo ""
 echo "================================"
 echo "  $PASS passed, $FAIL failed"
 echo "================================"

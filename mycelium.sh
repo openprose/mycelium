@@ -162,6 +162,9 @@ note_header() {
   echo "$1" | grep "^$2 " | head -1 | sed "s/^$2 //" || true
 }
 
+# git rev-parse echoes input to stdout even on failure; validate result is hex OID
+is_valid_oid() { [[ "$1" =~ ^[0-9a-f]{40,64}$ ]]; }
+
 # Resolve a target to (oid, type, path-if-any).
 # Accepts: OID, HEAD, ref, file path, directory path.
 resolve_target() {
@@ -172,7 +175,7 @@ resolve_target() {
   if [[ "$target" == "." ]]; then
     local oid
     oid=$(git rev-parse "$at^{tree}" 2>/dev/null) || true
-    if [[ -n "$oid" ]]; then
+    if [[ -n "$oid" ]] && is_valid_oid "$oid"; then
       echo "$oid tree ."
       return
     fi
@@ -182,11 +185,24 @@ resolve_target() {
   if [[ -e "$target" ]] || git rev-parse --verify "$at:$target" &>/dev/null 2>&1; then
     local oid
     oid=$(git rev-parse "$at:$target" 2>/dev/null) || true
-    if [[ -n "$oid" ]]; then
+    if [[ -n "$oid" ]] && is_valid_oid "$oid"; then
       local type
       type=$(git cat-file -t "$oid" 2>/dev/null)
       echo "$oid $type $target"
       return
+    fi
+    # File exists on disk but not in git — give a clear error
+    if [[ -e "$target" ]]; then
+      local git_status
+      git_status=$(git status --porcelain -- "$target" 2>/dev/null)
+      if [[ "$git_status" == "??"* ]]; then
+        echo "Error: '$target' is untracked — run 'git add \"$target\" && git commit' first" >&2
+      elif [[ -n "$git_status" ]]; then
+        echo "Error: '$target' has uncommitted changes — commit it first so mycelium can attach a note to the blob" >&2
+      else
+        echo "Error: '$target' exists on disk but is not in commit $at" >&2
+      fi
+      return 1
     fi
   fi
 
@@ -551,7 +567,7 @@ cmd_follow() {
       path|treepath)
         local resolved_oid
         resolved_oid=$(git rev-parse "HEAD:$target_ref" 2>/dev/null || true)
-        if [[ -n "$resolved_oid" ]]; then
+        if [[ -n "$resolved_oid" ]] && is_valid_oid "$resolved_oid"; then
           local target_note
           target_note=$(git notes --ref="$follow_ref" show "$resolved_oid" 2>/dev/null || true)
           if [[ -n "$target_note" ]]; then
@@ -1374,7 +1390,7 @@ cmd_doctor() {
     if [[ -n "$target_path" ]]; then
       local current_blob
       current_blob=$(git rev-parse "HEAD:$target_path" 2>/dev/null || true)
-      if [[ -z "$current_blob" ]]; then status="orphaned"
+      if [[ -z "$current_blob" ]] || ! is_valid_oid "$current_blob"; then status="orphaned"
       elif [[ "$current_blob" != "$obj" ]]; then status="stale"
       fi
     elif [[ -n "$target_treepath" ]]; then
@@ -1385,7 +1401,7 @@ cmd_doctor() {
       else
         local current_tree
         current_tree=$(git rev-parse "HEAD:$target_treepath" 2>/dev/null || true)
-        if [[ -z "$current_tree" ]]; then status="orphaned"
+        if [[ -z "$current_tree" ]] || ! is_valid_oid "$current_tree"; then status="orphaned"
         elif [[ "$current_tree" != "$obj" ]]; then status="stale"
         fi
       fi
